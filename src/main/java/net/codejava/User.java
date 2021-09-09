@@ -1,47 +1,36 @@
 package net.codejava;
 
-import java.sql.Date;
+import javax.validation.constraints.Positive;
+import javax.validation.constraints.PositiveOrZero;
+
+import lombok.Getter;
+import lombok.Setter;
 
 public class User {
+  @Setter @Getter
 	private String username;
+
+  @Setter @Getter
 	private String password;
+
+  @Setter @Getter
+  private String firstName;
+
+  @Setter @Getter
+  private String lastName;
+
+  @Setter @Getter @PositiveOrZero
 	private int balance;
 
-	public String getUsername() {
-		return username;
-	}
+  @Setter @Getter @Positive
+  private int amountToDeposit;
 
-	public void setUsername(String name) {
-		this.username = name;
-	}
-
-	public String getPassword() {
-		return password;
-	}
-
-	public void setPassword(String password) {
-		this.password = password;
-	}
-
-	public int getBalance() {
-		return balance;
-	}
-
-	public void setBalance(int balance) {
-		this.balance = balance;
-	}
-
-	public void deposit(int quantity) {
-		this.balance += quantity;
-	}
-
-	public void withdraw(int quantity) {
-		this.balance -= quantity;
-	}
+  @Setter @Getter @Positive
+  private int amountToWithdraw;
 
 	@Override
 	public String toString() {
-		return "User [username=" + username + ", password=" + password + "]";
+		return "User [username=" + username + ", password=" + password + ", balance=" + balance + "]";
 	}
 
 }
