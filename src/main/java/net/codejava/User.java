@@ -28,8 +28,6 @@ public class User {
   @Setter @Getter @Positive
   private int amountToWithdraw;
 
-  // random change
-
 	@Override
 	public String toString() {
 		return "User [username=" + username + ", password=" + password + ", balance=" + balance + "]";
