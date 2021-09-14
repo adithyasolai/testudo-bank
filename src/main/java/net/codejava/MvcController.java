@@ -12,6 +12,7 @@ import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 
+// random comment
 @Controller
 public class MvcController {
 	
