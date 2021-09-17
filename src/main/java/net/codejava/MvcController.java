@@ -185,6 +185,7 @@ public class MvcController {
    * @return "account_info" page if login successful. Otherwise, redirect to "welcome" page.
    */
   @PostMapping("/withdraw")
+  
   public String submitWithdraw(@ModelAttribute("user") User user) {
     String userID = user.getUsername();
     String userPasswordAttempt = user.getPassword();
