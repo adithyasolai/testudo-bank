@@ -181,11 +181,14 @@ public class MvcController {
    * 
    * If the password attempt is incorrect, the user is redirected to the "welcome" page.
    * 
+   * Here is the page for withdrawing money from a user's bank account.
+   * 
+   * 
    * @param user
    * @return "account_info" page if login successful. Otherwise, redirect to "welcome" page.
    */
   @PostMapping("/withdraw")
-  
+
   public String submitWithdraw(@ModelAttribute("user") User user) {
     String userID = user.getUsername();
     String userPasswordAttempt = user.getPassword();
