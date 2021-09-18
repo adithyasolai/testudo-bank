@@ -6,7 +6,7 @@ import string
 # Connection Config Values
 rds_endpoint='localhost'
 username='root'
-password='<Put MySQL Server Password Here>'
+password='cakebe2301'
 database_name = 'testudo_bank'
 
 # SQL Config Values

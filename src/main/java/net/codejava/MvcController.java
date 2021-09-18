@@ -127,13 +127,16 @@ public class MvcController {
 
     if (userPasswordAttempt.equals(userPassword)) {
       // Execute SQL Update command that increments user's Balance by given amount from the deposit form.
-      String balanceIncreaseSql = String.format("UPDATE Customers SET Balance = Balance + %d WHERE CustomerID='%s';", user.getAmountToDeposit(), userID);
-      System.out.println(balanceIncreaseSql); // Print executed SQL update for debugging
-      jdbcTemplate.update(balanceIncreaseSql);
-
-      updateAccountInfo(user);
-
-      return "account_info";
+      // check if deposit amount is valid
+      if (user.getAmountToDeposit() >= 0) {
+        String balanceIncreaseSql = String.format("UPDATE Customers SET Balance = Balance + %d WHERE CustomerID='%s';", user.getAmountToDeposit(), userID);
+        System.out.println(balanceIncreaseSql); // Print executed SQL update for debugging
+        jdbcTemplate.update(balanceIncreaseSql);
+        updateAccountInfo(user);
+        return "account_info";
+      }
+      return "welcome";
+      
     } else {
       return "welcome";
     }
@@ -195,9 +198,12 @@ public class MvcController {
     if (userPasswordAttempt.equals(userPassword)) {
       // Execute SQL Update command that decrements Balance value for
       // user's row in Customers table using user.getAmountToWithdraw()
-      String balanceIncreaseSql = String.format("UPDATE Customers SET Balance = Balance - %d WHERE CustomerID='%s';", user.getAmountToWithdraw(), userID);
-      System.out.println(balanceIncreaseSql);
-      jdbcTemplate.update(balanceIncreaseSql);
+      // check if withdraw input is valid
+      if (user.getAmountToWithdraw() >= 0) {
+        String balanceIncreaseSql = String.format("UPDATE Customers SET Balance = Balance - %d WHERE CustomerID='%s';", user.getAmountToWithdraw(), userID);
+        System.out.println(balanceIncreaseSql);
+        jdbcTemplate.update(balanceIncreaseSql);
+      }
 
       // query user's first name, last name, and balance.
       // add values to User's corresponding fields
@@ -207,11 +213,16 @@ public class MvcController {
       List<Map<String,Object>> queryResults = jdbcTemplate.queryForList(getUserNameAndBalanceSql);
       Map<String,Object> userData = queryResults.get(0);
 
-      user.setFirstName((String)userData.get("FirstName"));
-      user.setLastName((String)userData.get("LastName"));
-      user.setBalance((int)userData.get("Balance"));
+      int amount = user.getAmountToWithdraw();
+      // check if withdraw input is valid 
+      if (amount >= 0) {
+        user.setFirstName((String)userData.get("FirstName"));
+        user.setLastName((String)userData.get("LastName"));
+        user.setBalance((int)userData.get("Balance"));
+        return "account_info";
+      }
 
-      return "account_info";
+      return "welcome";
     } else {
       return "welcome";
     }
