@@ -126,6 +126,11 @@ public class MvcController {
     String userPassword = jdbcTemplate.queryForObject(getUserPasswordSql, String.class);
 
     if (userPasswordAttempt.equals(userPassword)) {
+      // Check that the input value (amount to deposit from the account) is positive.
+      if (user.getAmountToDeposit() < 0) {
+        // Return to welcome page now because no error page exists yet.
+        return "welcome";
+      }
       // Execute SQL Update command that increments user's Balance by given amount from the deposit form.
       String balanceIncreaseSql = String.format("UPDATE Customers SET Balance = Balance + %d WHERE CustomerID='%s';", user.getAmountToDeposit(), userID);
       System.out.println(balanceIncreaseSql); // Print executed SQL update for debugging
@@ -193,6 +198,11 @@ public class MvcController {
     String userPassword = jdbcTemplate.queryForObject(getUserPasswordSql, String.class);
 
     if (userPasswordAttempt.equals(userPassword)) {
+      // Check that the input value (amount to withdraw from the account) is positive.
+      if (user.getAmountToWithdraw() < 0) {
+        // Return to welcome page now because no error page exists yet.
+        return "welcome";
+      }
       // Execute SQL Update command that decrements Balance value for
       // user's row in Customers table using user.getAmountToWithdraw()
       String balanceIncreaseSql = String.format("UPDATE Customers SET Balance = Balance - %d WHERE CustomerID='%s';", user.getAmountToWithdraw(), userID);
