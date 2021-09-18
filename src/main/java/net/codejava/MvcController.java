@@ -126,10 +126,15 @@ public class MvcController {
     String userPassword = jdbcTemplate.queryForObject(getUserPasswordSql, String.class);
 
     if (userPasswordAttempt.equals(userPassword)) {
-      // Execute SQL Update command that increments user's Balance by given amount from the deposit form.
-      String balanceIncreaseSql = String.format("UPDATE Customers SET Balance = Balance + %d WHERE CustomerID='%s';", user.getAmountToDeposit(), userID);
-      System.out.println(balanceIncreaseSql); // Print executed SQL update for debugging
-      jdbcTemplate.update(balanceIncreaseSql);
+      if (user.getAmountToDeposit() >= 0) {
+        // Execute SQL Update command that increments user's Balance by given non-negative amount from the deposit form.
+        String balanceIncreaseSql = String.format("UPDATE Customers SET Balance = Balance + %d WHERE CustomerID='%s';", user.getAmountToDeposit(), userID);
+        System.out.println(balanceIncreaseSql); // Print executed SQL update for debugging
+        jdbcTemplate.update(balanceIncreaseSql);
+      } else {
+        // Redirect to "welcome" page given negative amount from the deposit from.
+        return "welcome";
+      }
 
       updateAccountInfo(user);
 
@@ -193,11 +198,15 @@ public class MvcController {
     String userPassword = jdbcTemplate.queryForObject(getUserPasswordSql, String.class);
 
     if (userPasswordAttempt.equals(userPassword)) {
-      // Execute SQL Update command that decrements Balance value for
-      // user's row in Customers table using user.getAmountToWithdraw()
-      String balanceIncreaseSql = String.format("UPDATE Customers SET Balance = Balance - %d WHERE CustomerID='%s';", user.getAmountToWithdraw(), userID);
-      System.out.println(balanceIncreaseSql);
-      jdbcTemplate.update(balanceIncreaseSql);
+      if (user.getAmountToWithdraw() >= 0) {
+        // Execute SQL Update command that decrements Balance value by given non-negative amount from the withdraw form.
+        String balanceIncreaseSql = String.format("UPDATE Customers SET Balance = Balance - %d WHERE CustomerID='%s';", user.getAmountToWithdraw(), userID);
+        System.out.println(balanceIncreaseSql);
+        jdbcTemplate.update(balanceIncreaseSql);
+      } else {
+        // Redirect to "welcome" page given negative amount from the withdraw from.
+        return "welcome";
+      }
 
       // query user's first name, last name, and balance.
       // add values to User's corresponding fields
