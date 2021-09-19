@@ -127,7 +127,7 @@ public class MvcController {
 
     if (userPasswordAttempt.equals(userPassword)) {
       // Execute SQL Update command that increments user's Balance by given amount from the deposit form.
-      // Return to welcome screen if amount is negative
+      // Return to welcome screen if amount is negative 
       String balanceIncreaseSql = String.format("UPDATE Customers SET Balance = Balance + %d WHERE CustomerID='%s';", user.getAmountToDeposit(), userID);
       if (user.getAmountToDeposit() < 0){
         return "welcome";
