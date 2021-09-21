@@ -2,12 +2,7 @@ import pymysql
 import names
 import random
 import string
-
-# Connection Config Values
-rds_endpoint='localhost'
-username='root'
-password='<Put MySQL Server Password Here>'
-database_name = 'testudo_bank'
+from credentials import rds_endpoint, username, password, database_name
 
 # SQL Config Values
 num_customers_to_add = 100
