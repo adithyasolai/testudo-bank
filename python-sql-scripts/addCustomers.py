@@ -2,13 +2,13 @@ import pymysql
 import names
 import random
 import string
-from credentials import rds_endpoint, username, password, database_name
+from credentials import mysql_endpoint, username, password, database_name
 
 # SQL Config Values
 num_customers_to_add = 100
 
 # Connect to testudo_bank db in local MySQL Server
-connection = pymysql.connect(host=rds_endpoint, user=username, passwd = password, db=database_name)
+connection = pymysql.connect(host=mysql_endpoint, user=username, passwd = password, db=database_name)
 cursor = connection.cursor()
 
 # Make empty Customers table
