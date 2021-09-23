@@ -25,8 +25,8 @@
 <p>This solution was chosen because it re-uses existing pages in the application, and only requires slight changes to the underlying MySQL DB.</p>
 <p>Pro/Con of all approaches considered:</p>
 <p><strong>Overdraft Approach</strong><br>
-<em>(Approach already described above.)</em><br>
-Pros:</p>
+<em>(Approach already described above.)</em></p>
+<p>Pros:</p>
 <ul>
 <li>No new pages/forms are added. Existing pages and forms are minimally changed.
 <ul>
@@ -34,7 +34,7 @@ Pros:</p>
 <li>Simplifies development since only the logic in existing Controller <code>Post</code> handlers needs to be modified.</li>
 </ul>
 </li>
-<li>Only slight changes to the MySQL DB Schema need to be made (a new <code>OverdraftBalance</code> column in <code>Customers</code> table or using negative <code>Balance</code>, and a new table to store re-payment logs).</li>
+<li>Only slight changes to the MySQL DB Schema need to be made (a new <code>OverdraftBalance</code> column in <code>Customers</code> table, and a new table to store re-payment logs).</li>
 <li>A <strong>2-way door</strong> for the Testudo Bank business. Since this approach mostly recycles existing components and keeps the customer experience largely the same, this change can easily be rolled back or re-factored in the future.</li>
 </ul>
 <p>Cons:</p>
@@ -50,7 +50,7 @@ This approach re-classifies the existing customer accounts as <strong>Debit</str
 <li>Prepares the codebase for more robust credit account features in the future.</li>
 <li>Similar MySQL DB Schema changes.
 <ul>
-<li>A new table will have to added to track credit account re-payment history (just like the overdraft approach).</li>
+<li>A new table will be added to track credit account re-payment history (just like the overdraft approach).</li>
 <li>A new <code>CreditBalance</code> column needs to be added to the <code>Customers</code> table to track the credit account’s balance, and the existing <code>Balance</code> column should be re-named to <code>DebitBalance</code>.</li>
 </ul>
 </li>
@@ -59,7 +59,7 @@ This approach re-classifies the existing customer accounts as <strong>Debit</str
 <ul>
 <li>A credit/debit account separation is a <strong>1-way door</strong> for the TestudoBank business.
 <ul>
-<li>Once customers start using debit and credit accounts, we can’t remove that separation in the future.</li>
+<li>Once customers start using debit and credit accounts, we can’t rollback that separation in the future.</li>
 <li>The scope of a credit/debit account separation overshadows the original problem statement of trying to give customers a way to borrow money on credit. There should be more discussion and more customer pain-points that would be solved before going through this 1-way door.</li>
 </ul>
 </li>
