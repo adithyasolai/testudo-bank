@@ -6,7 +6,7 @@ import string
 # Connection Config Values
 rds_endpoint='localhost'
 username='root'
-password='<Put MySQL Server Password Here>'
+password='xxxxx'
 database_name = 'testudo_bank'
 
 # Connect to local MySQL Server and delete a DB called 'testudo_bank'
