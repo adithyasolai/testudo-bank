@@ -7,7 +7,6 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class TestudoBankApplication {
 
 	public static void main(String[] args) {
-		// hi
 		SpringApplication.run(TestudoBankApplication.class, args);
 	}
 

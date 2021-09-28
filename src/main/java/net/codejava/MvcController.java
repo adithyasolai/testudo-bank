@@ -41,7 +41,6 @@ public class MvcController {
    * @param model
    * @return "login_form" page
    */
-  
   @GetMapping("/login")
 	public String showForm(Model model) {
 		User user = new User();

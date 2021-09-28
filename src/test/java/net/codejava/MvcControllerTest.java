@@ -11,6 +11,7 @@ import static org.mockito.Mockito.*;
 import static org.junit.Assert.*;
 import static org.hamcrest.CoreMatchers.*;
 
+import java.util.ArrayList;
 
 @SpringBootTest(classes = net.codejava.TestudoBankApplication.class)
 public class MvcControllerTest {
@@ -22,11 +23,11 @@ public class MvcControllerTest {
 	@Autowired
 	private MvcController controller;
 
-	@Autowired
+	@Mock
 	private JdbcTemplate jdbcTemplate;
 
 	@Mock
-    User mockUser;
+    Model mockModel;
 
 	/**
 	 * The @SpringBootTest annotation tells Spring Boot to look for a main 
@@ -46,10 +47,65 @@ public class MvcControllerTest {
 
 	@Test
 	public void testShowForm() {
+		assertEquals("login_form", controller.showForm(mockModel));
+	}
 
-        when(mockUser.getUsername()).thenReturn("mockUsername");
-         
-		// assertEquals("login_form", controller.showForm(new User()));
+	@Test
+	public void testSubmitFormSuccessWithCorrectPassword() {
+		User user = new User();
+		user.setUsername("643613220");
+		user.setPassword("5D3AVwLJB");
+
+		when(jdbcTemplate.queryForObject(anyString(), eq(String.class), anyObject())).thenReturn("5D3AVwLJB");
+		
+		assertEquals("account_info", controller.submitForm(user));
+	}
+
+	@Test
+	public void testSubmitFormFailureWithIncorrectPassword() {
+		User user = new User();
+		user.setUsername("643613220");
+		user.setPassword("password");
+
+		when(jdbcTemplate.queryForObject(anyString(), eq(String.class),anyObject())).thenReturn("5D3AVwLJB");
+		
+		assertEquals("welcome", controller.submitForm(user));
+	}
+
+	@Test
+	public void testShowDepositFormSuccess() {
+		assertEquals("login_form", controller.showForm(mockModel));
+	}
+
+	@Test
+	public void testDepositSuccesswithCorrectPassword() {
+		User user = new User();
+		user.setUsername("643613220");
+		user.setPassword("5D3AVwLJB");
+		user.setAmountToDeposit(100);
+
+		when(jdbcTemplate.queryForObject(anyString(), eq(String.class), anyObject())).thenReturn("5D3AVwLJB");
+		when(jdbcTemplate.update(anyString())).thenReturn(1);
+		assertEquals("account_info", controller.submitDeposit(user));
+		assertEquals(100, user.getAmountToDeposit());
+	}
+
+	@Test
+	public void testDepositSuccesswithIncorrectPassword() {
+		User user = new User();
+		user.setUsername("643613220");
+		user.setPassword("password");
+		user.setAmountToDeposit(100);
+
+		when(jdbcTemplate.queryForObject(anyString(), eq(String.class), anyObject())).thenReturn("5D3AVwLJB");
+		when(jdbcTemplate.update(anyString())).thenReturn(1);
+		assertEquals("welcome", controller.submitDeposit(user));
+		assertEquals(100, user.getAmountToDeposit());
+	}
+
+	@Test
+	public void testShowWithdrawFormSuccess() {
+		assertEquals("withdraw_form", controller.showWithdrawForm(mockModel));
 	}
 
 }
