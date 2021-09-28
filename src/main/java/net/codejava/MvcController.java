@@ -19,8 +19,11 @@ public class MvcController {
    * A simplified JDBC client that is injected with the login credentials
    * specified in /src/main/resources/application.properties
    */
-  @Autowired
   private JdbcTemplate jdbcTemplate;
+
+  public MvcController(@Autowired JdbcTemplate jdbcTemplate) {
+    this.jdbcTemplate = jdbcTemplate;
+  }
 
   /**
    * HTML GET request handler that serves the "welcome" page to the user.

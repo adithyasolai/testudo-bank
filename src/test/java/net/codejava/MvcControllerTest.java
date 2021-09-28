@@ -1,40 +1,53 @@
+package net.codejava;
+
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import net.codejava.MvcController;
-import net.codejava.User;
 import org.springframework.ui.Model;
 import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+
 import static org.mockito.Mockito.*;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.List;
+import java.util.ArrayList;
 
 import static org.junit.Assert.*;
 import static org.hamcrest.CoreMatchers.*;
 
-import java.util.ArrayList;
-
-@SpringBootTest(classes = net.codejava.TestudoBankApplication.class)
 public class MvcControllerTest {
+	@Mock
+	private static JdbcTemplate jdbcTemplate;
 
-	/**
-	 * Spring interprets the @Autowired annotation, and the controller is 
-	 * injected before the test methods are run.
-	 **/
-	@Autowired
+  @Mock
+  Model mockModel;
+
 	private MvcController controller;
 
-	@Mock
-	private JdbcTemplate jdbcTemplate;
+  private static String CUSTOMER1_USERNAME;
+  private static List<Map<String, Object>> CUSTOMER1_DATA;
 
-	@Mock
-    Model mockModel;
+  @BeforeAll
+  public static void init() {
+    CUSTOMER1_USERNAME = "123456789";
 
-	/**
-	 * The @SpringBootTest annotation tells Spring Boot to look for a main 
-	 * configuration class (one with @SpringBootApplication, for instance) 
-	 * and use that to start a Spring application context. This test ensures
-	 * that the TestudoBankApplication context is creating our controller
-	 */
+    CUSTOMER1_DATA = new ArrayList<>();
+    CUSTOMER1_DATA.add(new HashMap<>());
+    CUSTOMER1_DATA.get(0).put("FirstName", "John");
+    CUSTOMER1_DATA.get(0).put("LastName", "Doe");
+    CUSTOMER1_DATA.get(0).put("Balance", 100);
+  }
+
+  @BeforeEach
+  public void setup() {
+    MockitoAnnotations.initMocks(this);
+    when(jdbcTemplate.queryForList(anyString())).thenReturn(CUSTOMER1_DATA); // handles updateAccountInfo() helper method
+    controller = new MvcController(jdbcTemplate);
+  }
+
 	@Test
 	public void testControllerIsCreated() {
 		assertThat(controller, is(notNullValue()));
@@ -52,24 +65,24 @@ public class MvcControllerTest {
 
 	@Test
 	public void testSubmitFormSuccessWithCorrectPassword() {
-		User user = new User();
-		user.setUsername("643613220");
-		user.setPassword("5D3AVwLJB");
+		User customer1 = new User();
+		customer1.setUsername(CUSTOMER1_USERNAME);
+		customer1.setPassword("password");
 
-		when(jdbcTemplate.queryForObject(anyString(), eq(String.class), anyObject())).thenReturn("5D3AVwLJB");
+		when(jdbcTemplate.queryForObject(anyString(), eq(String.class))).thenReturn("password");
 		
-		assertEquals("account_info", controller.submitForm(user));
+		assertEquals("account_info", controller.submitForm(customer1));
 	}
 
 	@Test
 	public void testSubmitFormFailureWithIncorrectPassword() {
-		User user = new User();
-		user.setUsername("643613220");
-		user.setPassword("password");
+		User customer1 = new User();
+		customer1.setUsername(CUSTOMER1_USERNAME);
+		customer1.setPassword("not password");
 
-		when(jdbcTemplate.queryForObject(anyString(), eq(String.class),anyObject())).thenReturn("5D3AVwLJB");
+		when(jdbcTemplate.queryForObject(anyString(), eq(String.class))).thenReturn("password");
 		
-		assertEquals("welcome", controller.submitForm(user));
+		assertEquals("welcome", controller.submitForm(customer1));
 	}
 
 	@Test
@@ -79,28 +92,28 @@ public class MvcControllerTest {
 
 	@Test
 	public void testDepositSuccesswithCorrectPassword() {
-		User user = new User();
-		user.setUsername("643613220");
-		user.setPassword("5D3AVwLJB");
-		user.setAmountToDeposit(100);
+		User customer1 = new User();
+		customer1.setUsername(CUSTOMER1_USERNAME);
+		customer1.setPassword("password");
+		customer1.setAmountToDeposit(100);
 
-		when(jdbcTemplate.queryForObject(anyString(), eq(String.class), anyObject())).thenReturn("5D3AVwLJB");
+		when(jdbcTemplate.queryForObject(anyString(), eq(String.class))).thenReturn("password");
 		when(jdbcTemplate.update(anyString())).thenReturn(1);
-		assertEquals("account_info", controller.submitDeposit(user));
-		assertEquals(100, user.getAmountToDeposit());
+		assertEquals("account_info", controller.submitDeposit(customer1));
+		assertEquals(100, customer1.getAmountToDeposit());
 	}
 
 	@Test
 	public void testDepositSuccesswithIncorrectPassword() {
-		User user = new User();
-		user.setUsername("643613220");
-		user.setPassword("password");
-		user.setAmountToDeposit(100);
+		User customer1 = new User();
+		customer1.setUsername(CUSTOMER1_USERNAME);
+		customer1.setPassword("not password");
+		customer1.setAmountToDeposit(100);
 
-		when(jdbcTemplate.queryForObject(anyString(), eq(String.class), anyObject())).thenReturn("5D3AVwLJB");
+		when(jdbcTemplate.queryForObject(anyString(), eq(String.class))).thenReturn("password");
 		when(jdbcTemplate.update(anyString())).thenReturn(1);
-		assertEquals("welcome", controller.submitDeposit(user));
-		assertEquals(100, user.getAmountToDeposit());
+		assertEquals("welcome", controller.submitDeposit(customer1));
+		assertEquals(100, customer1.getAmountToDeposit());
 	}
 
 	@Test
