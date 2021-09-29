@@ -5,6 +5,7 @@ target/
 !**/src/test/**/target/
 CODEOWNERS
 python-sql-scripts/
+src/main/resources/application.properties
 
 ### STS ###
 .apt_generated
