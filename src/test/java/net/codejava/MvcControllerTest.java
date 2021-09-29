@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.ui.Model;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 import static org.mockito.Mockito.*;
@@ -72,6 +73,12 @@ public class MvcControllerTest {
 		when(jdbcTemplate.queryForObject(anyString(), eq(String.class))).thenReturn("password");
 		
 		assertEquals("account_info", controller.submitForm(customer1));
+
+    // The verifications below are not necessary. Just included to provide an example of how to use Mockito.verify().
+    // Verify that SQL command to fetch password is attempted (even though we mocked it)
+    Mockito.verify(jdbcTemplate, Mockito.times(1)).queryForObject(anyString(), eq(String.class));
+    // Verify that SQL command to fetch customer name & balance is attempted (even though it is mocked in setup())
+    Mockito.verify(jdbcTemplate, Mockito.times(1)).queryForList(anyString());
 	}
 
 	@Test
