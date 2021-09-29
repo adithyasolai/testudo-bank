@@ -107,7 +107,7 @@ public class MvcControllerTest {
 		when(jdbcTemplate.queryForObject(anyString(), eq(String.class))).thenReturn("password");
 		when(jdbcTemplate.update(anyString())).thenReturn(1);
 		assertEquals("account_info", controller.submitDeposit(customer1));
-		assertEquals(100, customer1.getAmountToDeposit());
+		assertEquals(100, customer1.getAmountToDeposit()); // user object in model should be unchanged
 	}
 
 	@Test
@@ -120,7 +120,7 @@ public class MvcControllerTest {
 		when(jdbcTemplate.queryForObject(anyString(), eq(String.class))).thenReturn("password");
 		when(jdbcTemplate.update(anyString())).thenReturn(1);
 		assertEquals("welcome", controller.submitDeposit(customer1));
-		assertEquals(100, customer1.getAmountToDeposit());
+		assertEquals(100, customer1.getAmountToDeposit()); // user object in model should be unchanged
 	}
 
 	@Test
