@@ -52,6 +52,22 @@ public class MvcController {
 	}
 
   /**
+   * Helper method that queries the MySQL DB for the customer account info (First Name, Last Name, and Balance)
+   * and adds these values to the `user` Model Attribute so that they can be displayed in the "account_info" page.
+   * 
+   * @param user
+   */
+  private void updateAccountInfo(User user) {
+    String getUserNameAndBalanceSql = String.format("SELECT FirstName, LastName, Balance FROM customers WHERE CustomerID='%s';", user.getUsername());
+    List<Map<String,Object>> queryResults = jdbcTemplate.queryForList(getUserNameAndBalanceSql);
+    Map<String,Object> userData = queryResults.get(0);
+
+    user.setFirstName((String)userData.get("FirstName"));
+    user.setLastName((String)userData.get("LastName"));
+    user.setBalance((int)userData.get("Balance"));
+  }
+
+  /**
    * HTML POST request handler that uses user input from Login Form page to determine 
    * login success or failure.
    * 
@@ -140,22 +156,6 @@ public class MvcController {
       return "welcome";
     }
   }
-
-  /**
-   * Helper method that queries the MySQL DB for the customer account info (First Name, Last Name, and Balance)
-   * and adds these values to the `user` Model Attribute so that they can be displayed in the "account_info" page.
-   * 
-   * @param user
-   */
-  private void updateAccountInfo(User user) {
-    String getUserNameAndBalanceSql = String.format("SELECT FirstName, LastName, Balance FROM customers WHERE CustomerID='%s';", user.getUsername());
-    List<Map<String,Object>> queryResults = jdbcTemplate.queryForList(getUserNameAndBalanceSql);
-    Map<String,Object> userData = queryResults.get(0);
-
-    user.setFirstName((String)userData.get("FirstName"));
-    user.setLastName((String)userData.get("LastName"));
-    user.setBalance((int)userData.get("Balance"));
-  }
 	
   /**
    * HTML GET request handler that serves the "withdraw_form" page to the user.
@@ -201,17 +201,7 @@ public class MvcController {
       System.out.println(balanceIncreaseSql);
       jdbcTemplate.update(balanceIncreaseSql);
 
-      // query user's first name, last name, and balance.
-      // add values to User's corresponding fields
-      // (so that these values are displayed properly in the account_info page)
-      String getUserNameAndBalanceSql = String.format("SELECT FirstName, LastName, Balance FROM customers WHERE CustomerID='%s';", userID);
-
-      List<Map<String,Object>> queryResults = jdbcTemplate.queryForList(getUserNameAndBalanceSql);
-      Map<String,Object> userData = queryResults.get(0);
-
-      user.setFirstName((String)userData.get("FirstName"));
-      user.setLastName((String)userData.get("LastName"));
-      user.setBalance((int)userData.get("Balance"));
+      updateAccountInfo(user);
 
       return "account_info";
     } else {
