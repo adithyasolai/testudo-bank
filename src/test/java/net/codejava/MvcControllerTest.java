@@ -35,6 +35,7 @@ public class MvcControllerTest {
   public static void init() {
     CUSTOMER1_USERNAME = "123456789";
 
+    // prepare what the updateAccountInfo() helper method should return when stubbed
     CUSTOMER1_DATA = new ArrayList<>();
     CUSTOMER1_DATA.add(new HashMap<>());
     CUSTOMER1_DATA.get(0).put("FirstName", "John");
@@ -45,7 +46,6 @@ public class MvcControllerTest {
   @BeforeEach
   public void setup() {
     MockitoAnnotations.initMocks(this);
-    when(jdbcTemplate.queryForList(anyString())).thenReturn(CUSTOMER1_DATA); // handles updateAccountInfo() helper method
     controller = new MvcController(jdbcTemplate);
   }
 
@@ -72,6 +72,7 @@ public class MvcControllerTest {
 
     // stub jdbc calls
 		when(jdbcTemplate.queryForObject(anyString(), eq(String.class))).thenReturn("password");
+    when(jdbcTemplate.queryForList(anyString())).thenReturn(CUSTOMER1_DATA); // handles updateAccountInfo() helper method
 
     // send login request
     String pageReturned = controller.submitLoginForm(customer1);
@@ -93,6 +94,7 @@ public class MvcControllerTest {
 
     // stub jdbc calls
 		when(jdbcTemplate.queryForObject(anyString(), eq(String.class))).thenReturn("password");
+    when(jdbcTemplate.queryForList(anyString())).thenReturn(CUSTOMER1_DATA); // handles updateAccountInfo() helper method
 
     // send login request
     String pageReturned = controller.submitLoginForm(customer1);
@@ -120,6 +122,7 @@ public class MvcControllerTest {
 
     // stub jdbc calls
 		when(jdbcTemplate.queryForObject(anyString(), eq(String.class))).thenReturn("password");
+    when(jdbcTemplate.queryForList(anyString())).thenReturn(CUSTOMER1_DATA); // handles updateAccountInfo() helper method
 		when(jdbcTemplate.update(anyString())).thenReturn(1);
 
     // send deposit request
@@ -144,6 +147,7 @@ public class MvcControllerTest {
 
     // stub jdbc calls
 		when(jdbcTemplate.queryForObject(anyString(), eq(String.class))).thenReturn("password");
+    when(jdbcTemplate.queryForList(anyString())).thenReturn(CUSTOMER1_DATA); // handles updateAccountInfo() helper method
 
     // send deposit request
     String pageReturned = controller.submitDeposit(customer1);
@@ -169,6 +173,7 @@ public class MvcControllerTest {
 
     // stub jdbc calls
 		when(jdbcTemplate.queryForObject(anyString(), eq(String.class))).thenReturn("password");
+    when(jdbcTemplate.queryForList(anyString())).thenReturn(CUSTOMER1_DATA); // handles updateAccountInfo() helper method
 		when(jdbcTemplate.update(anyString())).thenReturn(1);
 
     // send withdraw request
@@ -193,6 +198,7 @@ public class MvcControllerTest {
 
     // stub jdbc calls
 		when(jdbcTemplate.queryForObject(anyString(), eq(String.class))).thenReturn("password");
+    when(jdbcTemplate.queryForList(anyString())).thenReturn(CUSTOMER1_DATA); // handles updateAccountInfo() helper method
 
     // send withdraw request
     String pageReturned = controller.submitWithdraw(customer1);
