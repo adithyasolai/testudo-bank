@@ -44,7 +44,7 @@ public class MvcController {
    * @return "login_form" page
    */
   @GetMapping("/login")
-	public String showForm(Model model) {
+	public String showLoginForm(Model model) {
 		User user = new User();
 		model.addAttribute("user", user);
 		
@@ -68,7 +68,7 @@ public class MvcController {
    * @return "account_info" page if login successful. Otherwise, redirect to "welcome" page.
    */
   @PostMapping("/login")
-	public String submitForm(@ModelAttribute("user") User user) {
+	public String submitLoginForm(@ModelAttribute("user") User user) {
     // Print user's existing fields for debugging
 		System.out.println(user);
 
