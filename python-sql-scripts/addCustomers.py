@@ -2,18 +2,13 @@ import pymysql
 import names
 import random
 import string
-
-# Connection Config Values
-rds_endpoint='localhost'
-username='root'
-password='<Put MySQL Server Password Here>'
-database_name = 'testudo_bank'
+from credentials import mysql_endpoint, username, password, database_name
 
 # SQL Config Values
 num_customers_to_add = 100
 
 # Connect to testudo_bank db in local MySQL Server
-connection = pymysql.connect(host=rds_endpoint, user=username, passwd = password, db=database_name)
+connection = pymysql.connect(host=mysql_endpoint, user=username, passwd = password, db=database_name)
 cursor = connection.cursor()
 
 # Make empty Customers table
@@ -22,7 +17,8 @@ create_customer_table_sql = '''
     CustomerID varchar(255),
     FirstName varchar(255),
     LastName varchar(255),
-    Balance int
+    Balance int,
+    OverdraftBalance int
   );
   '''
 cursor.execute(create_customer_table_sql)
@@ -35,6 +31,18 @@ CREATE TABLE Passwords (
 );
 '''
 cursor.execute(create_password_table_sql)
+
+# Make empty OverdraftLogs table
+create_overdraftlogs_table_sql = '''
+CREATE TABLE OverdraftLogs (
+  CustomerID varchar(255),
+  Timestamp DATETIME,
+  DepositAmt int,
+  OldOverBalance int,
+  NewOverBalance int
+);
+'''
+cursor.execute(create_overdraftlogs_table_sql)
 
 # The two sets created below are used to ensure that this
 # automated, randomized process does not accidentally 
@@ -65,14 +73,16 @@ for i in range(num_customers_to_add):
     customer_balance = random.randint(100, 10000)
     customer_password = ''.join(random.choices(string.ascii_lowercase + string.ascii_uppercase + string.digits, k = 9))
     
-    # add customer ID, name, and balance to Customers table
+    # add random customer ID, name, and balance to Customers table.
+    # all customers start with Overdraft balance of 0
     insert_customer_sql = '''
     INSERT INTO Customers
-    VALUES  ({0},{1},{2},{3});
+    VALUES  ({0},{1},{2},{3},{4});
     '''.format("'" + customer_id + "'",
                 "'" + customer_first_name + "'",
                 "'" + customer_last_name + "'",
-                customer_balance)
+                customer_balance,
+                0)
     cursor.execute(insert_customer_sql)
     
     # add customer ID and password to Passwords table
