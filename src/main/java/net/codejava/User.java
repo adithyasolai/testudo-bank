@@ -22,6 +22,12 @@ public class User {
   @Setter @Getter @PositiveOrZero
 	private int balance;
 
+  @Setter @Getter @PositiveOrZero
+	private int overdraftBalance;
+
+  @Setter @Getter
+  private String overdraftLogs;
+
   @Setter @Getter @Positive
   private int amountToDeposit;
 
@@ -30,7 +36,8 @@ public class User {
 
 	@Override
 	public String toString() {
-		return "User [username=" + username + ", password=" + password + ", balance=" + balance + "]";
+		return "User [username=" + username + ", password=" + password + ", balance=" + balance 
+      + ", overdraftBalance=" + overdraftBalance + "overdraftLogs=" + overdraftLogs + "]";
 	}
 
 }
