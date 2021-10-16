@@ -19,8 +19,14 @@ public class User {
   @Setter @Getter
   private String lastName;
 
-  @Setter @Getter @PositiveOrZero
+  @Setter  @Getter @PositiveOrZero
 	private int balance;
+
+  @Setter @Getter @PositiveOrZero
+	private int overDraftBalance;
+
+  @Setter @Getter
+	private String logs;
 
   @Setter @Getter @Positive
   private int amountToDeposit;

@@ -8,6 +8,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.Map;
+
+
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -58,13 +60,22 @@ public class MvcController {
    * @param user
    */
   private void updateAccountInfo(User user) {
-    String getUserNameAndBalanceSql = String.format("SELECT FirstName, LastName, Balance FROM customers WHERE CustomerID='%s';", user.getUsername());
+    String getUserNameAndBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance FROM customers WHERE CustomerID='%s';", user.getUsername());
     List<Map<String,Object>> queryResults = jdbcTemplate.queryForList(getUserNameAndBalanceSql);
+    String getOverDraftLogsSql = String.format("SELECT * FROM OverdraftLogs WHERE CustomerID='%s';", user.getUsername());
+    
+    List<Map<String,Object>> queryLogs = jdbcTemplate.queryForList(getOverDraftLogsSql);
+    String logs = "<br/>";
+    for(Map<String, Object> x: queryLogs){
+      logs += x + "<br/>";
+    }
     Map<String,Object> userData = queryResults.get(0);
 
     user.setFirstName((String)userData.get("FirstName"));
     user.setLastName((String)userData.get("LastName"));
     user.setBalance((int)userData.get("Balance"));
+    user.setOverDraftBalance((int)userData.get("OverdraftBalance"));
+    user.setLogs(logs);
   }
 
   /**
@@ -150,7 +161,49 @@ public class MvcController {
       if(user.getAmountToDeposit() < 0){
         return "welcome";
       }
-      String balanceIncreaseSql = String.format("UPDATE Customers SET Balance = Balance + %d WHERE CustomerID='%s';", user.getAmountToDeposit(), userID);
+
+      String getUserOverdraftBalanceSql = String.format("SELECT OverdraftBalance FROM customers WHERE CustomerID='%s';", userID);
+      String userOverdraftBalance = jdbcTemplate.queryForObject(getUserOverdraftBalanceSql, String.class);
+
+
+      int userODBalance = 0; // to confirm the passed value is integer
+      if(Character.isDigit(userOverdraftBalance.charAt(0))){
+        userODBalance = Integer.parseInt(userOverdraftBalance);
+      }
+      // if the overdraft balance is positive, subtract the deposit with interest
+      if(userODBalance > 0){
+        int leftOver = user.getAmountToDeposit() - Integer.parseInt(userOverdraftBalance); // remaining value after clearing overdraft
+        float overDraftMoney = ((float)user.getAmountToDeposit())/1.02f;
+        int setOverDraftBalance = Integer.parseInt(userOverdraftBalance) - (int)overDraftMoney;
+
+        java.util.Date dt = new java.util.Date();
+        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        String currentTime = sdf.format(dt);
+        
+        // inserting into the database information about payment log
+        String overDraftInsertSql = String.format("INSERT INTO OverdraftLogs VALUES ('%s' , '%s', %d, %d, %d);", userID, currentTime,
+        user.getAmountToDeposit(), Integer.parseInt(userOverdraftBalance), setOverDraftBalance);
+        jdbcTemplate.update(overDraftInsertSql);
+
+        // updating cusomters table
+        String overDraftBalanceUpdateSql = String.format("UPDATE Customers SET OverdraftBalance = %d WHERE CustomerID='%s';", 
+        setOverDraftBalance, userID);
+        jdbcTemplate.update(overDraftBalanceUpdateSql);
+        updateAccountInfo(user);
+        if(leftOver > 0){
+          String balanceIncreaseSql = String.format("UPDATE Customers SET Balance = Balance + %d WHERE CustomerID='%s';", leftOver/100, userID);
+          System.out.println(balanceIncreaseSql); // Print executed SQL update for debugging
+          jdbcTemplate.update(balanceIncreaseSql);
+
+          updateAccountInfo(user);
+
+          return "account_info";
+        } else {
+          return "account_info";
+        }
+      }
+
+      String balanceIncreaseSql = String.format("UPDATE Customers SET Balance = Balance + %d WHERE CustomerID='%s';", user.getAmountToDeposit()/100, userID);
       System.out.println(balanceIncreaseSql); // Print executed SQL update for debugging
       jdbcTemplate.update(balanceIncreaseSql);
 
@@ -194,7 +247,7 @@ public class MvcController {
   public String submitWithdraw(@ModelAttribute("user") User user) {
     String userID = user.getUsername();
     String userPasswordAttempt = user.getPassword();
-
+    
     String getUserPasswordSql = String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", userID);
 
     String userPassword = jdbcTemplate.queryForObject(getUserPasswordSql, String.class);
@@ -206,8 +259,34 @@ public class MvcController {
       if(user.getAmountToWithdraw() < 0){
         return "welcome";
       }
+      String userBalanceSql =  String.format("SELECT Balance FROM customers WHERE CustomerID='%s';", userID);
+      String userBalance = jdbcTemplate.queryForObject(userBalanceSql, String.class);
+      
+      int theUserBalance = 1000; // to confirm the passed value is integer
+      if(Character.isDigit(userBalance.charAt(0))){
+        theUserBalance = Integer.parseInt(userBalance);
+      }
+      // if the balance is not positive, withdraw with interest fee
+      if(theUserBalance <= 0){
+        String getUserOverdraftBalanceSql = String.format("SELECT OverdraftBalance FROM customers WHERE CustomerID='%s';", userID);
+        String userOverdraftBalance = jdbcTemplate.queryForObject(getUserOverdraftBalanceSql, String.class);
 
-      String balanceIncreaseSql = String.format("UPDATE Customers SET Balance = Balance - %d WHERE CustomerID='%s';", user.getAmountToWithdraw(), userID);
+        if(user.getAmountToWithdraw() + Integer.parseInt(userOverdraftBalance) <= 100000){
+          int setOverDraftBalance = Integer.parseInt(userOverdraftBalance);
+
+          String overDraftBalanceUpdateSql = String.format("UPDATE Customers SET OverdraftBalance = %d WHERE CustomerID='%s';", 
+          setOverDraftBalance + user.getAmountToWithdraw(), userID);
+          jdbcTemplate.update(overDraftBalanceUpdateSql);
+          System.out.println(overDraftBalanceUpdateSql);
+          updateAccountInfo(user);
+          return "account_info";
+        } else {
+          return "welcome";
+        }
+
+      }
+
+      String balanceIncreaseSql = String.format("UPDATE Customers SET Balance = Balance - %d WHERE CustomerID='%s';", user.getAmountToWithdraw()/100, userID);
       System.out.println(balanceIncreaseSql);
       jdbcTemplate.update(balanceIncreaseSql);
 

@@ -41,6 +41,7 @@ public class MvcControllerTest {
     CUSTOMER1_DATA.get(0).put("FirstName", "John");
     CUSTOMER1_DATA.get(0).put("LastName", "Doe");
     CUSTOMER1_DATA.get(0).put("Balance", 100);
+	CUSTOMER1_DATA.get(0).put("OverdraftBalance", 0);
   }
 
   @BeforeEach
@@ -118,7 +119,7 @@ public class MvcControllerTest {
 		User customer1 = new User();
 		customer1.setUsername(CUSTOMER1_USERNAME);
 		customer1.setPassword("password");
-		customer1.setAmountToDeposit(100);
+		customer1.setAmountToDeposit(10000);
 
     // stub jdbc calls
 		when(jdbcTemplate.queryForObject(anyString(), eq(String.class))).thenReturn("password");
@@ -130,7 +131,7 @@ public class MvcControllerTest {
 
     // Verify that the SQL Update command executed uses customer1's ID and amountToDeposit.
     String balanceIncreaseSqlCustomer1=String.format("UPDATE Customers SET Balance = Balance + %d WHERE CustomerID='%s';",
-                                                     customer1.getAmountToDeposit(),
+                                                     customer1.getAmountToDeposit()/100,
                                                      customer1.getUsername());
     Mockito.verify(jdbcTemplate, Mockito.times(1)).update(eq(balanceIncreaseSqlCustomer1));
 
@@ -169,7 +170,12 @@ public class MvcControllerTest {
 		User customer1 = new User();
 		customer1.setUsername(CUSTOMER1_USERNAME);
 		customer1.setPassword("password");
-		customer1.setAmountToWithdraw(100);
+		customer1.setAmountToWithdraw(10000);
+		customer1.setBalance(100);
+
+		String getUserPasswordSql = String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", customer1);
+
+    	String userPassword = jdbcTemplate.queryForObject(getUserPasswordSql, String.class);
 
     // stub jdbc calls
 		when(jdbcTemplate.queryForObject(anyString(), eq(String.class))).thenReturn("password");
@@ -181,7 +187,7 @@ public class MvcControllerTest {
 
     // Verify that the SQL Update command executed uses customer1's ID and amountToWitdraw.
     String balanceDecreaseSqlCustomer1=String.format("UPDATE Customers SET Balance = Balance - %d WHERE CustomerID='%s';",
-                                                     customer1.getAmountToWithdraw(),
+                                                     customer1.getAmountToWithdraw()/100,
                                                      customer1.getUsername());
     Mockito.verify(jdbcTemplate, Mockito.times(1)).update(eq(balanceDecreaseSqlCustomer1));
 
