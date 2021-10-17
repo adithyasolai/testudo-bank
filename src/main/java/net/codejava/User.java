@@ -23,7 +23,7 @@ public class User {
 	private int balance;
 
   @Setter @Getter @PositiveOrZero
-	private int overDraftBalance;
+	private double overDraftBalance;
 
   @Setter @Getter
 	private String logs;

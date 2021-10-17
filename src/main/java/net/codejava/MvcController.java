@@ -74,7 +74,8 @@ public class MvcController {
     user.setFirstName((String)userData.get("FirstName"));
     user.setLastName((String)userData.get("LastName"));
     user.setBalance((int)userData.get("Balance"));
-    user.setOverDraftBalance((int)userData.get("OverdraftBalance"));
+    double oDB = (int)userData.get("OverdraftBalance");
+    user.setOverDraftBalance(oDB/100);
     user.setLogs(logs);
   }
 
@@ -173,9 +174,12 @@ public class MvcController {
       // if the overdraft balance is positive, subtract the deposit with interest
       if(userODBalance > 0){
         int leftOver = user.getAmountToDeposit() - Integer.parseInt(userOverdraftBalance); // remaining value after clearing overdraft
-        float overDraftMoney = ((float)user.getAmountToDeposit())/1.02f;
+        float overDraftMoney = ((float)user.getAmountToDeposit());
         int setOverDraftBalance = Integer.parseInt(userOverdraftBalance) - (int)overDraftMoney;
-
+        // avoiding overdraft balance < 0
+        if(leftOver > 0){
+          setOverDraftBalance = 0;
+        }
         java.util.Date dt = new java.util.Date();
         java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         String currentTime = sdf.format(dt);
@@ -262,20 +266,31 @@ public class MvcController {
       String userBalanceSql =  String.format("SELECT Balance FROM customers WHERE CustomerID='%s';", userID);
       String userBalance = jdbcTemplate.queryForObject(userBalanceSql, String.class);
       
-      int theUserBalance = 1000; // to confirm the passed value is integer
+      int theUserBalance = 100000; // to confirm the passed value is integer
       if(Character.isDigit(userBalance.charAt(0))){
         theUserBalance = Integer.parseInt(userBalance);
       }
       // if the balance is not positive, withdraw with interest fee
-      if(theUserBalance <= 0){
+      if(theUserBalance - user.getAmountToWithdraw() < 0){
+        int effectiveWithdrawal = user.getAmountToWithdraw();
+        // subtracts the remaining balance from withdrawal amount if balance > 0
+        if(theUserBalance > 0){
+          String balanceIncreaseSql = String.format("UPDATE Customers SET Balance = %d WHERE CustomerID='%s';", 0, userID);
+          effectiveWithdrawal = effectiveWithdrawal - theUserBalance*100;
+          // user cannot afford this withdrawal, terminate
+          if(effectiveWithdrawal > 100000) {
+            return "welcome";
+          }
+          jdbcTemplate.update(balanceIncreaseSql);
+        }
         String getUserOverdraftBalanceSql = String.format("SELECT OverdraftBalance FROM customers WHERE CustomerID='%s';", userID);
         String userOverdraftBalance = jdbcTemplate.queryForObject(getUserOverdraftBalanceSql, String.class);
 
-        if(user.getAmountToWithdraw() + Integer.parseInt(userOverdraftBalance) <= 100000){
+        if(effectiveWithdrawal + Integer.parseInt(userOverdraftBalance) <= 100000){
           int setOverDraftBalance = Integer.parseInt(userOverdraftBalance);
-
+          float afterInterest = (float)effectiveWithdrawal*1.02f;
           String overDraftBalanceUpdateSql = String.format("UPDATE Customers SET OverdraftBalance = %d WHERE CustomerID='%s';", 
-          setOverDraftBalance + user.getAmountToWithdraw(), userID);
+          setOverDraftBalance + (int)afterInterest, userID);
           jdbcTemplate.update(overDraftBalanceUpdateSql);
           System.out.println(overDraftBalanceUpdateSql);
           updateAccountInfo(user);
