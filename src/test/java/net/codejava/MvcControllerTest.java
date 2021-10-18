@@ -214,16 +214,18 @@ public class MvcControllerTest {
 
 
 	@Test
-	public void testWithdrawOverBalanceSuccess() {
+	public void testWithdrawOverDraftBalanceSuccess() {
 		User customer1 = new User();
 		customer1.setUsername(CUSTOMER1_USERNAME);
 		customer1.setPassword("password");
-		customer1.setAmountToWithdraw(10000);
+		customer1.setAmountToWithdraw(1000);
 
 		String getUserPasswordSql = String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", CUSTOMER1_USERNAME);
 		String userBalanceSql =  String.format("SELECT Balance FROM customers WHERE CustomerID='%s';", CUSTOMER1_USERNAME);
 		String getUserOverdraftBalanceSql = String.format("SELECT OverdraftBalance FROM customers WHERE CustomerID='%s';", CUSTOMER1_USERNAME);
-		
+		String overDraftBalanceUpdateSql = String.format("UPDATE Customers SET OverdraftBalance = %d WHERE CustomerID='%s';", 
+	1020, CUSTOMER1_USERNAME);
+
     // stub jdbc calls
 		when(jdbcTemplate.queryForObject(eq(getUserPasswordSql), eq(String.class))).thenReturn("password");
     when(jdbcTemplate.queryForList(anyString())).thenReturn(CUSTOMER1_DATA); // handles updateAccountInfo() helper method
@@ -235,14 +237,19 @@ public class MvcControllerTest {
     // send withdraw request
     String pageReturned = controller.submitWithdraw(customer1);
 
-	Mockito.verify(jdbcTemplate, Mockito.times(1)).update(anyString());
+	
+
+	Mockito.verify(jdbcTemplate, Mockito.times(1)).queryForObject(eq(getUserPasswordSql), eq(String.class));
+	Mockito.verify(jdbcTemplate, Mockito.times(1)).queryForObject(eq(userBalanceSql), eq(String.class));
+	Mockito.verify(jdbcTemplate, Mockito.times(1)).queryForObject(eq(getUserOverdraftBalanceSql), eq(String.class));
+	Mockito.verify(jdbcTemplate, Mockito.times(1)).update(overDraftBalanceUpdateSql); 
 
     // verify "account_info" page is returned
 		assertEquals("account_info", pageReturned);
 	}
 
 	@Test
-	public void testWithdrawOverBalanceFailure() {
+	public void testWithdrawOverDraftBalanceFailure() {
 		User customer1 = new User();
 		customer1.setUsername(CUSTOMER1_USERNAME);
 		customer1.setPassword("password");
@@ -262,15 +269,17 @@ public class MvcControllerTest {
 
     // send withdraw request
     String pageReturned = controller.submitWithdraw(customer1);
+	// no update due to failing on customer.getAmountToWithdraw() > MAX_AMOUNT
 
-	Mockito.verify(jdbcTemplate, Mockito.times(3)).queryForObject(anyString(), eq(String.class));
-
+	Mockito.verify(jdbcTemplate, Mockito.times(1)).queryForObject(eq(getUserPasswordSql), eq(String.class));
+	Mockito.verify(jdbcTemplate, Mockito.times(1)).queryForObject(eq(userBalanceSql), eq(String.class));
+	Mockito.verify(jdbcTemplate, Mockito.times(1)).queryForObject(eq(getUserOverdraftBalanceSql), eq(String.class));
     // verify "welcome" page is returned
 		assertEquals("welcome", pageReturned);
 	}
 
 	@Test
-	public void testDepositOverBalanceSuccess() {
+	public void testDepositOverDraftBalanceSuccess() {
 		User customer1 = new User();
 		customer1.setUsername(CUSTOMER1_USERNAME);
 		customer1.setPassword("password");
@@ -286,13 +295,45 @@ public class MvcControllerTest {
     when(jdbcTemplate.queryForList(anyString())).thenReturn(CUSTOMER1_DATA); // handles updateAccountInfo() helper method
 		when(jdbcTemplate.update(anyString())).thenReturn(1);
 		when(jdbcTemplate.queryForObject(eq(userBalanceSql), eq(String.class))).thenReturn("0");
-		when(jdbcTemplate.queryForObject(eq(getUserOverdraftBalanceSql), eq(String.class))).thenReturn("500");
+		when(jdbcTemplate.queryForObject(eq(getUserOverdraftBalanceSql), eq(String.class))).thenReturn("1000");
 
 
 	String pageReturnedDeposit = controller.submitDeposit(customer1);
+	String overDraftBalanceUpdateSql = String.format("UPDATE Customers SET OverdraftBalance = %d WHERE CustomerID='%s';", 
+	0, CUSTOMER1_USERNAME);
+	Mockito.verify(jdbcTemplate, Mockito.times(1)).queryForObject(eq(getUserPasswordSql), eq(String.class));
+	Mockito.verify(jdbcTemplate, Mockito.times(1)).queryForObject(eq(getUserOverdraftBalanceSql), eq(String.class));
+    Mockito.verify(jdbcTemplate, Mockito.times(1)).update(eq(overDraftBalanceUpdateSql));
+
+    // verify "account_info" page is returned
+		assertEquals("account_info", pageReturnedDeposit);
+	}
+	@Test
+	public void testDepositOverDraftBalanceNotCleared() {
+		User customer1 = new User();
+		customer1.setUsername(CUSTOMER1_USERNAME);
+		customer1.setPassword("password");
+		customer1.setAmountToDeposit(10000);
 
 
-	Mockito.verify(jdbcTemplate, Mockito.times(2)).queryForObject(anyString(), eq(String.class));
+		String getUserPasswordSql = String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", CUSTOMER1_USERNAME);
+		String userBalanceSql =  String.format("SELECT Balance FROM customers WHERE CustomerID='%s';", CUSTOMER1_USERNAME);
+		String getUserOverdraftBalanceSql = String.format("SELECT OverdraftBalance FROM customers WHERE CustomerID='%s';", CUSTOMER1_USERNAME);
+		
+    // stub jdbc calls
+		when(jdbcTemplate.queryForObject(eq(getUserPasswordSql), eq(String.class))).thenReturn("password");
+    when(jdbcTemplate.queryForList(anyString())).thenReturn(CUSTOMER1_DATA); // handles updateAccountInfo() helper method
+		when(jdbcTemplate.update(anyString())).thenReturn(1);
+		when(jdbcTemplate.queryForObject(eq(userBalanceSql), eq(String.class))).thenReturn("0");
+		when(jdbcTemplate.queryForObject(eq(getUserOverdraftBalanceSql), eq(String.class))).thenReturn("50000");
+
+		// overdraft balance > customer deposit, so new overdraft balance must be 40000 pennies
+	String pageReturnedDeposit = controller.submitDeposit(customer1);
+	String overDraftBalanceUpdateSql = String.format("UPDATE Customers SET OverdraftBalance = %d WHERE CustomerID='%s';", 
+	40000, CUSTOMER1_USERNAME);
+	Mockito.verify(jdbcTemplate, Mockito.times(1)).queryForObject(eq(getUserPasswordSql), eq(String.class));
+	Mockito.verify(jdbcTemplate, Mockito.times(1)).queryForObject(eq(getUserOverdraftBalanceSql), eq(String.class));
+    Mockito.verify(jdbcTemplate, Mockito.times(1)).update(eq(overDraftBalanceUpdateSql));
 
     // verify "account_info" page is returned
 		assertEquals("account_info", pageReturnedDeposit);
