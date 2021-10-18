@@ -21,6 +21,10 @@ public class MvcController {
    * specified in /src/main/resources/application.properties
    */
   private JdbcTemplate jdbcTemplate;
+  static java.util.Date dt = new java.util.Date();
+  static java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+  final static String SQL_DATETIME_FORMAT = sdf.format(dt);
+  final static float INTEREST = 1.02f;
 
   public MvcController(@Autowired JdbcTemplate jdbcTemplate) {
     this.jdbcTemplate = jdbcTemplate;
@@ -74,8 +78,8 @@ public class MvcController {
     user.setFirstName((String)userData.get("FirstName"));
     user.setLastName((String)userData.get("LastName"));
     user.setBalance((int)userData.get("Balance"));
-    double oDB = (int)userData.get("OverdraftBalance");
-    user.setOverDraftBalance(oDB/100);
+    double overDraftBalance = (int)userData.get("OverdraftBalance");
+    user.setOverDraftBalance(overDraftBalance/100);
     user.setLogs(logs);
   }
 
@@ -167,31 +171,29 @@ public class MvcController {
       String userOverdraftBalance = jdbcTemplate.queryForObject(getUserOverdraftBalanceSql, String.class);
 
 
-      int userODBalance = 0; // to confirm the passed value is integer
+      int userOverDraftBalanceFlag = 0; // to confirm the passed value is integer
       if(Character.isDigit(userOverdraftBalance.charAt(0))){
-        userODBalance = Integer.parseInt(userOverdraftBalance);
+        userOverDraftBalanceFlag = Integer.parseInt(userOverdraftBalance);
       }
       // if the overdraft balance is positive, subtract the deposit with interest
-      if(userODBalance > 0){
+      if(userOverDraftBalanceFlag > 0){
         int leftOver = user.getAmountToDeposit() - Integer.parseInt(userOverdraftBalance); // remaining value after clearing overdraft
         float overDraftMoney = ((float)user.getAmountToDeposit());
-        int setOverDraftBalance = Integer.parseInt(userOverdraftBalance) - (int)overDraftMoney;
+        int newOverdraftBalance = Integer.parseInt(userOverdraftBalance) - (int)overDraftMoney;
         // avoiding overdraft balance < 0
         if(leftOver > 0){
-          setOverDraftBalance = 0;
+          newOverdraftBalance = 0;
         }
-        java.util.Date dt = new java.util.Date();
-        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-        String currentTime = sdf.format(dt);
+        
         
         // inserting into the database information about payment log
-        String overDraftInsertSql = String.format("INSERT INTO OverdraftLogs VALUES ('%s' , '%s', %d, %d, %d);", userID, currentTime,
-        user.getAmountToDeposit(), Integer.parseInt(userOverdraftBalance), setOverDraftBalance);
+        String overDraftInsertSql = String.format("INSERT INTO OverdraftLogs VALUES ('%s' , '%s', %d, %d, %d);", userID, SQL_DATETIME_FORMAT,
+        user.getAmountToDeposit(), Integer.parseInt(userOverdraftBalance), newOverdraftBalance);
         jdbcTemplate.update(overDraftInsertSql);
 
         // updating cusomters table
         String overDraftBalanceUpdateSql = String.format("UPDATE Customers SET OverdraftBalance = %d WHERE CustomerID='%s';", 
-        setOverDraftBalance, userID);
+        newOverdraftBalance, userID);
         jdbcTemplate.update(overDraftBalanceUpdateSql);
         updateAccountInfo(user);
         if(leftOver > 0){
@@ -275,22 +277,22 @@ public class MvcController {
         int effectiveWithdrawal = user.getAmountToWithdraw();
         // subtracts the remaining balance from withdrawal amount if balance > 0
         if(theUserBalance > 0){
-          String balanceIncreaseSql = String.format("UPDATE Customers SET Balance = %d WHERE CustomerID='%s';", 0, userID);
+          String updateBalanceSql = String.format("UPDATE Customers SET Balance = %d WHERE CustomerID='%s';", 0, userID);
           effectiveWithdrawal = effectiveWithdrawal - theUserBalance*100;
           // user cannot afford this withdrawal, terminate
           if(effectiveWithdrawal > 100000) {
             return "welcome";
           }
-          jdbcTemplate.update(balanceIncreaseSql);
+          jdbcTemplate.update(updateBalanceSql);
         }
         String getUserOverdraftBalanceSql = String.format("SELECT OverdraftBalance FROM customers WHERE CustomerID='%s';", userID);
         String userOverdraftBalance = jdbcTemplate.queryForObject(getUserOverdraftBalanceSql, String.class);
 
         if(effectiveWithdrawal + Integer.parseInt(userOverdraftBalance) <= 100000){
-          int setOverDraftBalance = Integer.parseInt(userOverdraftBalance);
-          float afterInterest = (float)effectiveWithdrawal*1.02f;
+          int newOverdraftBalance = Integer.parseInt(userOverdraftBalance);
+          float afterInterest = (float)effectiveWithdrawal*INTEREST;
           String overDraftBalanceUpdateSql = String.format("UPDATE Customers SET OverdraftBalance = %d WHERE CustomerID='%s';", 
-          setOverDraftBalance + (int)afterInterest, userID);
+          newOverdraftBalance + (int)afterInterest, userID);
           jdbcTemplate.update(overDraftBalanceUpdateSql);
           System.out.println(overDraftBalanceUpdateSql);
           updateAccountInfo(user);
