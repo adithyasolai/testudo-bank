@@ -36,6 +36,7 @@
     <br/>
     <a href='/deposit'>Deposit</a>
     <a href='/withdraw'>Withdraw</a>
+    <a href='/dispute'>Dispute</a>
     <a href='/'>Logout</a>
 	</div>
 </body>

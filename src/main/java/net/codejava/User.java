@@ -34,6 +34,9 @@ public class User {
   @Setter @Getter @Positive
   private double amountToWithdraw;
 
+  @Setter @Getter
+  private int numTransactionsAgo;
+
 	@Override
 	public String toString() {
 		return "User [username=" + username + ", password=" + password + ", balance=" + balance + "]";

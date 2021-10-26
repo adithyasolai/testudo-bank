@@ -303,4 +303,19 @@ public class MvcController {
     return "account_info";
 
   }
+
+  /**
+   * HTML GET request handler that serves the "dispute_form" page to the user.
+   * An empty `User` object is also added to the Model as an Attribute to store
+   * the user's dispute form input.
+   * 
+   * @param model
+   * @return "dispute_form" page
+   */
+  @GetMapping("/dispute")
+	public String showDisputeForm(Model model) {
+    User user = new User();
+		model.addAttribute("user", user);
+		return "dispute_form";
+	}
 }
