@@ -31,6 +31,8 @@
 	<div align="center">
 		<h2><span>${user.firstName}</span> <span>${user.lastName}</span> Bank Account Info</h2>
 		<span>Balance is: $</span><span>${user.balance}</span><br/>
+    <span>Overdraft Balance is: $</span><span>${user.overDraftBalance}</span><br/>
+    <span>Re-payment logs: </span><span>${user.logs}</span><br/>
     <br/>
     <a href='/deposit'>Deposit</a>
     <a href='/withdraw'>Withdraw</a>
