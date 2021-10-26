@@ -26,7 +26,7 @@ public class MvcController {
   private final static String SQL_DATETIME_FORMAT = sdf.format(dt);
   private final static double INTEREST_RATE = 1.02;
   private final static int MAX_OVERDRAFT_IN_PENNIES = 100000;
-  private static final String HTML_LINE_BREAK = "<br/>";
+  private final static String HTML_LINE_BREAK = "<br/>";
 
   public MvcController(@Autowired JdbcTemplate jdbcTemplate) {
     this.jdbcTemplate = jdbcTemplate;
