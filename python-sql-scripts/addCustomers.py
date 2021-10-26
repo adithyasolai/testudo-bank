@@ -70,11 +70,12 @@ for i in range(num_customers_to_add):
     # generate random name, balance, and password
     customer_first_name = names.get_first_name()
     customer_last_name = names.get_last_name()
-    customer_balance = random.randint(100, 10000)
+    customer_balance = random.randint(100, 10000) * 100 # multiply by 100 to have a penny value of 0
     customer_password = ''.join(random.choices(string.ascii_lowercase + string.ascii_uppercase + string.digits, k = 9))
     
     # add random customer ID, name, and balance to Customers table.
     # all customers start with Overdraft balance of 0
+    # both the balance and overdraftbalance columns represent the total dollar amount as pennies instead of dollars.
     insert_customer_sql = '''
     INSERT INTO Customers
     VALUES  ({0},{1},{2},{3},{4});

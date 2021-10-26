@@ -20,7 +20,7 @@ public class User {
   private String lastName;
 
   @Setter  @Getter @PositiveOrZero
-	private int balance;
+	private double balance;
 
   @Setter @Getter @PositiveOrZero
 	private double overDraftBalance;
@@ -29,10 +29,10 @@ public class User {
 	private String logs;
 
   @Setter @Getter @Positive
-  private int amountToDeposit;
+  private double amountToDeposit;
 
   @Setter @Getter @Positive
-  private int amountToWithdraw;
+  private double amountToWithdraw;
 
 	@Override
 	public String toString() {
