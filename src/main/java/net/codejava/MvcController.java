@@ -21,11 +21,13 @@ public class MvcController {
    * specified in /src/main/resources/application.properties
    */
   private JdbcTemplate jdbcTemplate;
-  static java.util.Date dt = new java.util.Date();
-  static java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-  final static String SQL_DATETIME_FORMAT = sdf.format(dt);
-  final static float INTEREST = 1.02f;
-  final static int MAX_OVERDRAFT_IN_PENNIES = 100000;
+  private static java.util.Date dt = new java.util.Date();
+  private static java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+  private final static String SQL_DATETIME_FORMAT = sdf.format(dt);
+  private final static float INTEREST = 1.02f;
+  private final static int MAX_OVERDRAFT_IN_PENNIES = 100000;
+  private static final String HTML_LINE_BREAK = "<br/>";
+
   public MvcController(@Autowired JdbcTemplate jdbcTemplate) {
     this.jdbcTemplate = jdbcTemplate;
   }
@@ -69,9 +71,9 @@ public class MvcController {
     String getOverDraftLogsSql = String.format("SELECT * FROM OverdraftLogs WHERE CustomerID='%s';", user.getUsername());
     
     List<Map<String,Object>> queryLogs = jdbcTemplate.queryForList(getOverDraftLogsSql);
-    String logs = "<br/>";
-    for(Map<String, Object> x: queryLogs){
-      logs += x + "<br/>";
+    String logs = HTML_LINE_BREAK;
+    for(Map<String, Object> x : queryLogs){
+      logs += x + HTML_LINE_BREAK;
     }
     Map<String,Object> userData = queryResults.get(0);
 
@@ -265,8 +267,8 @@ public class MvcController {
       if(user.getAmountToWithdraw() < 0){
         return "welcome";
       }
-      String userBalanceSql =  String.format("SELECT Balance FROM customers WHERE CustomerID='%s';", userID);
-      String userBalance = jdbcTemplate.queryForObject(userBalanceSql, String.class);
+      String getUserBalanceSql =  String.format("SELECT Balance FROM customers WHERE CustomerID='%s';", userID);
+      String userBalance = jdbcTemplate.queryForObject(getUserBalanceSql, String.class);
       
       int theUserBalance = MAX_OVERDRAFT_IN_PENNIES; // to confirm the passed value is integer
       if(Character.isDigit(userBalance.charAt(0))){
@@ -303,9 +305,9 @@ public class MvcController {
 
       }
 
-      String balanceIncreaseSql = String.format("UPDATE Customers SET Balance = Balance - %d WHERE CustomerID='%s';", user.getAmountToWithdraw()/100, userID);
-      System.out.println(balanceIncreaseSql);
-      jdbcTemplate.update(balanceIncreaseSql);
+      String balanceDecreaseSql = String.format("UPDATE Customers SET Balance = Balance - %d WHERE CustomerID='%s';", user.getAmountToWithdraw()/100, userID);
+      System.out.println(balanceDecreaseSql);
+      jdbcTemplate.update(balanceDecreaseSql);
 
       updateAccountInfo(user);
 
