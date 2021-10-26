@@ -72,15 +72,15 @@ public class MvcControllerTest {
 		customer1.setPassword("password");
 
     // stub jdbc calls
-		when(jdbcTemplate.queryForObject(anyString(), eq(String.class))).thenReturn("password");
+    String getCustomer1PasswordSql=String.format("SELECT Password FROM passwords WHERE CustomerID='%s';",
+                                                  customer1.getUsername());
+		when(jdbcTemplate.queryForObject(eq(getCustomer1PasswordSql), eq(String.class))).thenReturn("password");
     when(jdbcTemplate.queryForList(anyString())).thenReturn(CUSTOMER1_DATA); // handles updateAccountInfo() helper method
 
     // send login request
     String pageReturned = controller.submitLoginForm(customer1);
 
     // Verify that the SELECT SQL command executed to retrieve user's password uses the customer's ID
-    String getCustomer1PasswordSql=String.format("SELECT Password FROM passwords WHERE CustomerID='%s';",
-                                                  customer1.getUsername());
     Mockito.verify(jdbcTemplate, Mockito.times(1)).queryForObject(eq(getCustomer1PasswordSql), eq(String.class));
 
     // verify "account_info" page is returned
@@ -94,15 +94,15 @@ public class MvcControllerTest {
 		customer1.setPassword("not password");
 
     // stub jdbc calls
-		when(jdbcTemplate.queryForObject(anyString(), eq(String.class))).thenReturn("password");
+    String getCustomer1PasswordSql=String.format("SELECT Password FROM passwords WHERE CustomerID='%s';",
+                                                  customer1.getUsername());
+		when(jdbcTemplate.queryForObject(eq(getCustomer1PasswordSql), eq(String.class))).thenReturn("password");
     when(jdbcTemplate.queryForList(anyString())).thenReturn(CUSTOMER1_DATA); // handles updateAccountInfo() helper method
 
     // send login request
     String pageReturned = controller.submitLoginForm(customer1);
 
     // Verify that the SELECT SQL command executed to retrieve user's password uses the customer's ID
-    String getCustomer1PasswordSql=String.format("SELECT Password FROM passwords WHERE CustomerID='%s';",
-                                                  customer1.getUsername());
     Mockito.verify(jdbcTemplate, Mockito.times(1)).queryForObject(eq(getCustomer1PasswordSql), eq(String.class));
 
     // verify that customer is re-directed to "welcome" page
@@ -122,7 +122,9 @@ public class MvcControllerTest {
 		customer1.setAmountToDeposit(100);
 
     // stub jdbc calls
-		when(jdbcTemplate.queryForObject(anyString(), eq(String.class))).thenReturn("password");
+    String getCustomer1PasswordSql=String.format("SELECT Password FROM passwords WHERE CustomerID='%s';",
+                                                  customer1.getUsername());
+		when(jdbcTemplate.queryForObject(eq(getCustomer1PasswordSql), eq(String.class))).thenReturn("password");
     when(jdbcTemplate.queryForList(anyString())).thenReturn(CUSTOMER1_DATA); // handles updateAccountInfo() helper method
 		when(jdbcTemplate.update(anyString())).thenReturn(1);
 
@@ -147,7 +149,9 @@ public class MvcControllerTest {
 		customer1.setAmountToDeposit(100);
 
     // stub jdbc calls
-		when(jdbcTemplate.queryForObject(anyString(), eq(String.class))).thenReturn("password");
+    String getCustomer1PasswordSql=String.format("SELECT Password FROM passwords WHERE CustomerID='%s';",
+                                                  customer1.getUsername());
+		when(jdbcTemplate.queryForObject(eq(getCustomer1PasswordSql), eq(String.class))).thenReturn("password");
     when(jdbcTemplate.queryForList(anyString())).thenReturn(CUSTOMER1_DATA); // handles updateAccountInfo() helper method
 
     // send deposit request
@@ -174,7 +178,9 @@ public class MvcControllerTest {
 		customer1.setBalance(100);
 
     // stub jdbc calls
-		when(jdbcTemplate.queryForObject(anyString(), eq(String.class))).thenReturn("password");
+    String getCustomer1PasswordSql=String.format("SELECT Password FROM passwords WHERE CustomerID='%s';",
+                                                  customer1.getUsername());
+		when(jdbcTemplate.queryForObject(eq(getCustomer1PasswordSql), eq(String.class))).thenReturn("password");
     when(jdbcTemplate.queryForList(anyString())).thenReturn(CUSTOMER1_DATA); // handles updateAccountInfo() helper method
 		when(jdbcTemplate.update(anyString())).thenReturn(1);
 
@@ -199,7 +205,9 @@ public class MvcControllerTest {
 		customer1.setAmountToWithdraw(100);
 
     // stub jdbc calls
-		when(jdbcTemplate.queryForObject(anyString(), eq(String.class))).thenReturn("password");
+    String getCustomer1PasswordSql=String.format("SELECT Password FROM passwords WHERE CustomerID='%s';",
+                                                  customer1.getUsername());
+		when(jdbcTemplate.queryForObject(eq(getCustomer1PasswordSql), eq(String.class))).thenReturn("password");
     when(jdbcTemplate.queryForList(anyString())).thenReturn(CUSTOMER1_DATA); // handles updateAccountInfo() helper method
 
     // send withdraw request
