@@ -18,7 +18,8 @@ create_customer_table_sql = '''
     FirstName varchar(255),
     LastName varchar(255),
     Balance int,
-    OverdraftBalance int
+    OverdraftBalance int,
+    NumFraudReversals int
   );
   '''
 cursor.execute(create_customer_table_sql)
@@ -43,6 +44,17 @@ CREATE TABLE OverdraftLogs (
 );
 '''
 cursor.execute(create_overdraftlogs_table_sql)
+
+# Make empty TransactionHistory table
+create_transactionhistory_table_sql = '''
+CREATE TABLE TransactionHistory (
+  CustomerID varchar(255),
+  Timestamp DATETIME,
+  Action varchar(255) CHECK (Action IN ('Deposit', 'Withdraw')),
+  Amount int
+);
+'''
+cursor.execute(create_transactionhistory_table_sql)
 
 # The two sets created below are used to ensure that this
 # automated, randomized process does not accidentally 
@@ -75,14 +87,16 @@ for i in range(num_customers_to_add):
     
     # add random customer ID, name, and balance to Customers table.
     # all customers start with Overdraft balance of 0
+    # all customers start with a NumFraudReversals of 0
     # both the balance and overdraftbalance columns represent the total dollar amount as pennies instead of dollars.
     insert_customer_sql = '''
     INSERT INTO Customers
-    VALUES  ({0},{1},{2},{3},{4});
+    VALUES  ({0},{1},{2},{3},{4},{5});
     '''.format("'" + customer_id + "'",
                 "'" + customer_first_name + "'",
                 "'" + customer_last_name + "'",
                 customer_balance,
+                0,
                 0)
     cursor.execute(insert_customer_sql)
     
