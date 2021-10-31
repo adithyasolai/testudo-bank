@@ -19,8 +19,14 @@ public class User {
   @Setter @Getter
   private String lastName;
 
+  @Setter  @Getter @PositiveOrZero
+	private double balance;
+
   @Setter @Getter @PositiveOrZero
-	private int balance;
+	private double overDraftBalance;
+
+  @Setter @Getter
+	private String logs;
 
   @Setter @Getter @PositiveOrZero
 	private int overdraftBalance;
@@ -29,10 +35,13 @@ public class User {
   private String overdraftLogs;
 
   @Setter @Getter @Positive
-  private int amountToDeposit;
+  private double amountToDeposit;
 
   @Setter @Getter @Positive
-  private int amountToWithdraw;
+  private double amountToWithdraw;
+
+  @Setter @Getter
+  private int numTransactionsAgo;
 
 	@Override
 	public String toString() {
