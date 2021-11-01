@@ -69,12 +69,21 @@ public class MvcController {
     String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance FROM customers WHERE CustomerID='%s';", user.getUsername());
     List<Map<String,Object>> queryResults = jdbcTemplate.queryForList(getUserNameAndBalanceAndOverDraftBalanceSql);
     String getOverDraftLogsSql = String.format("SELECT * FROM OverdraftLogs WHERE CustomerID='%s';", user.getUsername());
+    String getTransactionHistorySql = String.format("Select * from TransactionHistory WHERE CustomerId='%s';", user.getUsername());
     
     List<Map<String,Object>> queryLogs = jdbcTemplate.queryForList(getOverDraftLogsSql);
     String logs = HTML_LINE_BREAK;
     for(Map<String, Object> x : queryLogs){
       logs += x + HTML_LINE_BREAK;
     }
+    List<Map<String,Object>> transLogs = jdbcTemplate.queryForList(getTransactionHistorySql);
+    String transactionHistory = HTML_LINE_BREAK;
+    int i = 0;
+    for(Map<String, Object> y : transLogs){
+      if(i >= transLogs.size() - 3) transactionHistory += y + HTML_LINE_BREAK;
+      i++;
+    }
+
     Map<String,Object> userData = queryResults.get(0);
 
     user.setFirstName((String)userData.get("FirstName"));
@@ -83,6 +92,7 @@ public class MvcController {
     double overDraftBalance = (int)userData.get("OverdraftBalance");
     user.setOverDraftBalance(overDraftBalance/100);
     user.setLogs(logs);
+    user.setTransactionHist(transactionHistory);
   }
 
   /**
@@ -166,9 +176,19 @@ public class MvcController {
     double userDepositAmt = user.getAmountToDeposit();
     int userDepositAmtInPennies = (int) (userDepositAmt * 100);
 
-    if (userDepositAmt < 0){
+    String numberOfReversalsSql = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", userID);
+    int numOfReversals = jdbcTemplate.queryForObject(numberOfReversalsSql, Integer.class);
+    //If too many reversals dont do deposit
+    if (userDepositAmt < 0 || numOfReversals > 2){
       return "welcome";
     }
+    //Adds deposit to transaction historu
+    String transactionHistorySql = String.format("INSERT INTO TransactionHistory VALUES ('%s', '%s', %s, %d);",
+                                                  userID,
+                                                  SQL_DATETIME_FORMAT,
+                                                  "'Deposit'",
+                                                  userDepositAmtInPennies);
+    jdbcTemplate.update(transactionHistorySql);
 
     String getUserOverdraftBalanceSql = String.format("SELECT OverdraftBalance FROM customers WHERE CustomerID='%s';", userID);
     int userOverdraftBalanceInPennies = jdbcTemplate.queryForObject(getUserOverdraftBalanceSql, Integer.class);
@@ -254,9 +274,19 @@ public class MvcController {
     double userWithdrawAmt = user.getAmountToWithdraw();
     int userWithdrawAmtInPennies = (int) (userWithdrawAmt * 100);
 
-    if(userWithdrawAmt < 0){
+    String numberOfReversalsSql = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", userID);
+    int numOfReversals = jdbcTemplate.queryForObject(numberOfReversalsSql, Integer.class);
+    //If too many reversals dont do withdraw
+    if(userWithdrawAmt < 0 || numOfReversals > 2){
       return "welcome";
     }
+    //Adds withdraw to transaction history
+    String transactionHistorySql = String.format("INSERT INTO TransactionHistory VALUES ('%s', '%s', %s, %d);",
+                                                  userID,
+                                                  SQL_DATETIME_FORMAT,
+                                                  "'Withdraw'",
+                                                  userWithdrawAmtInPennies);
+    jdbcTemplate.update(transactionHistorySql);
 
     String getUserBalanceSql =  String.format("SELECT Balance FROM customers WHERE CustomerID='%s';", userID);
     int userBalanceInPennies = jdbcTemplate.queryForObject(getUserBalanceSql, Integer.class);
@@ -318,4 +348,92 @@ public class MvcController {
 		model.addAttribute("user", user);
 		return "dispute_form";
 	}
+
+  /**
+   * HTML POST request handler for the Dispute Form page.
+   * 
+   * The same username+password handling from the login page is used.
+   * 
+   * If the password attempt is correct, the transaction is reversed and the proper
+   * balances are updated
+   * 
+   * If the password attempt is incorrect, the user is redirected to the "welcome" page.
+   * 
+   * @param user
+   * @return "account_info" page if login successful. Otherwise, redirect to "welcome" page.
+   */
+
+  @PostMapping("/dispute")
+  public String submitDispute(@ModelAttribute("user") User user) {
+    String userID = user.getUsername();
+    String userPasswordAttempt = user.getPassword();
+    
+    String getUserPasswordSql = String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", userID);
+    String userPassword = jdbcTemplate.queryForObject(getUserPasswordSql, String.class);
+
+    // unsuccessful login
+    if (userPasswordAttempt.equals(userPassword) == false) {
+      return "welcome";
+    }
+    //Adds to number of reversals
+    String numberOfReversalsSql = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", userID);
+    int numOfReversals = jdbcTemplate.queryForObject(numberOfReversalsSql, Integer.class);
+    numOfReversals++;
+    String numOfReversalsUpdateSql = String.format("UPDATE Customers SET NumFraudReversals = %d WHERE CustomerID='%s';", numOfReversals, userID);
+    jdbcTemplate.update(numOfReversalsUpdateSql);
+    String getTransactionHistorySql = String.format("Select * from TransactionHistory WHERE CustomerId='%s';", user.getUsername());
+    List<Map<String,Object>> TransactionLogs = jdbcTemplate.queryForList(getTransactionHistorySql);
+    Map<String, Object> log;
+    //Retrieve correct log based on what transaction user wants to reverse
+    if(user.getNumTransactionsAgo() == 1){
+      log = TransactionLogs.get(TransactionLogs.size()-1);
+    }
+    else if(user.getNumTransactionsAgo() == 2){
+      log = TransactionLogs.get(TransactionLogs.size()-2);
+    }
+    else if (user.getNumTransactionsAgo() == 3){
+      log = TransactionLogs.get(TransactionLogs.size()-3);
+    }
+    else return "welcome";
+    //Get balance and overdraft balance
+    String getUserBalanceSql =  String.format("SELECT Balance FROM customers WHERE CustomerID='%s';", userID);
+    int userBalanceInPennies = jdbcTemplate.queryForObject(getUserBalanceSql, Integer.class);
+    String getUserOverdraftBalanceSql = String.format("SELECT OverdraftBalance FROM customers WHERE CustomerID='%s';", userID);
+      int userOverdraftBalanceInPennies = jdbcTemplate.queryForObject(getUserOverdraftBalanceSql, Integer.class);
+    int amount = (int) log.get("Amount");
+    //If a deposit then withdraw the money out
+    if(((String) log.get("Action")).toLowerCase().equals("deposit")){
+      if(userOverdraftBalanceInPennies + amount > 1000) return "welcome";
+      if(userBalanceInPennies - amount > 0){
+        String balanceDecreaseSql = String.format("UPDATE Customers SET Balance = Balance - %d WHERE CustomerID='%s';", amount, userID);
+        jdbcTemplate.update(balanceDecreaseSql);
+      }
+      if(userBalanceInPennies > 0){
+        String balanceDecreaseSql = String.format("UPDATE Customers SET Balance = 0 WHERE CustomerID='%s';", amount, userID);
+        jdbcTemplate.update(balanceDecreaseSql);
+      }
+      //adds transaction to history
+      String transactionHistorySql = String.format("INSERT INTO TransactionHistory VALUES ('%s', '%s', %s, %d);",
+                                                  userID,
+                                                  SQL_DATETIME_FORMAT,
+                                                  "'Withdraw'",
+                                                  amount);
+    jdbcTemplate.update(transactionHistorySql);
+    }
+    //Case when reversing a withdraw, deposit the money instead
+    else{
+      String balanceIncreaseSql = String.format("UPDATE Customers SET Balance = Balance + %d WHERE CustomerID='%s';", amount, userID);
+      jdbcTemplate.update(balanceIncreaseSql);
+      String transactionHistorySql = String.format("INSERT INTO TransactionHistory VALUES ('%s', '%s', %s, %d);",
+                                                  userID,
+                                                  SQL_DATETIME_FORMAT,
+                                                  "'Deposit'",
+                                                  amount);
+    jdbcTemplate.update(transactionHistorySql);
+    }
+    updateAccountInfo(user);
+
+    return "account_info";
+  }
+
 }
