@@ -409,8 +409,8 @@ public class MvcController {
         jdbcTemplate.update(balanceDecreaseSql);
       }
       if(userBalanceInPennies > 0){
-        String balanceDecreaseSql = String.format("UPDATE Customers SET Balance = 0 WHERE CustomerID='%s';", amount, userID);
-        jdbcTemplate.update(balanceDecreaseSql);
+        String balanceZeroSql = String.format("UPDATE Customers SET Balance = 0 WHERE CustomerID='%s';", amount, userID);
+        jdbcTemplate.update(balanceZeroSql);
       }
       //adds transaction to history
       String transactionHistorySql = String.format("INSERT INTO TransactionHistory VALUES ('%s', '%s', %s, %d);",
