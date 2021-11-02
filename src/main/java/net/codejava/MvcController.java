@@ -182,10 +182,13 @@ public class MvcController {
     if (userDepositAmt < 0 || numOfReversals > 2){
       return "welcome";
     }
+    java.util.Date dt = new java.util.Date();
+    java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    String currentTime = sdf.format(dt);
     //Adds deposit to transaction historu
     String transactionHistorySql = String.format("INSERT INTO TransactionHistory VALUES ('%s', '%s', %s, %d);",
                                                   userID,
-                                                  SQL_DATETIME_FORMAT,
+                                                  currentTime,
                                                   "'Deposit'",
                                                   userDepositAmtInPennies);
     jdbcTemplate.update(transactionHistorySql);
@@ -196,10 +199,12 @@ public class MvcController {
     // if the overdraft balance is positive, subtract the deposit with interest
     if (userOverdraftBalanceInPennies > 0) {
       int newOverdraftBalanceInPennies = Math.max(userOverdraftBalanceInPennies - userDepositAmtInPennies, 0);
-
+      dt = new java.util.Date();
+      sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+      currentTime = sdf.format(dt);
       String overdraftLogsInsertSql = String.format("INSERT INTO OverdraftLogs VALUES ('%s', '%s', %d, %d, %d);", 
                                                     userID,
-                                                    SQL_DATETIME_FORMAT,
+                                                    currentTime,
                                                     userDepositAmtInPennies,
                                                     userOverdraftBalanceInPennies,
                                                     newOverdraftBalanceInPennies);
@@ -280,10 +285,13 @@ public class MvcController {
     if(userWithdrawAmt < 0 || numOfReversals > 2){
       return "welcome";
     }
+    java.util.Date dt = new java.util.Date();
+    java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    String currentTime = sdf.format(dt);
     //Adds withdraw to transaction history
     String transactionHistorySql = String.format("INSERT INTO TransactionHistory VALUES ('%s', '%s', %s, %d);",
                                                   userID,
-                                                  SQL_DATETIME_FORMAT,
+                                                  currentTime,
                                                   "'Withdraw'",
                                                   userWithdrawAmtInPennies);
     jdbcTemplate.update(transactionHistorySql);
@@ -375,12 +383,9 @@ public class MvcController {
     if (userPasswordAttempt.equals(userPassword) == false) {
       return "welcome";
     }
-    //Adds to number of reversals
     String numberOfReversalsSql = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", userID);
     int numOfReversals = jdbcTemplate.queryForObject(numberOfReversalsSql, Integer.class);
-    numOfReversals++;
-    String numOfReversalsUpdateSql = String.format("UPDATE Customers SET NumFraudReversals = %d WHERE CustomerID='%s';", numOfReversals, userID);
-    jdbcTemplate.update(numOfReversalsUpdateSql);
+    if(numOfReversals >= 2) return "welcome";
     String getTransactionHistorySql = String.format("Select * from TransactionHistory WHERE CustomerId='%s';", user.getUsername());
     List<Map<String,Object>> TransactionLogs = jdbcTemplate.queryForList(getTransactionHistorySql);
     Map<String, Object> log;
@@ -403,33 +408,100 @@ public class MvcController {
     int amount = (int) log.get("Amount");
     //If a deposit then withdraw the money out
     if(((String) log.get("Action")).toLowerCase().equals("deposit")){
-      if(userOverdraftBalanceInPennies + amount > 1000) return "welcome";
+      //if withdraw would exceed max overdraft possible return welcome
+      if(userOverdraftBalanceInPennies + (userBalanceInPennies- amount) > MAX_OVERDRAFT_IN_PENNIES) return "welcome";
+      //if balance is large enough to have amount taken from it subtract amount from balance
       if(userBalanceInPennies - amount > 0){
         String balanceDecreaseSql = String.format("UPDATE Customers SET Balance = Balance - %d WHERE CustomerID='%s';", amount, userID);
         jdbcTemplate.update(balanceDecreaseSql);
       }
-      if(userBalanceInPennies > 0){
-        String balanceZeroSql = String.format("UPDATE Customers SET Balance = 0 WHERE CustomerID='%s';", amount, userID);
+      //Case when reversing deposit causes overfraft or deeper in overdraft
+      else{
+        String balanceZeroSql = String.format("UPDATE Customers SET Balance = 0 WHERE CustomerID='%s';", userID);
         jdbcTemplate.update(balanceZeroSql);
+        int difference = amount - userBalanceInPennies;
+        //check if deposit helped pay off overdraft balance
+        String getOverDraftLogsSql = String.format("SELECT * FROM OverdraftLogs WHERE Timestamp='%s';", log.get("Timestamp"));
+        List<Map<String,Object>> queryLogs = jdbcTemplate.queryForList(getOverDraftLogsSql);
+        //if deposit did not help pay of overdraft balance apply tax
+        if(queryLogs.size() == 0){
+          String overdraftBalanceUpdateSql = String.format("UPDATE Customers SET OverdraftBalance = OverdraftBalance + %d WHERE CustomerID='%s';", ((int) (difference * INTEREST_RATE)), userID);
+          jdbcTemplate.update(overdraftBalanceUpdateSql);
+        }
+        //otherwise don't apply tax and remove from overdraft logs
+        else{
+          String overdraftBalanceUpdateSql = String.format("UPDATE Customers SET OverdraftBalance = OverdraftBalance + %d WHERE CustomerID='%s';", difference, userID);
+          jdbcTemplate.update(overdraftBalanceUpdateSql);
+          String removeFromOvdraftLogsSql = String.format("DELETE from OverdraftLogs where Timestamp='%s';", log.get("Timestamp"));
+          jdbcTemplate.update(removeFromOvdraftLogsSql);
+        }
+
       }
+      java.util.Date dt = new java.util.Date();
+      java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+      String currentTime = sdf.format(dt);
       //adds transaction to history
       String transactionHistorySql = String.format("INSERT INTO TransactionHistory VALUES ('%s', '%s', %s, %d);",
                                                   userID,
-                                                  SQL_DATETIME_FORMAT,
+                                                  currentTime,
                                                   "'Withdraw'",
                                                   amount);
     jdbcTemplate.update(transactionHistorySql);
     }
     //Case when reversing a withdraw, deposit the money instead
     else{
-      String balanceIncreaseSql = String.format("UPDATE Customers SET Balance = Balance + %d WHERE CustomerID='%s';", amount, userID);
-      jdbcTemplate.update(balanceIncreaseSql);
-      String transactionHistorySql = String.format("INSERT INTO TransactionHistory VALUES ('%s', '%s', %s, %d);",
+      //Adds to number of reversals
+      numOfReversals++;
+      String numOfReversalsUpdateSql = String.format("UPDATE Customers SET NumFraudReversals = %d WHERE CustomerID='%s';", numOfReversals, userID);
+      jdbcTemplate.update(numOfReversalsUpdateSql);
+      if(userOverdraftBalanceInPennies == 0){
+        String balanceIncreaseSql = String.format("UPDATE Customers SET Balance = Balance + %d WHERE CustomerID='%s';", amount, userID);
+        jdbcTemplate.update(balanceIncreaseSql);
+        java.util.Date dt = new java.util.Date();
+        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        String currentTime = sdf.format(dt);
+        //adds transaction to transaction hisotry
+        String transactionHistorySql = String.format("INSERT INTO TransactionHistory VALUES ('%s', '%s', %s, %d);",
                                                   userID,
-                                                  SQL_DATETIME_FORMAT,
+                                                  currentTime,
                                                   "'Deposit'",
                                                   amount);
-    jdbcTemplate.update(transactionHistorySql);
+        jdbcTemplate.update(transactionHistorySql);
+      }
+      //case when user is in overdraft
+      else{
+        int difference = userOverdraftBalanceInPennies - amount;
+        //if amount is greater than overdraft balance add difference to balance
+        if(difference < 0){
+          String balanceDecreaseSql = String.format("UPDATE Customers SET Balance = Balance + %d WHERE CustomerID='%s';", (difference * -1), userID);
+          System.out.println(balanceDecreaseSql);
+          jdbcTemplate.update(balanceDecreaseSql);
+        }
+        int newOverdraftBalanceInPennies = Math.max(difference, 0);
+        //sets new overdraft balance
+        String overdraftBalanceUpdateSql = String.format("UPDATE Customers SET OverdraftBalance = %d WHERE CustomerID='%s';", newOverdraftBalanceInPennies, userID);
+        jdbcTemplate.update(overdraftBalanceUpdateSql);
+        java.util.Date dt = new java.util.Date();
+        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        String currentTime = sdf.format(dt);
+        //adds change into overdraft logs
+        String overdraftLogsInsertSql = String.format("INSERT INTO OverdraftLogs VALUES ('%s', '%s', %d, %d, %d);", 
+                                                    userID,
+                                                    currentTime,
+                                                    amount,
+                                                    userOverdraftBalanceInPennies,
+                                                    newOverdraftBalanceInPennies);
+      jdbcTemplate.update(overdraftLogsInsertSql);
+      //adds transaction to transaction logs
+      String transactionHistorySql = String.format("INSERT INTO TransactionHistory VALUES ('%s', '%s', %s, %d);",
+                                                  userID,
+                                                  currentTime,
+                                                  "'Deposit'",
+                                                  amount);
+      jdbcTemplate.update(transactionHistorySql);
+      
+      }
+      
     }
     updateAccountInfo(user);
 
