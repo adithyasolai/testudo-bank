@@ -179,7 +179,7 @@ public class MvcController {
     String numberOfReversalsSql = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", userID);
     int numOfReversals = jdbcTemplate.queryForObject(numberOfReversalsSql, Integer.class);
     //If too many reversals dont do deposit
-    if (userDepositAmt < 0 || numOfReversals > 2){
+    if (userDepositAmt < 0 || numOfReversals >= 2){
       return "welcome";
     }
     java.util.Date dt = new java.util.Date();
@@ -282,7 +282,7 @@ public class MvcController {
     String numberOfReversalsSql = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", userID);
     int numOfReversals = jdbcTemplate.queryForObject(numberOfReversalsSql, Integer.class);
     //If too many reversals dont do withdraw
-    if(userWithdrawAmt < 0 || numOfReversals > 2){
+    if(userWithdrawAmt < 0 || numOfReversals >= 2){
       return "welcome";
     }
     java.util.Date dt = new java.util.Date();
@@ -409,7 +409,7 @@ public class MvcController {
     //If a deposit then withdraw the money out
     if(((String) log.get("Action")).toLowerCase().equals("deposit")){
       //if withdraw would exceed max overdraft possible return welcome
-      if(userOverdraftBalanceInPennies + (userBalanceInPennies- amount) > MAX_OVERDRAFT_IN_PENNIES) return "welcome";
+      if(userOverdraftBalanceInPennies + (amount - userBalanceInPennies) > MAX_OVERDRAFT_IN_PENNIES) return "welcome";
       //if balance is large enough to have amount taken from it subtract amount from balance
       if(userBalanceInPennies - amount > 0){
         String balanceDecreaseSql = String.format("UPDATE Customers SET Balance = Balance - %d WHERE CustomerID='%s';", amount, userID);
