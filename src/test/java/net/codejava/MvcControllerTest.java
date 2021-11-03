@@ -133,6 +133,9 @@ public class MvcControllerTest {
     when(jdbcTemplate.queryForObject(eq(getCustomer1OverdraftBalanceSql), eq(Integer.class))).thenReturn(0);
     // handles updateAccountInfo() helper method
     when(jdbcTemplate.queryForList(anyString())).thenReturn(CUSTOMER1_DATA);
+    // handles account not being locked
+    String getNumReversals = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    when(jdbcTemplate.queryForObject(eq(getNumReversals), eq(Integer.class))).thenReturn(0);
     // not working with live DB
 		when(jdbcTemplate.update(anyString())).thenReturn(1);
 
@@ -193,6 +196,9 @@ public class MvcControllerTest {
     when(jdbcTemplate.queryForObject(eq(getCustomer1BalanceSql), eq(Integer.class))).thenReturn(20000);
     // handles updateAccountInfo() helper method
     when(jdbcTemplate.queryForList(anyString())).thenReturn(CUSTOMER1_DATA);
+    // handles account not being locked
+    String getNumReversals = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    when(jdbcTemplate.queryForObject(eq(getNumReversals), eq(Integer.class))).thenReturn(0);
     // not working with live DB
 		when(jdbcTemplate.update(anyString())).thenReturn(1);
 
@@ -250,6 +256,9 @@ public class MvcControllerTest {
     when(jdbcTemplate.queryForList(anyString())).thenReturn(CUSTOMER1_DATA);
     // not working with live DB
 		when(jdbcTemplate.update(anyString())).thenReturn(1);
+    // handles account not being locked
+    String getNumReversals = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    when(jdbcTemplate.queryForObject(eq(getNumReversals), eq(Integer.class))).thenReturn(0);
     // start customer with balance and overdraft balance of $0
 		when(jdbcTemplate.queryForObject(eq(getCustomer1BalanceSql), eq(Integer.class))).thenReturn(0);
 		when(jdbcTemplate.queryForObject(eq(getCustomer1OverdraftBalanceSql), eq(Integer.class))).thenReturn(0);
@@ -285,6 +294,9 @@ public class MvcControllerTest {
     when(jdbcTemplate.queryForList(anyString())).thenReturn(CUSTOMER1_DATA);
     // not working with live DB
 		when(jdbcTemplate.update(anyString())).thenReturn(1);
+    // handles account not being locked
+    String getNumReversals = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    when(jdbcTemplate.queryForObject(eq(getNumReversals), eq(Integer.class))).thenReturn(0);
     // start customer with balance of $0
 		when(jdbcTemplate.queryForObject(eq(getCustomer1BalanceSql), eq(Integer.class))).thenReturn(0);
 
@@ -317,6 +329,9 @@ public class MvcControllerTest {
     when(jdbcTemplate.queryForList(anyString())).thenReturn(CUSTOMER1_DATA);
     // not working with live DB
 		when(jdbcTemplate.update(anyString())).thenReturn(1);
+    // handles account not being locked
+    String getNumReversals = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    when(jdbcTemplate.queryForObject(eq(getNumReversals), eq(Integer.class))).thenReturn(0);
     // start customer with overdraft balance of $10 (represented as 1000 pennies in the DB)
 		when(jdbcTemplate.queryForObject(eq(getCustomer1OverdraftBalanceSql), eq(Integer.class))).thenReturn(1000); 
 		
@@ -356,6 +371,9 @@ public class MvcControllerTest {
     when(jdbcTemplate.queryForList(anyString())).thenReturn(CUSTOMER1_DATA);
     // not working with live DB
 		when(jdbcTemplate.update(anyString())).thenReturn(1);
+    // handles account not being locked
+    String getNumReversals = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    when(jdbcTemplate.queryForObject(eq(getNumReversals), eq(Integer.class))).thenReturn(0);
     // start customer with overdraft balance of $500 (represented as 50000 pennies in the DB)
 		when(jdbcTemplate.queryForObject(eq(getCustomer1OverdraftBalanceSql), eq(Integer.class))).thenReturn(50000); 
 

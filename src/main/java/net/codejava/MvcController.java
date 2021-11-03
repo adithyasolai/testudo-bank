@@ -199,9 +199,6 @@ public class MvcController {
     // if the overdraft balance is positive, subtract the deposit with interest
     if (userOverdraftBalanceInPennies > 0) {
       int newOverdraftBalanceInPennies = Math.max(userOverdraftBalanceInPennies - userDepositAmtInPennies, 0);
-      dt = new java.util.Date();
-      sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-      currentTime = sdf.format(dt);
       String overdraftLogsInsertSql = String.format("INSERT INTO OverdraftLogs VALUES ('%s', '%s', %d, %d, %d);", 
                                                     userID,
                                                     currentTime,
@@ -230,7 +227,6 @@ public class MvcController {
     String balanceIncreaseSql = String.format("UPDATE Customers SET Balance = Balance + %d WHERE CustomerID='%s';", balanceIncreaseAmtInPennies, userID);
     System.out.println(balanceIncreaseSql); // Print executed SQL update for debugging
     jdbcTemplate.update(balanceIncreaseSql);
-
     updateAccountInfo(user);
     return "account_info";
   }
@@ -285,16 +281,6 @@ public class MvcController {
     if(userWithdrawAmt < 0 || numOfReversals >= 2){
       return "welcome";
     }
-    java.util.Date dt = new java.util.Date();
-    java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-    String currentTime = sdf.format(dt);
-    //Adds withdraw to transaction history
-    String transactionHistorySql = String.format("INSERT INTO TransactionHistory VALUES ('%s', '%s', %s, %d);",
-                                                  userID,
-                                                  currentTime,
-                                                  "'Withdraw'",
-                                                  userWithdrawAmtInPennies);
-    jdbcTemplate.update(transactionHistorySql);
 
     String getUserBalanceSql =  String.format("SELECT Balance FROM customers WHERE CustomerID='%s';", userID);
     int userBalanceInPennies = jdbcTemplate.queryForObject(getUserBalanceSql, Integer.class);
@@ -314,6 +300,16 @@ public class MvcController {
       if (newOverdraftAmtInPennies + userOverdraftBalanceInPennies > MAX_OVERDRAFT_IN_PENNIES) {
         return "welcome";
       }
+      java.util.Date dt = new java.util.Date();
+      java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+      String currentTime = sdf.format(dt);
+      //Adds withdraw to transaction history
+      String transactionHistorySql = String.format("INSERT INTO TransactionHistory VALUES ('%s', '%s', %s, %d);",
+                                                    userID,
+                                                    currentTime,
+                                                    "'Withdraw'",
+                                                    userWithdrawAmtInPennies);
+      jdbcTemplate.update(transactionHistorySql);
 
       // this is a valid overdraft, so we can set Balance column to 0
       String updateBalanceSql = String.format("UPDATE Customers SET Balance = %d WHERE CustomerID='%s';", 0, userID);
@@ -335,6 +331,16 @@ public class MvcController {
     String balanceDecreaseSql = String.format("UPDATE Customers SET Balance = Balance - %d WHERE CustomerID='%s';", userWithdrawAmtInPennies, userID);
     System.out.println(balanceDecreaseSql);
     jdbcTemplate.update(balanceDecreaseSql);
+    java.util.Date dt = new java.util.Date();
+    java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    String currentTime = sdf.format(dt);
+    //Adds withdraw to transaction history
+    String transactionHistorySql = String.format("INSERT INTO TransactionHistory VALUES ('%s', '%s', %s, %d);",
+                                                    userID,
+                                                    currentTime,
+                                                    "'Withdraw'",
+                                                    userWithdrawAmtInPennies);
+    jdbcTemplate.update(transactionHistorySql);
 
     updateAccountInfo(user);
 
