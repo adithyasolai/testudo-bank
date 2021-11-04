@@ -26,6 +26,7 @@ public class MvcController {
   private final static String SQL_DATETIME_FORMAT = sdf.format(dt);
   private final static double INTEREST_RATE = 1.02;
   private final static int MAX_OVERDRAFT_IN_PENNIES = 100000;
+  private final static int MAX_DISPUTES = 2;
   private final static String HTML_LINE_BREAK = "<br/>";
 
   public MvcController(@Autowired JdbcTemplate jdbcTemplate) {
@@ -179,7 +180,7 @@ public class MvcController {
     String numberOfReversalsSql = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", userID);
     int numOfReversals = jdbcTemplate.queryForObject(numberOfReversalsSql, Integer.class);
     //If too many reversals dont do deposit
-    if (userDepositAmt < 0 || numOfReversals >= 2){
+    if (userDepositAmt < 0 || numOfReversals >= MAX_DISPUTES){
       return "welcome";
     }
     java.util.Date dt = new java.util.Date();
@@ -278,7 +279,7 @@ public class MvcController {
     String numberOfReversalsSql = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", userID);
     int numOfReversals = jdbcTemplate.queryForObject(numberOfReversalsSql, Integer.class);
     //If too many reversals dont do withdraw
-    if(userWithdrawAmt < 0 || numOfReversals >= 2){
+    if(userWithdrawAmt < 0 || numOfReversals >= MAX_DISPUTES){
       return "welcome";
     }
 
@@ -391,7 +392,7 @@ public class MvcController {
     }
     String numberOfReversalsSql = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", userID);
     int numOfReversals = jdbcTemplate.queryForObject(numberOfReversalsSql, Integer.class);
-    if(numOfReversals >= 2) return "welcome";
+    if(numOfReversals >= MAX_DISPUTES) return "welcome";
     String getTransactionHistorySql = String.format("Select * from TransactionHistory WHERE CustomerId='%s';", user.getUsername());
     List<Map<String,Object>> TransactionLogs = jdbcTemplate.queryForList(getTransactionHistorySql);
     Map<String, Object> log;
