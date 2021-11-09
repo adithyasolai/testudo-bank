@@ -74,15 +74,15 @@ public class MvcController {
     
     List<Map<String,Object>> queryLogs = jdbcTemplate.queryForList(getOverDraftLogsSql);
     String logs = HTML_LINE_BREAK;
-    for(Map<String, Object> x : queryLogs){
-      logs += x + HTML_LINE_BREAK;
+    for(Map<String, Object> overdraftLog : queryLogs){
+      logs += overdraftLog + HTML_LINE_BREAK;
     }
     List<Map<String,Object>> transLogs = jdbcTemplate.queryForList(getTransactionHistorySql);
     String transactionHistory = HTML_LINE_BREAK;
-    int i = 0;
-    for(Map<String, Object> y : transLogs){
-      if(i >= transLogs.size() - 3) transactionHistory += y + HTML_LINE_BREAK;
-      i++;
+    int numLog = 0;
+    for(Map<String, Object> transHist : transLogs){
+      if(numLog >= transLogs.size() - 3) transactionHistory += transHist + HTML_LINE_BREAK;
+      numLog++;
     }
 
     Map<String,Object> userData = queryResults.get(0);
