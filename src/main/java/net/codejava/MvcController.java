@@ -26,6 +26,7 @@ public class MvcController {
   private final static String SQL_DATETIME_FORMAT = sdf.format(dt);
   private final static double INTEREST_RATE = 1.02;
   private final static int MAX_OVERDRAFT_IN_PENNIES = 100000;
+  private final static int MAX_DISPUTES = 2;
   private final static String HTML_LINE_BREAK = "<br/>";
 
   public MvcController(@Autowired JdbcTemplate jdbcTemplate) {
@@ -69,12 +70,21 @@ public class MvcController {
     String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance FROM customers WHERE CustomerID='%s';", user.getUsername());
     List<Map<String,Object>> queryResults = jdbcTemplate.queryForList(getUserNameAndBalanceAndOverDraftBalanceSql);
     String getOverDraftLogsSql = String.format("SELECT * FROM OverdraftLogs WHERE CustomerID='%s';", user.getUsername());
+    String getTransactionHistorySql = String.format("Select * from TransactionHistory WHERE CustomerId='%s';", user.getUsername());
     
     List<Map<String,Object>> queryLogs = jdbcTemplate.queryForList(getOverDraftLogsSql);
     String logs = HTML_LINE_BREAK;
-    for(Map<String, Object> x : queryLogs){
-      logs += x + HTML_LINE_BREAK;
+    for(Map<String, Object> overdraftLog : queryLogs){
+      logs += overdraftLog + HTML_LINE_BREAK;
     }
+    List<Map<String,Object>> transLogs = jdbcTemplate.queryForList(getTransactionHistorySql);
+    String transactionHistory = HTML_LINE_BREAK;
+    int numLog = 0;
+    for(Map<String, Object> transHist : transLogs){
+      if(numLog >= transLogs.size() - 3) transactionHistory += transHist + HTML_LINE_BREAK;
+      numLog++;
+    }
+
     Map<String,Object> userData = queryResults.get(0);
 
     user.setFirstName((String)userData.get("FirstName"));
@@ -83,6 +93,7 @@ public class MvcController {
     double overDraftBalance = (int)userData.get("OverdraftBalance");
     user.setOverDraftBalance(overDraftBalance/100);
     user.setLogs(logs);
+    user.setTransactionHist(transactionHistory);
   }
 
   /**
@@ -166,9 +177,22 @@ public class MvcController {
     double userDepositAmt = user.getAmountToDeposit();
     int userDepositAmtInPennies = (int) (userDepositAmt * 100);
 
-    if (userDepositAmt < 0){
+    String numberOfReversalsSql = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", userID);
+    int numOfReversals = jdbcTemplate.queryForObject(numberOfReversalsSql, Integer.class);
+    //If too many reversals dont do deposit
+    if (userDepositAmt < 0 || numOfReversals >= MAX_DISPUTES){
       return "welcome";
     }
+    java.util.Date dt = new java.util.Date();
+    java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    String currentTime = sdf.format(dt);
+    //Adds deposit to transaction historu
+    String transactionHistorySql = String.format("INSERT INTO TransactionHistory VALUES ('%s', '%s', %s, %d);",
+                                                  userID,
+                                                  currentTime,
+                                                  "'Deposit'",
+                                                  userDepositAmtInPennies);
+    jdbcTemplate.update(transactionHistorySql);
 
     String getUserOverdraftBalanceSql = String.format("SELECT OverdraftBalance FROM customers WHERE CustomerID='%s';", userID);
     int userOverdraftBalanceInPennies = jdbcTemplate.queryForObject(getUserOverdraftBalanceSql, Integer.class);
@@ -176,10 +200,9 @@ public class MvcController {
     // if the overdraft balance is positive, subtract the deposit with interest
     if (userOverdraftBalanceInPennies > 0) {
       int newOverdraftBalanceInPennies = Math.max(userOverdraftBalanceInPennies - userDepositAmtInPennies, 0);
-
       String overdraftLogsInsertSql = String.format("INSERT INTO OverdraftLogs VALUES ('%s', '%s', %d, %d, %d);", 
                                                     userID,
-                                                    SQL_DATETIME_FORMAT,
+                                                    currentTime,
                                                     userDepositAmtInPennies,
                                                     userOverdraftBalanceInPennies,
                                                     newOverdraftBalanceInPennies);
@@ -205,7 +228,6 @@ public class MvcController {
     String balanceIncreaseSql = String.format("UPDATE Customers SET Balance = Balance + %d WHERE CustomerID='%s';", balanceIncreaseAmtInPennies, userID);
     System.out.println(balanceIncreaseSql); // Print executed SQL update for debugging
     jdbcTemplate.update(balanceIncreaseSql);
-
     updateAccountInfo(user);
     return "account_info";
   }
@@ -254,7 +276,10 @@ public class MvcController {
     double userWithdrawAmt = user.getAmountToWithdraw();
     int userWithdrawAmtInPennies = (int) (userWithdrawAmt * 100);
 
-    if(userWithdrawAmt < 0){
+    String numberOfReversalsSql = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", userID);
+    int numOfReversals = jdbcTemplate.queryForObject(numberOfReversalsSql, Integer.class);
+    //If too many reversals dont do withdraw
+    if(userWithdrawAmt < 0 || numOfReversals >= MAX_DISPUTES){
       return "welcome";
     }
 
@@ -276,6 +301,16 @@ public class MvcController {
       if (newOverdraftAmtInPennies + userOverdraftBalanceInPennies > MAX_OVERDRAFT_IN_PENNIES) {
         return "welcome";
       }
+      java.util.Date dt = new java.util.Date();
+      java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+      String currentTime = sdf.format(dt);
+      //Adds withdraw to transaction history
+      String transactionHistorySql = String.format("INSERT INTO TransactionHistory VALUES ('%s', '%s', %s, %d);",
+                                                    userID,
+                                                    currentTime,
+                                                    "'Withdraw'",
+                                                    userWithdrawAmtInPennies);
+      jdbcTemplate.update(transactionHistorySql);
 
       // this is a valid overdraft, so we can set Balance column to 0
       String updateBalanceSql = String.format("UPDATE Customers SET Balance = %d WHERE CustomerID='%s';", 0, userID);
@@ -297,6 +332,16 @@ public class MvcController {
     String balanceDecreaseSql = String.format("UPDATE Customers SET Balance = Balance - %d WHERE CustomerID='%s';", userWithdrawAmtInPennies, userID);
     System.out.println(balanceDecreaseSql);
     jdbcTemplate.update(balanceDecreaseSql);
+    java.util.Date dt = new java.util.Date();
+    java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    String currentTime = sdf.format(dt);
+    //Adds withdraw to transaction history
+    String transactionHistorySql = String.format("INSERT INTO TransactionHistory VALUES ('%s', '%s', %s, %d);",
+                                                    userID,
+                                                    currentTime,
+                                                    "'Withdraw'",
+                                                    userWithdrawAmtInPennies);
+    jdbcTemplate.update(transactionHistorySql);
 
     updateAccountInfo(user);
 
@@ -318,4 +363,156 @@ public class MvcController {
 		model.addAttribute("user", user);
 		return "dispute_form";
 	}
+
+  /**
+   * HTML POST request handler for the Dispute Form page.
+   * 
+   * The same username+password handling from the login page is used.
+   * 
+   * If the password attempt is correct, the transaction is reversed and the proper
+   * balances are updated
+   * 
+   * If the password attempt is incorrect, the user is redirected to the "welcome" page.
+   * 
+   * @param user
+   * @return "account_info" page if login successful. Otherwise, redirect to "welcome" page.
+   */
+
+  @PostMapping("/dispute")
+  public String submitDispute(@ModelAttribute("user") User user) {
+    String userID = user.getUsername();
+    String userPasswordAttempt = user.getPassword();
+    
+    String getUserPasswordSql = String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", userID);
+    String userPassword = jdbcTemplate.queryForObject(getUserPasswordSql, String.class);
+
+    // unsuccessful login
+    if (userPasswordAttempt.equals(userPassword) == false) {
+      return "welcome";
+    }
+    String numberOfReversalsSql = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", userID);
+    int numOfReversals = jdbcTemplate.queryForObject(numberOfReversalsSql, Integer.class);
+    if(numOfReversals >= MAX_DISPUTES) return "welcome";
+    String getTransactionHistorySql = String.format("Select * from TransactionHistory WHERE CustomerId='%s';", user.getUsername());
+    List<Map<String,Object>> TransactionLogs = jdbcTemplate.queryForList(getTransactionHistorySql);
+    Map<String, Object> log;
+    //Retrieve correct log based on what transaction user wants to reverse
+    if(user.getNumTransactionsAgo() == 1){
+      log = TransactionLogs.get(TransactionLogs.size()-1);
+    }
+    else if(user.getNumTransactionsAgo() == 2){
+      log = TransactionLogs.get(TransactionLogs.size()-2);
+    }
+    else if (user.getNumTransactionsAgo() == 3){
+      log = TransactionLogs.get(TransactionLogs.size()-3);
+    }
+    else return "welcome";
+    //Get balance and overdraft balance
+    String getUserBalanceSql =  String.format("SELECT Balance FROM customers WHERE CustomerID='%s';", userID);
+    int userBalanceInPennies = jdbcTemplate.queryForObject(getUserBalanceSql, Integer.class);
+    String getUserOverdraftBalanceSql = String.format("SELECT OverdraftBalance FROM customers WHERE CustomerID='%s';", userID);
+      int userOverdraftBalanceInPennies = jdbcTemplate.queryForObject(getUserOverdraftBalanceSql, Integer.class);
+    int amount = (int) log.get("Amount");
+    //If a deposit then withdraw the money out
+    if(((String) log.get("Action")).toLowerCase().equals("deposit")){
+      //if withdraw would exceed max overdraft possible return welcome
+      if(userOverdraftBalanceInPennies + (amount - userBalanceInPennies) > MAX_OVERDRAFT_IN_PENNIES) return "welcome";
+      //if balance is large enough to have amount taken from it subtract amount from balance
+      if(userBalanceInPennies - amount > 0){
+        String balanceDecreaseSql = String.format("UPDATE Customers SET Balance = Balance - %d WHERE CustomerID='%s';", amount, userID);
+        jdbcTemplate.update(balanceDecreaseSql);
+      }
+      //Case when reversing deposit causes overfraft or deeper in overdraft
+      else{
+        String balanceZeroSql = String.format("UPDATE Customers SET Balance = 0 WHERE CustomerID='%s';", userID);
+        jdbcTemplate.update(balanceZeroSql);
+        int difference = amount - userBalanceInPennies;
+        //check if deposit helped pay off overdraft balance
+        String getOverDraftLogsSql = String.format("SELECT * FROM OverdraftLogs WHERE Timestamp='%s';", log.get("Timestamp"));
+        List<Map<String,Object>> queryLogs = jdbcTemplate.queryForList(getOverDraftLogsSql);
+        //if deposit did not help pay of overdraft balance apply tax
+        if(queryLogs.size() == 0){
+          String overdraftBalanceUpdateSql = String.format("UPDATE Customers SET OverdraftBalance = OverdraftBalance + %d WHERE CustomerID='%s';", ((int) (difference * INTEREST_RATE)), userID);
+          jdbcTemplate.update(overdraftBalanceUpdateSql);
+        }
+        //otherwise don't apply tax and remove from overdraft logs
+        else{
+          String overdraftBalanceUpdateSql = String.format("UPDATE Customers SET OverdraftBalance = OverdraftBalance + %d WHERE CustomerID='%s';", difference, userID);
+          jdbcTemplate.update(overdraftBalanceUpdateSql);
+          String removeFromOvdraftLogsSql = String.format("DELETE from OverdraftLogs where Timestamp='%s';", log.get("Timestamp"));
+          jdbcTemplate.update(removeFromOvdraftLogsSql);
+        }
+
+      }
+      java.util.Date dt = new java.util.Date();
+      java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+      String currentTime = sdf.format(dt);
+      //adds transaction to history
+      String transactionHistorySql = String.format("INSERT INTO TransactionHistory VALUES ('%s', '%s', %s, %d);",
+                                                  userID,
+                                                  currentTime,
+                                                  "'Withdraw'",
+                                                  amount);
+    jdbcTemplate.update(transactionHistorySql);
+    }
+    //Case when reversing a withdraw, deposit the money instead
+    else{
+      //Adds to number of reversals
+      numOfReversals++;
+      String numOfReversalsUpdateSql = String.format("UPDATE Customers SET NumFraudReversals = %d WHERE CustomerID='%s';", numOfReversals, userID);
+      jdbcTemplate.update(numOfReversalsUpdateSql);
+      if(userOverdraftBalanceInPennies == 0){
+        String balanceIncreaseSql = String.format("UPDATE Customers SET Balance = Balance + %d WHERE CustomerID='%s';", amount, userID);
+        jdbcTemplate.update(balanceIncreaseSql);
+        java.util.Date dt = new java.util.Date();
+        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        String currentTime = sdf.format(dt);
+        //adds transaction to transaction hisotry
+        String transactionHistorySql = String.format("INSERT INTO TransactionHistory VALUES ('%s', '%s', %s, %d);",
+                                                  userID,
+                                                  currentTime,
+                                                  "'Deposit'",
+                                                  amount);
+        jdbcTemplate.update(transactionHistorySql);
+      }
+      //case when user is in overdraft
+      else{
+        int difference = userOverdraftBalanceInPennies - amount;
+        //if amount is greater than overdraft balance add difference to balance
+        if(difference < 0){
+          String balanceDecreaseSql = String.format("UPDATE Customers SET Balance = Balance + %d WHERE CustomerID='%s';", (difference * -1), userID);
+          System.out.println(balanceDecreaseSql);
+          jdbcTemplate.update(balanceDecreaseSql);
+        }
+        int newOverdraftBalanceInPennies = Math.max(difference, 0);
+        //sets new overdraft balance
+        String overdraftBalanceUpdateSql = String.format("UPDATE Customers SET OverdraftBalance = %d WHERE CustomerID='%s';", newOverdraftBalanceInPennies, userID);
+        jdbcTemplate.update(overdraftBalanceUpdateSql);
+        java.util.Date dt = new java.util.Date();
+        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        String currentTime = sdf.format(dt);
+        //adds change into overdraft logs
+        String overdraftLogsInsertSql = String.format("INSERT INTO OverdraftLogs VALUES ('%s', '%s', %d, %d, %d);", 
+                                                    userID,
+                                                    currentTime,
+                                                    amount,
+                                                    userOverdraftBalanceInPennies,
+                                                    newOverdraftBalanceInPennies);
+      jdbcTemplate.update(overdraftLogsInsertSql);
+      //adds transaction to transaction logs
+      String transactionHistorySql = String.format("INSERT INTO TransactionHistory VALUES ('%s', '%s', %s, %d);",
+                                                  userID,
+                                                  currentTime,
+                                                  "'Deposit'",
+                                                  amount);
+      jdbcTemplate.update(transactionHistorySql);
+      
+      }
+      
+    }
+    updateAccountInfo(user);
+
+    return "account_info";
+  }
+
 }
