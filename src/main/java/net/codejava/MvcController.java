@@ -21,9 +21,7 @@ public class MvcController {
    * specified in /src/main/resources/application.properties
    */
   private JdbcTemplate jdbcTemplate;
-  private static java.util.Date dt = new java.util.Date();
-  private static java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-  private final static String SQL_DATETIME_FORMAT = sdf.format(dt);
+  private static java.text.SimpleDateFormat SQL_DATETIME_FORMATTER = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
   private final static double INTEREST_RATE = 1.02;
   private final static int MAX_OVERDRAFT_IN_PENNIES = 100000;
   private final static int MAX_DISPUTES = 2;
@@ -183,9 +181,9 @@ public class MvcController {
     if (userDepositAmt < 0 || numOfReversals >= MAX_DISPUTES){
       return "welcome";
     }
-    java.util.Date dt = new java.util.Date();
-    java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-    String currentTime = sdf.format(dt);
+    
+    String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date());
+
     //Adds deposit to transaction historu
     String transactionHistorySql = String.format("INSERT INTO TransactionHistory VALUES ('%s', '%s', %s, %d);",
                                                   userID,
@@ -301,9 +299,9 @@ public class MvcController {
       if (newOverdraftAmtInPennies + userOverdraftBalanceInPennies > MAX_OVERDRAFT_IN_PENNIES) {
         return "welcome";
       }
-      java.util.Date dt = new java.util.Date();
-      java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-      String currentTime = sdf.format(dt);
+
+      String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date());
+
       //Adds withdraw to transaction history
       String transactionHistorySql = String.format("INSERT INTO TransactionHistory VALUES ('%s', '%s', %s, %d);",
                                                     userID,
@@ -332,9 +330,10 @@ public class MvcController {
     String balanceDecreaseSql = String.format("UPDATE Customers SET Balance = Balance - %d WHERE CustomerID='%s';", userWithdrawAmtInPennies, userID);
     System.out.println(balanceDecreaseSql);
     jdbcTemplate.update(balanceDecreaseSql);
-    java.util.Date dt = new java.util.Date();
-    java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-    String currentTime = sdf.format(dt);
+    
+
+    String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date());
+
     //Adds withdraw to transaction history
     String transactionHistorySql = String.format("INSERT INTO TransactionHistory VALUES ('%s', '%s', %s, %d);",
                                                     userID,
@@ -444,9 +443,9 @@ public class MvcController {
         }
 
       }
-      java.util.Date dt = new java.util.Date();
-      java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-      String currentTime = sdf.format(dt);
+      
+      String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date());
+
       //adds transaction to history
       String transactionHistorySql = String.format("INSERT INTO TransactionHistory VALUES ('%s', '%s', %s, %d);",
                                                   userID,
@@ -464,9 +463,9 @@ public class MvcController {
       if(userOverdraftBalanceInPennies == 0){
         String balanceIncreaseSql = String.format("UPDATE Customers SET Balance = Balance + %d WHERE CustomerID='%s';", amount, userID);
         jdbcTemplate.update(balanceIncreaseSql);
-        java.util.Date dt = new java.util.Date();
-        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-        String currentTime = sdf.format(dt);
+        
+        String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date());
+
         //adds transaction to transaction hisotry
         String transactionHistorySql = String.format("INSERT INTO TransactionHistory VALUES ('%s', '%s', %s, %d);",
                                                   userID,
@@ -488,9 +487,9 @@ public class MvcController {
         //sets new overdraft balance
         String overdraftBalanceUpdateSql = String.format("UPDATE Customers SET OverdraftBalance = %d WHERE CustomerID='%s';", newOverdraftBalanceInPennies, userID);
         jdbcTemplate.update(overdraftBalanceUpdateSql);
-        java.util.Date dt = new java.util.Date();
-        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-        String currentTime = sdf.format(dt);
+        
+        String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date());
+
         //adds change into overdraft logs
         String overdraftLogsInsertSql = String.format("INSERT INTO OverdraftLogs VALUES ('%s', '%s', %d, %d, %d);", 
                                                     userID,
