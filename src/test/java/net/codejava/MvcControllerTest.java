@@ -484,11 +484,11 @@ public class MvcControllerTest {
     // handles updateAccountInfo() helper method
     String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
     when(jdbcTemplate.queryForList(eq(getUserNameAndBalanceAndOverDraftBalanceSql))).thenReturn(CUSTOMER1_DATA);
-    // handles getting transaction history
-    String getTransactionHistorySql = String.format("Select * from TransactionHistory WHERE CustomerId='%s';", customer1.getUsername());
+    // handles getting 3 most recent logs from transaction history
+    String getTransactionHistorySql = String.format("Select * from TransactionHistory WHERE CustomerId='%s' ORDER BY Timestamp DESC LIMIT %d;", customer1.getUsername(), 3);
     when(jdbcTemplate.queryForList(eq(getTransactionHistorySql))).thenReturn(TRANSACTION_HIST);
-    // sends empty overdraft log
-    String getOverDraftLogsSql = String.format("SELECT * FROM OverdraftLogs WHERE Timestamp='%s';", TRANSACTION_HIST.get(0).get("Timestamp"));
+    // sends empty overdraft log when fetching overdraft logs for customer that match timestamp of reversed transaction
+    String getOverDraftLogsSql = String.format("SELECT * FROM OverdraftLogs WHERE CustomerID='%s' AND Timestamp='%s';", customer1.getUsername(), TRANSACTION_HIST.get(0).get("Timestamp"));
     when(jdbcTemplate.queryForList(eq(getOverDraftLogsSql))).thenReturn(OVERDRAFT_LOGS);
     // handles account not being locked
     String getNumReversals = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", customer1.getUsername());
@@ -532,11 +532,11 @@ public class MvcControllerTest {
     // handles updateAccountInfo() helper method
     String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
     when(jdbcTemplate.queryForList(eq(getUserNameAndBalanceAndOverDraftBalanceSql))).thenReturn(CUSTOMER1_DATA);
-    // handles getting transaction history
-    String getTransactionHistorySql = String.format("Select * from TransactionHistory WHERE CustomerId='%s';", customer1.getUsername());
+    // handles getting 3 most recent logs from transaction history
+    String getTransactionHistorySql = String.format("Select * from TransactionHistory WHERE CustomerId='%s' ORDER BY Timestamp DESC LIMIT %d;", customer1.getUsername(), 3);
     when(jdbcTemplate.queryForList(eq(getTransactionHistorySql))).thenReturn(TRANSACTION_HIST);
-    // sends empty overdraft log
-    String getOverDraftLogsSql = String.format("SELECT * FROM OverdraftLogs WHERE Timestamp='%s';", TRANSACTION_HIST.get(0).get("Timestamp"));
+    // sends empty overdraft log when fetching overdraft logs for customer that match timestamp of reversed transaction
+    String getOverDraftLogsSql = String.format("SELECT * FROM OverdraftLogs WHERE CustomerID='%s' AND Timestamp='%s';", customer1.getUsername(), TRANSACTION_HIST.get(0).get("Timestamp"));
     when(jdbcTemplate.queryForList(eq(getOverDraftLogsSql))).thenReturn(OVERDRAFT_LOGS);
     // handles account not being locked
     String getNumReversals = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", customer1.getUsername());
@@ -581,11 +581,11 @@ public class MvcControllerTest {
     // handles updateAccountInfo() helper method
     String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
     when(jdbcTemplate.queryForList(eq(getUserNameAndBalanceAndOverDraftBalanceSql))).thenReturn(CUSTOMER1_DATA);
-    // handles getting transaction history
-    String getTransactionHistorySql = String.format("Select * from TransactionHistory WHERE CustomerId='%s';", customer1.getUsername());
+    // handles getting 3 most recent logs from transaction history
+    String getTransactionHistorySql = String.format("Select * from TransactionHistory WHERE CustomerId='%s' ORDER BY Timestamp DESC LIMIT %d;", customer1.getUsername(), 3);
     when(jdbcTemplate.queryForList(eq(getTransactionHistorySql))).thenReturn(TRANSACTION_HIST_WITHDRAW);
-    // sends empty overdraft log
-    String getOverDraftLogsSql = String.format("SELECT * FROM OverdraftLogs WHERE Timestamp='%s';", TRANSACTION_HIST.get(0).get("Timestamp"));
+    // sends empty overdraft log when fetching overdraft logs for customer that match timestamp of reversed transaction
+    String getOverDraftLogsSql = String.format("SELECT * FROM OverdraftLogs WHERE CustomerID='%s' AND Timestamp='%s';", customer1.getUsername(), TRANSACTION_HIST.get(0).get("Timestamp"));
     when(jdbcTemplate.queryForList(eq(getOverDraftLogsSql))).thenReturn(OVERDRAFT_LOGS);
     // handles account not being locked
     String getNumReversals = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", customer1.getUsername());
@@ -629,11 +629,11 @@ public class MvcControllerTest {
     // handles updateAccountInfo() helper method
     String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
     when(jdbcTemplate.queryForList(eq(getUserNameAndBalanceAndOverDraftBalanceSql))).thenReturn(CUSTOMER1_DATA);
-    // handles getting transaction history
-    String getTransactionHistorySql = String.format("Select * from TransactionHistory WHERE CustomerId='%s';", customer1.getUsername());
+    // handles getting 3 most recent logs from transaction history
+    String getTransactionHistorySql = String.format("Select * from TransactionHistory WHERE CustomerId='%s' ORDER BY Timestamp DESC LIMIT %d;", customer1.getUsername(), 3);
     when(jdbcTemplate.queryForList(eq(getTransactionHistorySql))).thenReturn(TRANSACTION_HIST_WITHDRAW);
-    // sends empty overdraft log
-    String getOverDraftLogsSql = String.format("SELECT * FROM OverdraftLogs WHERE Timestamp='%s';", TRANSACTION_HIST.get(0).get("Timestamp"));
+    // sends empty overdraft log when fetching overdraft logs for customer that match timestamp of reversed transaction
+    String getOverDraftLogsSql = String.format("SELECT * FROM OverdraftLogs WHERE CustomerID='%s' AND Timestamp='%s';", customer1.getUsername(), TRANSACTION_HIST.get(0).get("Timestamp"));
     when(jdbcTemplate.queryForList(eq(getOverDraftLogsSql))).thenReturn(OVERDRAFT_LOGS);
     // handles account not being locked
     String getNumReversals = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", customer1.getUsername());
