@@ -27,6 +27,7 @@ public class MvcController {
   private final static double INTEREST_RATE = 1.02;
   private final static int MAX_OVERDRAFT_IN_PENNIES = 100000;
   private final static int MAX_DISPUTES = 2;
+  private final static int MAX_NUM_TRANSACTIONS_DISPLAYED = 3;
   private final static String HTML_LINE_BREAK = "<br/>";
 
   public MvcController(@Autowired JdbcTemplate jdbcTemplate) {
@@ -70,19 +71,18 @@ public class MvcController {
     String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance FROM customers WHERE CustomerID='%s';", user.getUsername());
     List<Map<String,Object>> queryResults = jdbcTemplate.queryForList(getUserNameAndBalanceAndOverDraftBalanceSql);
     String getOverDraftLogsSql = String.format("SELECT * FROM OverdraftLogs WHERE CustomerID='%s';", user.getUsername());
-    String getTransactionHistorySql = String.format("Select * from TransactionHistory WHERE CustomerId='%s';", user.getUsername());
+    // SQL Query that only fetches the three most recent transaction logs for this customer.
+    String getTransactionHistorySql = String.format("Select * from TransactionHistory WHERE CustomerId='%s' ORDER BY Timestamp DESC LIMIT %d;", user.getUsername(), MAX_NUM_TRANSACTIONS_DISPLAYED);
     
     List<Map<String,Object>> queryLogs = jdbcTemplate.queryForList(getOverDraftLogsSql);
     String logs = HTML_LINE_BREAK;
     for(Map<String, Object> overdraftLog : queryLogs){
       logs += overdraftLog + HTML_LINE_BREAK;
     }
-    List<Map<String,Object>> transLogs = jdbcTemplate.queryForList(getTransactionHistorySql);
-    String transactionHistory = HTML_LINE_BREAK;
-    int numLog = 0;
-    for(Map<String, Object> transHist : transLogs){
-      if(numLog >= transLogs.size() - 3) transactionHistory += transHist + HTML_LINE_BREAK;
-      numLog++;
+    List<Map<String,Object>> transactionLogs = jdbcTemplate.queryForList(getTransactionHistorySql);
+    String transactionHistoryOutput = HTML_LINE_BREAK;
+    for(Map<String, Object> transactionLog : transactionLogs){
+      transactionHistoryOutput += transactionLog + HTML_LINE_BREAK;
     }
 
     Map<String,Object> userData = queryResults.get(0);
@@ -93,7 +93,7 @@ public class MvcController {
     double overDraftBalance = (int)userData.get("OverdraftBalance");
     user.setOverDraftBalance(overDraftBalance/100);
     user.setLogs(logs);
-    user.setTransactionHist(transactionHistory);
+    user.setTransactionHist(transactionHistoryOutput);
   }
 
   /**
