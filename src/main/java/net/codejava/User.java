@@ -37,7 +37,16 @@ public class User {
   private double amountToWithdraw;
 
   @Setter @Getter
+	private String Transferlogs;
+
+  @Setter @Getter
   private int numTransactionsAgo;
+
+  @Setter @Getter
+  private int amountToTransfer;
+
+  @Setter @Getter
+	private String whoToTransfer;
 
 	@Override
 	public String toString() {
