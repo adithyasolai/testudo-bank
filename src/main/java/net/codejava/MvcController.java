@@ -578,6 +578,10 @@ public class MvcController {
     if (userPasswordAttempt.equals(userPassword) == false) {
       return "welcome";
     }
+    // transfer amount must be positive
+    if (user.getAmountToTransfer() < 0){
+      return "welcome";
+    }
 
     String numberOfReversalsSql = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", userID);
     int numOfReversals = jdbcTemplate.queryForObject(numberOfReversalsSql, Integer.class);
@@ -586,7 +590,7 @@ public class MvcController {
     if (numOfReversals >= MAX_DISPUTES || user.getWhoToTransfer().equals(userID)) {
       return "welcome";
     }
-    System.out.println(user.getWhoToTransfer() + " " + userID);
+
     //checks to see the customer you are transfering to exists
     String getCustomerIDSql =  String.format("SELECT CustomerID FROM customers WHERE CustomerID='%s';", user.getWhoToTransfer());
     try {
@@ -600,7 +604,6 @@ public class MvcController {
 
     String getUserBalanceSql =  String.format("SELECT Balance FROM customers WHERE CustomerID='%s';", userID);
     int userBalanceInPennies = jdbcTemplate.queryForObject(getUserBalanceSql, Integer.class);
-    System.out.println(userBalanceInPennies + "\n\n\n\n\n\n\n\n\n");
     // if the balance is not positive, withdraw with interest fee
     if (userBalanceInPennies - userWithdrawAmtInPennies < 0) {
       String getUserOverdraftBalanceSql = String.format("SELECT OverdraftBalance FROM customers WHERE CustomerID='%s';", userID);
