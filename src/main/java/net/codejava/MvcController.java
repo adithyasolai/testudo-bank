@@ -107,7 +107,7 @@ public class MvcController {
     user.setOverDraftBalance(overDraftBalance/100);
     user.setLogs(logs);
     user.setTransactionHist(transactionHistoryOutput);
-    user.setTransferlogs(transferLogsToOutput + transferLogsFromOutput);
+    user.setTransferLogs(transferLogsToOutput + transferLogsFromOutput);
   }
 
   /**

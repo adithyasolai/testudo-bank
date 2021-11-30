@@ -37,7 +37,7 @@ public class User {
   private double amountToWithdraw;
 
   @Setter @Getter
-	private String Transferlogs;
+	private String transferLogs;
 
   @Setter @Getter
   private int numTransactionsAgo;
