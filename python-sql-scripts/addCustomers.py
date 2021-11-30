@@ -59,10 +59,9 @@ cursor.execute(create_transactionhistory_table_sql)
 # Make empty Transfer table
 create_transferhistory_table_sql = '''
 CREATE TABLE TransferHistory (
-  CustomerID varchar(255),
-  Action varchar(255) CHECK (Action IN ('To', 'From')),
-  Amount int,
-  OtherCustomerID varchar(255)
+  TransferFrom varchar(255),
+  TransferTo varchar(255),
+  Amount int
 );
 '''
 cursor.execute(create_transferhistory_table_sql)

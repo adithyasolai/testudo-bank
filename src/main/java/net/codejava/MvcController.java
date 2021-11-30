@@ -85,9 +85,9 @@ public class MvcController {
       transactionHistoryOutput += transactionLog + HTML_LINE_BREAK;
     }
 
-    String getTransferLogsToSql = String.format("SELECT * FROM TransferHistory WHERE CustomerID='%s';", user.getUsername());
+    String getTransferLogsToSql = String.format("SELECT * FROM TransferHistory WHERE TransferFrom='%s';", user.getUsername());
     List<Map<String,Object>> transferLogsTo = jdbcTemplate.queryForList(getTransferLogsToSql);
-    String getTransferLogsFromSql = String.format("SELECT * FROM TransferHistory WHERE OtherCustomerID='%s';", user.getUsername());
+    String getTransferLogsFromSql = String.format("SELECT * FROM TransferHistory WHERE TransferTo='%s';", user.getUsername());
     List<Map<String,Object>> transferLogsFrom = jdbcTemplate.queryForList(getTransferLogsFromSql);
     String transferLogsToOutput = HTML_LINE_BREAK;
     for(Map<String, Object> transferLogTo : transferLogsTo){
@@ -666,18 +666,11 @@ public class MvcController {
     jdbcTemplate.update(balanceIncreaseSql);
 
     // Inserting transfer into transfer history for both customers
-    String transferHistoryToSql = String.format("INSERT INTO TransferHistory VALUES ('%s', '%s', %d, %s);",
+    String transferHistoryToSql = String.format("INSERT INTO TransferHistory VALUES ('%s', '%s', %d);",
                                                     userID,
-                                                    "To",
-                                                    user.getAmountToTransfer(),
-                                                    user.getWhoToTransfer());
-    jdbcTemplate.update(transferHistoryToSql);
-    String transferHistoryFromSql = String.format("INSERT INTO TransferHistory VALUES ('%s', '%s', %d, %s);",
                                                     user.getWhoToTransfer(),
-                                                    "From",
-                                                    user.getAmountToTransfer(),
-                                                    userID);
-    jdbcTemplate.update(transferHistoryFromSql);
+                                                    user.getAmountToTransfer());
+    jdbcTemplate.update(transferHistoryToSql);
     updateAccountInfo(user);
 
     return "account_info";
