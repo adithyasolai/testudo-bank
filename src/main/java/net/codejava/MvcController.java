@@ -683,7 +683,7 @@ public class MvcController {
     String transferHistoryToSql = String.format("INSERT INTO TransferHistory VALUES ('%s', '%s', %d);",
                                                     userID,
                                                     user.getWhoToTransfer(),
-                                                    user.getAmountToTransfer());
+                                                    user.getAmountToTransfer() * 100);
     jdbcTemplate.update(transferHistoryToSql);
     updateAccountInfo(user);
 
