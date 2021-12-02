@@ -4,7 +4,9 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 CODEOWNERS
-python-sql-scripts/
+python-sql-scripts/createDB.py
+python-sql-scripts/credentials.py
+python-sql-scripts/teardownDB.py
 src/main/resources/application.properties
 
 ### STS ###
