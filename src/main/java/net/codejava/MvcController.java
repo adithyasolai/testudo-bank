@@ -9,8 +9,12 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.Map;
 
-
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import java.io.IOException;
 import java.util.List;
+
 
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -67,8 +71,8 @@ public class MvcController {
    * @param user
    */
   private void updateAccountInfo(User user) {
-    String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance FROM customers WHERE CustomerID='%s';", user.getUsername());
-    List<Map<String,Object>> queryResults = jdbcTemplate.queryForList(getUserNameAndBalanceAndOverDraftBalanceSql);
+    String getUserInfoSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance, EthereumBalance, TotalCryptoInvestment FROM customers WHERE CustomerID='%s';", user.getUsername());
+    List<Map<String,Object>> queryResults = jdbcTemplate.queryForList(getUserInfoSql);
     String getOverDraftLogsSql = String.format("SELECT * FROM OverdraftLogs WHERE CustomerID='%s';", user.getUsername());
     // SQL Query that only fetches the three most recent transaction logs for this customer.
     String getTransactionHistorySql = String.format("Select * from TransactionHistory WHERE CustomerId='%s' ORDER BY Timestamp DESC LIMIT %d;", user.getUsername(), MAX_NUM_TRANSACTIONS_DISPLAYED);
@@ -90,6 +94,8 @@ public class MvcController {
     user.setLastName((String)userData.get("LastName"));
     user.setBalance((int)userData.get("Balance")/100.0);
     double overDraftBalance = (int)userData.get("OverdraftBalance");
+    user.setEthbalance((double)userData.get("EthereumBalance"));
+    user.setTotalCryptoInvestment((int)userData.get("TotalCryptoInvestment")/100.0);
     user.setOverDraftBalance(overDraftBalance/100);
     user.setLogs(logs);
     user.setTransactionHist(transactionHistoryOutput);
@@ -520,6 +526,204 @@ public class MvcController {
     updateAccountInfo(user);
 
     return "account_info";
+  }
+
+  /**
+   * HTML GET request handler that serves the "buycrypto_form" page to the user.
+   * An empty `User` object is also added to the Model as an Attribute to store
+   * the user's input for buying cryptocurrency.
+   * 
+   * @param model
+   * @return "buycrypto_form" page
+   */
+  @GetMapping("/buycrypto")
+	public String showBuyCryptoForm(Model model) {
+    User user = new User();
+		model.addAttribute("user", user);
+		return "buycrypto_form";
+	}
+
+  /**
+   * HTML POST request handler for the Buy Cryptocurrency Form page.
+   * 
+   * The same username+password handling from the login page is used.
+   * 
+   * If the password attempt is correct, the transaction is reversed and the proper
+   * balances are updated
+   * 
+   * If the password attempt is incorrect, the user is redirected to the "welcome" page.
+   * 
+   * If the user does not have a sufficient balance to buy cryptocurrency,
+   * they are redirected to the "welcome" page
+   * 
+   * @param user
+   * @return "account_info" page if login successful. Otherwise, redirect to "welcome" page.
+   */
+  @PostMapping("/buycrypto")
+  public String buyCrypto(@ModelAttribute("user") User user) {
+    String userID = user.getUsername();
+    String userPasswordAttempt = user.getPassword();
+
+    String getUserPasswordSql = String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", 
+                                              userID);
+    String userPassword = jdbcTemplate.queryForObject(getUserPasswordSql, String.class);
+
+    // unsuccessful login
+    if (userPasswordAttempt.equals(userPassword) == false) {
+      return "welcome";
+    }
+
+    String getUserBalanceSql =  String.format("SELECT Balance FROM customers WHERE CustomerID='%s';", 
+                                              userID);
+    int userBalance = jdbcTemplate.queryForObject(getUserBalanceSql, Integer.class);
+
+    double cryptoBuyAmt = user.getAmountToBuyCrypto();
+    Double currentEthValue = getCurrentEthValue();
+    
+    // problem accessing current ETH price, cancel this transaction
+    if (currentEthValue == -1) {
+      return "welcome"; 
+    }
+    int ethValueInPennies = (int) (cryptoBuyAmt * currentEthValue * 100);
+
+    String numberOfReversalsSql = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", 
+                                                userID);
+    int numOfReversals = jdbcTemplate.queryForObject(numberOfReversalsSql, Integer.class);
+    
+    if (cryptoBuyAmt < 0 // user can't sell negative crypto
+        || ethValueInPennies > userBalance // user can only buy if they can afford it
+        || numOfReversals >= MAX_DISPUTES ){ // if a user's account is frozen
+      return "welcome";
+    }
+
+    String balanceDecreaseSql = String.format("UPDATE Customers SET Balance = Balance - %d WHERE CustomerID='%s';", 
+                                              ethValueInPennies, 
+                                              userID);
+    String ethAmountDecreaseSql = String.format("UPDATE Customers SET EthereumBalance = EthereumBalance + %f WHERE CustomerID='%s';", 
+                                              cryptoBuyAmt, 
+                                              userID);
+    String updateCryptoInvestmentSql = String.format("UPDATE Customers SET TotalCryptoInvestment = TotalCryptoInvestment + %d WHERE CustomerID='%s';", 
+                                              ethValueInPennies, 
+                                              userID);;
+    
+    System.out.println(balanceDecreaseSql); // Print executed SQL update for debugging
+
+    jdbcTemplate.update(balanceDecreaseSql);
+    jdbcTemplate.update(ethAmountDecreaseSql);
+    jdbcTemplate.update(updateCryptoInvestmentSql);
+    
+    updateAccountInfo(user);
+    return "account_info";
+  }
+
+  /**
+   * HTML GET request handler that serves the "sellcrypto_form" page to the user.
+   * An empty `User` object is also added to the Model as an Attribute to store
+   * the user's input for selling cryptocurrency.
+   * 
+   * @param model
+   * @return "sellcrypto_form" page
+   */
+  @GetMapping("/sellcrypto")
+	public String showSellCryptoForm(Model model) {
+    User user = new User();
+		model.addAttribute("user", user);
+		return "sellcrypto_form";
+	}
+
+  /**
+   * HTML POST request handler for the Dispute Form page.
+   * 
+   * The same username+password handling from the login page is used.
+   * 
+   * If the password attempt is correct, the transaction is reversed and the proper
+   * balances are updated
+   * 
+   * If the user does not have a sufficient amount of ETH to sell, they are
+   * redirected to the "welcome" page
+   * 
+   * If the password attempt is incorrect, the user is redirected to the "welcome" page.
+   * 
+   * @param user
+   * @return "account_info" page if login successful. Otherwise, redirect to "welcome" page.
+   */
+  @PostMapping("/sellcrypto")
+  public String sellCrypto(@ModelAttribute("user") User user) {
+    String userID = user.getUsername();
+    String userPasswordAttempt = user.getPassword();
+
+    String getUserPasswordSql = String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", userID);
+    String userPassword = jdbcTemplate.queryForObject(getUserPasswordSql, String.class);
+
+    // unsuccessful login
+    if (userPasswordAttempt.equals(userPassword) == false) {
+      return "welcome";
+    }
+
+    String getUserEthBalanceSql =  String.format("SELECT EthereumBalance FROM customers WHERE CustomerID='%s';", userID);
+    double userEthBalance = jdbcTemplate.queryForObject(getUserEthBalanceSql, Double.class);
+
+    double cryptoSellAmt = user.getAmountToSellCrypto();
+    Double currentEthValue = getCurrentEthValue();
+    
+    // problem accessing current ETH price, cancel this transaction
+    if (currentEthValue == -1) {
+      return "welcome"; 
+    }
+    int ethValueInPennies = (int) (cryptoSellAmt * currentEthValue * 100);
+
+    String numberOfReversalsSql = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", userID);
+    int numOfReversals = jdbcTemplate.queryForObject(numberOfReversalsSql, Integer.class);
+    
+    if (cryptoSellAmt < 0 // user can't sell negative crypto
+        || cryptoSellAmt > userEthBalance // user can only sell the Ethereum they have
+        || numOfReversals >= MAX_DISPUTES ){ // if a user's account is frozen
+      return "welcome";
+    }
+
+    String balanceIncreaseSql = String.format("UPDATE Customers SET Balance = Balance + %d WHERE CustomerID='%s';", ethValueInPennies, userID);
+    String ethAmountDecreaseSql = String.format("UPDATE Customers SET EthereumBalance = EthereumBalance - %f WHERE CustomerID='%s';", cryptoSellAmt, userID);
+    String updateCryptoInvestmentSql = String.format("UPDATE Customers SET TotalCryptoInvestment = TotalCryptoInvestment - %d WHERE CustomerID='%s';", ethValueInPennies, userID);;
+    
+    System.out.println(balanceIncreaseSql); // Print executed SQL update for debugging
+    
+    jdbcTemplate.update(balanceIncreaseSql);
+    jdbcTemplate.update(ethAmountDecreaseSql);
+    jdbcTemplate.update(updateCryptoInvestmentSql);
+    
+    updateAccountInfo(user);
+    return "account_info";
+  }
+
+  /**
+   * Private method which is used to return the current value of Ethereum
+   * in USD. This method uses JSoup to scrape the website "https://ethereumprice.org"
+   * and retrieve the current USD value of 1 ETH.
+   * 
+   * NOTE: If the web scraper fails, a value of -1 is returned
+   * 
+   * @return the current value of 1 ETH in USD
+   */
+  private double getCurrentEthValue() {
+    try {
+      // fetch the document over HTTP
+      Document doc = Jsoup.connect("https://ethereumprice.org").userAgent("Mozilla").get();
+     
+      Element value = doc.getElementById("coin-price");
+      String valueStr = value.text();
+      
+      // Replacing the '$'' and ',' characters from the string
+      valueStr = valueStr.replaceAll("\\$", "").replaceAll("\\,", "");
+      double ethValue = Double.parseDouble(valueStr);
+      
+      return ethValue;
+    } catch (IOException e) {
+      // Print stack trace for debugging
+      e.printStackTrace();
+      
+      // Return -1 if there was an error during web scraping
+      return -1;
+    }
   }
 
 }

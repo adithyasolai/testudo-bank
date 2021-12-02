@@ -22,6 +22,12 @@ public class User {
   @Setter  @Getter @PositiveOrZero
 	private double balance;
 
+  @Setter  @Getter @PositiveOrZero
+	private double ethbalance;
+
+  @Setter  @Getter @PositiveOrZero
+	private double totalCryptoInvestment;
+
   @Setter @Getter @PositiveOrZero
 	private double overDraftBalance;
 
@@ -35,6 +41,12 @@ public class User {
 
   @Setter @Getter @Positive
   private double amountToWithdraw;
+
+  @Setter @Getter @Positive
+  private double amountToBuyCrypto;
+
+  @Setter @Getter @Positive
+  private double amountToSellCrypto;
 
   @Setter @Getter
   private int numTransactionsAgo;

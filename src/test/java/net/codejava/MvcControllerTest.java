@@ -16,6 +16,11 @@ import java.util.Map;
 import java.util.List;
 import java.util.ArrayList;
 
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import java.io.IOException;
+
 import static org.junit.Assert.*;
 import static org.hamcrest.CoreMatchers.*;
 
@@ -34,6 +39,23 @@ public class MvcControllerTest {
   private static List<Map<String, Object>> TRANSACTION_HIST_WITHDRAW;
   private static List<Map<String, Object>> OVERDRAFT_LOGS;
 
+  private double getCurrentEthValue() {
+    try {
+      // fetch the document over HTTP
+      Document doc = Jsoup.connect("https://ethereumprice.org").userAgent("Mozilla").get();
+     
+      // get all links in page
+      Element value = doc.getElementById("coin-price");
+      String valueStr = value.text();
+      valueStr = valueStr.replaceAll("\\$", "").replaceAll("\\,", "");
+      double ethValue = Double.parseDouble(valueStr);
+      return ethValue;
+    } catch (IOException e) {
+      e.printStackTrace();
+      return -1;
+    }
+  }
+
   @BeforeAll
   public static void init() {
     CUSTOMER1_USERNAME = "123456789";
@@ -45,6 +67,8 @@ public class MvcControllerTest {
     CUSTOMER1_DATA.get(0).put("LastName", "Doe");
     CUSTOMER1_DATA.get(0).put("Balance", 10000);
 	  CUSTOMER1_DATA.get(0).put("OverdraftBalance", 0);
+    CUSTOMER1_DATA.get(0).put("EthereumBalance", 0.0);
+    CUSTOMER1_DATA.get(0).put("TotalCryptoInvestment", 0);
     // prepare what seaerch for transaction history with deposit should return
     TRANSACTION_HIST = new ArrayList<>();
     TRANSACTION_HIST.add(new HashMap<>());
@@ -482,7 +506,7 @@ public class MvcControllerTest {
     String getCustomer1BalanceSql=String.format("SELECT Balance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
     when(jdbcTemplate.queryForObject(eq(getCustomer1BalanceSql), eq(Integer.class))).thenReturn(20000);
     // handles updateAccountInfo() helper method
-    String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance, EthereumBalance, TotalCryptoInvestment FROM customers WHERE CustomerID='%s';", customer1.getUsername());
     when(jdbcTemplate.queryForList(eq(getUserNameAndBalanceAndOverDraftBalanceSql))).thenReturn(CUSTOMER1_DATA);
     // handles getting 3 most recent logs from transaction history
     String getTransactionHistorySql = String.format("Select * from TransactionHistory WHERE CustomerId='%s' ORDER BY Timestamp DESC LIMIT %d;", customer1.getUsername(), 3);
@@ -530,7 +554,7 @@ public class MvcControllerTest {
     String getCustomer1BalanceSql=String.format("SELECT Balance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
     when(jdbcTemplate.queryForObject(eq(getCustomer1BalanceSql), eq(Integer.class))).thenReturn(0);
     // handles updateAccountInfo() helper method
-    String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance, EthereumBalance, TotalCryptoInvestment FROM customers WHERE CustomerID='%s';", customer1.getUsername());
     when(jdbcTemplate.queryForList(eq(getUserNameAndBalanceAndOverDraftBalanceSql))).thenReturn(CUSTOMER1_DATA);
     // handles getting 3 most recent logs from transaction history
     String getTransactionHistorySql = String.format("Select * from TransactionHistory WHERE CustomerId='%s' ORDER BY Timestamp DESC LIMIT %d;", customer1.getUsername(), 3);
@@ -579,7 +603,7 @@ public class MvcControllerTest {
     String getCustomer1BalanceSql=String.format("SELECT Balance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
     when(jdbcTemplate.queryForObject(eq(getCustomer1BalanceSql), eq(Integer.class))).thenReturn(20000);
     // handles updateAccountInfo() helper method
-    String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance, EthereumBalance, TotalCryptoInvestment FROM customers WHERE CustomerID='%s';", customer1.getUsername());
     when(jdbcTemplate.queryForList(eq(getUserNameAndBalanceAndOverDraftBalanceSql))).thenReturn(CUSTOMER1_DATA);
     // handles getting 3 most recent logs from transaction history
     String getTransactionHistorySql = String.format("Select * from TransactionHistory WHERE CustomerId='%s' ORDER BY Timestamp DESC LIMIT %d;", customer1.getUsername(), 3);
@@ -627,7 +651,7 @@ public class MvcControllerTest {
     String getCustomer1BalanceSql=String.format("SELECT Balance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
     when(jdbcTemplate.queryForObject(eq(getCustomer1BalanceSql), eq(Integer.class))).thenReturn(0);
     // handles updateAccountInfo() helper method
-    String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance, EthereumBalance, TotalCryptoInvestment FROM customers WHERE CustomerID='%s';", customer1.getUsername());
     when(jdbcTemplate.queryForList(eq(getUserNameAndBalanceAndOverDraftBalanceSql))).thenReturn(CUSTOMER1_DATA);
     // handles getting 3 most recent logs from transaction history
     String getTransactionHistorySql = String.format("Select * from TransactionHistory WHERE CustomerId='%s' ORDER BY Timestamp DESC LIMIT %d;", customer1.getUsername(), 3);
@@ -656,5 +680,277 @@ public class MvcControllerTest {
     Mockito.verify(jdbcTemplate, Mockito.times(1)).update(eq(overdraftBalanceUpdateSql));
     // verify "account_info" page is returned
 		assertEquals("account_info", pageReturned);
+	}
+
+  @Test
+	public void testBuyEthLockedAccount() {
+		User customer1 = new User();
+		customer1.setUsername(CUSTOMER1_USERNAME);
+		customer1.setPassword("password");
+    customer1.setBalance(1000000);
+		customer1.setAmountToBuyCrypto(0.1);
+
+    // stub jdbc calls
+    // unsuccessful login
+    String getCustomer1PasswordSql=String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", customer1.getUsername());
+		when(jdbcTemplate.queryForObject(eq(getCustomer1PasswordSql), eq(String.class))).thenReturn("password");
+    // handles account being locked
+    String getNumReversals = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    when(jdbcTemplate.queryForObject(eq(getNumReversals), eq(Integer.class))).thenReturn(2);
+    // handles balance request
+    String getBalance = String.format("SELECT Balance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    when(jdbcTemplate.queryForObject(eq(getBalance), eq(Integer.class))).thenReturn((int)customer1.getBalance());
+    // send deposit request
+    String pageReturned = controller.buyCrypto(customer1);
+
+    // Verify that no SQL Update commands are sent
+    Mockito.verify(jdbcTemplate, Mockito.times(0)).update(anyString());
+
+    // verify that customer is re-directed to "welcome" page
+		assertEquals("welcome", pageReturned);
+	}
+  
+  @Test
+	public void testBuyEthFailureIllegalArgument() {
+		User customer1 = new User();
+		customer1.setUsername(CUSTOMER1_USERNAME);
+		customer1.setPassword("password");
+    customer1.setBalance(1000000);
+		customer1.setAmountToBuyCrypto(-0.2);
+
+    // stub jdbc calls
+    // unsuccessful login
+    String getCustomer1PasswordSql=String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", customer1.getUsername());
+		when(jdbcTemplate.queryForObject(eq(getCustomer1PasswordSql), eq(String.class))).thenReturn("password");
+    // handles account being locked
+    String getNumReversals = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    when(jdbcTemplate.queryForObject(eq(getNumReversals), eq(Integer.class))).thenReturn(2);
+    // handles balance request
+    String getBalance = String.format("SELECT Balance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    when(jdbcTemplate.queryForObject(eq(getBalance), eq(Integer.class))).thenReturn((int)customer1.getBalance());
+    // send deposit request
+    String pageReturned = controller.buyCrypto(customer1);
+
+    // Verify that no SQL Update commands are sent
+    Mockito.verify(jdbcTemplate, Mockito.times(0)).update(anyString());
+
+    // verify that customer is re-directed to "welcome" page
+		assertEquals("welcome", pageReturned);
+	}
+
+  @Test
+	public void testBuyEthFailureInsufficientBalance() {
+		User customer1 = new User();
+		customer1.setUsername(CUSTOMER1_USERNAME);
+		customer1.setPassword("password");
+    customer1.setBalance(10000);
+		customer1.setAmountToBuyCrypto(1);
+
+    // stub jdbc calls
+    // unsuccessful login
+    String getCustomer1PasswordSql=String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", customer1.getUsername());
+		when(jdbcTemplate.queryForObject(eq(getCustomer1PasswordSql), eq(String.class))).thenReturn("password");
+    // handles account being locked
+    String getNumReversals = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    when(jdbcTemplate.queryForObject(eq(getNumReversals), eq(Integer.class))).thenReturn(2);
+    // handles balance request
+    String getBalance = String.format("SELECT Balance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    when(jdbcTemplate.queryForObject(eq(getBalance), eq(Integer.class))).thenReturn((int)customer1.getBalance());
+    // send deposit request
+    String pageReturned = controller.buyCrypto(customer1);
+
+    // Verify that no SQL Update commands are sent
+    Mockito.verify(jdbcTemplate, Mockito.times(0)).update(anyString());
+
+    // verify that customer is re-directed to "welcome" page
+		assertEquals("welcome", pageReturned);
+	}
+
+  @Test
+	public void testSellEthLockedAccount() {
+		User customer1 = new User();
+		customer1.setUsername(CUSTOMER1_USERNAME);
+		customer1.setPassword("password");
+    customer1.setEthbalance(1.5);
+		customer1.setAmountToSellCrypto(0.5);
+
+    // stub jdbc calls
+    // unsuccessful login
+    String getCustomer1PasswordSql=String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", customer1.getUsername());
+		when(jdbcTemplate.queryForObject(eq(getCustomer1PasswordSql), eq(String.class))).thenReturn("password");
+    // handles account being locked
+    String getNumReversals = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    when(jdbcTemplate.queryForObject(eq(getNumReversals), eq(Integer.class))).thenReturn(2);
+    // handles ETH balance request
+    String getBalance = String.format("SELECT EthereumBalance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    when(jdbcTemplate.queryForObject(eq(getBalance), eq(Double.class))).thenReturn(customer1.getEthbalance());
+    // send deposit request
+    String pageReturned = controller.sellCrypto(customer1);
+
+    // Verify that no SQL Update commands are sent
+    Mockito.verify(jdbcTemplate, Mockito.times(0)).update(anyString());
+
+    // verify that customer is re-directed to "welcome" page
+		assertEquals("welcome", pageReturned);
+	}
+
+  @Test
+	public void testSellEthFailureIllegalArgument() {
+		User customer1 = new User();
+		customer1.setUsername(CUSTOMER1_USERNAME);
+		customer1.setPassword("password");
+    customer1.setEthbalance(1.5);
+		customer1.setAmountToSellCrypto(-0.5);
+
+    // stub jdbc calls
+    // unsuccessful login
+    String getCustomer1PasswordSql=String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", customer1.getUsername());
+		when(jdbcTemplate.queryForObject(eq(getCustomer1PasswordSql), eq(String.class))).thenReturn("password");
+    // handles account being locked
+    String getNumReversals = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    when(jdbcTemplate.queryForObject(eq(getNumReversals), eq(Integer.class))).thenReturn(2);
+    // handles ETH balance request
+    String getBalance = String.format("SELECT EthereumBalance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    when(jdbcTemplate.queryForObject(eq(getBalance), eq(Double.class))).thenReturn(customer1.getEthbalance());
+    // send deposit request
+    String pageReturned = controller.sellCrypto(customer1);
+
+    // Verify that no SQL Update commands are sent
+    Mockito.verify(jdbcTemplate, Mockito.times(0)).update(anyString());
+
+    // verify that customer is re-directed to "welcome" page
+		assertEquals("welcome", pageReturned);
+	}
+
+  @Test
+	public void testSellEthFailureInsufficientEthBalance() {
+		User customer1 = new User();
+		customer1.setUsername(CUSTOMER1_USERNAME);
+		customer1.setPassword("password");
+    customer1.setEthbalance(0.5);
+		customer1.setAmountToSellCrypto(1.5);
+
+    // stub jdbc calls
+    // unsuccessful login
+    String getCustomer1PasswordSql=String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", customer1.getUsername());
+		when(jdbcTemplate.queryForObject(eq(getCustomer1PasswordSql), eq(String.class))).thenReturn("password");
+    // handles account being locked
+    String getNumReversals = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    when(jdbcTemplate.queryForObject(eq(getNumReversals), eq(Integer.class))).thenReturn(2);
+    // handles ETH balance request
+    String getBalance = String.format("SELECT EthereumBalance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    when(jdbcTemplate.queryForObject(eq(getBalance), eq(Double.class))).thenReturn(customer1.getEthbalance());
+    // send deposit request
+    String pageReturned = controller.sellCrypto(customer1);
+
+    // Verify that no SQL Update commands are sent
+    Mockito.verify(jdbcTemplate, Mockito.times(0)).update(anyString());
+
+    // verify that customer is re-directed to "welcome" page
+		assertEquals("welcome", pageReturned);
+	}
+
+  @Test
+	public void testBuyEthSuccess() {
+		User customer1 = new User();
+		customer1.setUsername(CUSTOMER1_USERNAME);
+		customer1.setPassword("password");
+		customer1.setAmountToBuyCrypto(1);
+
+    // stub jdbc calls
+    // successful login
+    String getCustomer1PasswordSql=String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", customer1.getUsername());
+		when(jdbcTemplate.queryForObject(eq(getCustomer1PasswordSql), eq(String.class))).thenReturn("password");
+    // retrieve balance of $200 (which is stored as 20000 pennies) from DB
+    String getCustomer1BalanceSql=String.format("SELECT Balance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    when(jdbcTemplate.queryForObject(eq(getCustomer1BalanceSql), eq(Integer.class))).thenReturn(1000000);
+    // handles updateAccountInfo() helper method
+    when(jdbcTemplate.queryForList(anyString())).thenReturn(CUSTOMER1_DATA);
+    // handles account not being locked
+    String getNumReversals = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    when(jdbcTemplate.queryForObject(eq(getNumReversals), eq(Integer.class))).thenReturn(0);
+    // not working with live DB
+		when(jdbcTemplate.update(anyString())).thenReturn(1);
+
+    // send withdraw request
+    String pageReturned = controller.buyCrypto(customer1);
+
+    // Verify that the SQL Update command executed uses customer1's ID and amountToWitdraw.
+    double cryptoBuyAmt = customer1.getAmountToBuyCrypto();
+    Double currentEthValue = getCurrentEthValue();
+    if (currentEthValue == -1) { // If the web scraper fails
+      Mockito.verify(jdbcTemplate, Mockito.times(0)).update(eq(anyString()));
+      // verify "account_info" page is returned
+      assertEquals("account_info", pageReturned);
+    } else {
+      int ethValueInPennies = (int) (cryptoBuyAmt * currentEthValue * 100);
+      String balanceDecreaseSqlCustomer1=String.format("UPDATE Customers SET Balance = Balance - %d WHERE CustomerID='%s';",
+                                                        ethValueInPennies,
+                                                        customer1.getUsername());
+      String ethAmountIncreaseSql = String.format("UPDATE Customers SET EthereumBalance = EthereumBalance + %f WHERE CustomerID='%s';", 
+                                                  cryptoBuyAmt, 
+                                                  customer1.getUsername());
+      String updateCryptoInvestmentSql = String.format("UPDATE Customers SET TotalCryptoInvestment = TotalCryptoInvestment + %d WHERE CustomerID='%s';", 
+                                                      ethValueInPennies, 
+                                                      customer1.getUsername());;                                                
+      Mockito.verify(jdbcTemplate, Mockito.times(1)).update(eq(balanceDecreaseSqlCustomer1));
+      Mockito.verify(jdbcTemplate, Mockito.times(1)).update(eq(ethAmountIncreaseSql));
+      Mockito.verify(jdbcTemplate, Mockito.times(1)).update(eq(updateCryptoInvestmentSql));
+  
+      // verify "account_info" page is returned
+      assertEquals("account_info", pageReturned);
+    }
+	}
+
+  @Test
+	public void testSellEthSuccess() {
+		User customer1 = new User();
+		customer1.setUsername(CUSTOMER1_USERNAME);
+		customer1.setPassword("password");
+		customer1.setAmountToSellCrypto(1);
+
+    // stub jdbc calls
+    // successful login
+    String getCustomer1PasswordSql=String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", customer1.getUsername());
+		when(jdbcTemplate.queryForObject(eq(getCustomer1PasswordSql), eq(String.class))).thenReturn("password");
+    // retrieve balance of $200 (which is stored as 20000 pennies) from DB
+    String getCustomer1BalanceSql=String.format("SELECT EthereumBalance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    when(jdbcTemplate.queryForObject(eq(getCustomer1BalanceSql), eq(Double.class))).thenReturn(2.5);
+    // handles updateAccountInfo() helper method
+    when(jdbcTemplate.queryForList(anyString())).thenReturn(CUSTOMER1_DATA);
+    // handles account not being locked
+    String getNumReversals = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    when(jdbcTemplate.queryForObject(eq(getNumReversals), eq(Integer.class))).thenReturn(0);
+    // not working with live DB
+		when(jdbcTemplate.update(anyString())).thenReturn(1);
+
+    // send withdraw request
+    String pageReturned = controller.sellCrypto(customer1);
+
+    // Verify that the SQL Update command executed uses customer1's ID and amountToWitdraw.
+    double cryptoBuyAmt = customer1.getAmountToSellCrypto();
+    Double currentEthValue = getCurrentEthValue();
+    if (currentEthValue == -1) { // If the web scraper fails
+      Mockito.verify(jdbcTemplate, Mockito.times(0)).update(eq(anyString()));
+      // verify "account_info" page is returned
+      assertEquals("account_info", pageReturned);
+    } else {
+      int ethValueInPennies = (int) (cryptoBuyAmt * currentEthValue * 100);
+      String balanceIncreaseSqlCustomer1=String.format("UPDATE Customers SET Balance = Balance + %d WHERE CustomerID='%s';",
+                                                        ethValueInPennies,
+                                                        customer1.getUsername());
+      String ethAmountDecreaseSql = String.format("UPDATE Customers SET EthereumBalance = EthereumBalance - %f WHERE CustomerID='%s';", 
+                                                  cryptoBuyAmt, 
+                                                  customer1.getUsername());
+      String updateCryptoInvestmentSql = String.format("UPDATE Customers SET TotalCryptoInvestment = TotalCryptoInvestment - %d WHERE CustomerID='%s';", 
+                                                      ethValueInPennies, 
+                                                      customer1.getUsername());;                                                
+      Mockito.verify(jdbcTemplate, Mockito.times(1)).update(eq(balanceIncreaseSqlCustomer1));
+      Mockito.verify(jdbcTemplate, Mockito.times(1)).update(eq(ethAmountDecreaseSql));
+      Mockito.verify(jdbcTemplate, Mockito.times(1)).update(eq(updateCryptoInvestmentSql));
+  
+      // verify "account_info" page is returned
+      assertEquals("account_info", pageReturned);
+    }
 	}
 }
