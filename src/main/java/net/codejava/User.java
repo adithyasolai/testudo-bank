@@ -27,6 +27,7 @@ public class User {
 
   @Setter @Getter
 	private String logs;
+
   @Setter @Getter
   private String transactionHist;
 
@@ -44,6 +45,15 @@ public class User {
 
   @Setter @Getter
   private int numTransactionsAgo;
+
+  @Setter @Getter
+  private String transferLogs;
+
+  @Setter @Getter @Positive
+  private double amountToTransfer;
+
+  @Setter @Getter
+	private String userToTransfer;
 
 	@Override
 	public String toString() {

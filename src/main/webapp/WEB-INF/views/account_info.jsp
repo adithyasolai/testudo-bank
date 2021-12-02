@@ -34,13 +34,14 @@
     <span>Overdraft Balance is: $</span><span>${user.overDraftBalance}</span><br/>
     <span>Re-payment logs: </span><span>${user.logs}</span><br/>
     <span>Transaction History: </span><span>${user.transactionHist}</span><br/>
+    <span>Transfer History: </span><span>${user.transferLogs}</span><br/>
     <br/>
     <a href='/deposit'>Deposit</a>
     <a href='/withdraw'>Withdraw</a>
     <a href='/dispute'>Dispute</a>
     <a href='/'>Logout</a>
     <p>Overdraft Logs</p>
-    <span style="white-space: pre-wrap">${user.overdraftLogs}</span>
+    <span style="white-space: pre-wrap">${user.overdraftLogs}</span><br/>
 	</div>
 </body>
 </html>

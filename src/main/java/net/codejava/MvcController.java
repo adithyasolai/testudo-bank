@@ -520,4 +520,81 @@ public class MvcController {
     return "account_info";
   }
 
+  /**
+   * HTML GET request handler that serves the "transfer_form" page to the user.
+   * An empty `User` object is also added to the Model as an Attribute to store
+   * the user's dispute form input.
+   * 
+   * @param model
+   * @return "transfer_form" page
+   */
+  @GetMapping("/transfer")
+	public String showTransferForm(Model model) {
+    User user = new User();
+		model.addAttribute("user", user);
+		return "transfer_form";
+	}
+
+    /**
+   * HTML POST request handler for the Transfer Form page.
+   * 
+   * The same username+password handling from the login page is used.
+   * 
+   * If the password attempt is correct, the balance is decremented by the amount specified
+   * in the Transfer form and sent to the user specified. The user is then served the "account_info" with an updated balance.
+   * 
+   * If the password attempt is incorrect, the user is redirected to the "welcome" page.
+   * 
+   * @param user
+   * @return "account_info" page if login successful. Otherwise, redirect to "welcome" page.
+   */
+  @PostMapping("/transfer")
+  public String submitTransfer(@ModelAttribute("user") User user) {
+    String userID = user.getUsername();
+    String userPasswordAttempt = user.getPassword();
+    String getUserPasswordSql = String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", userID);
+    String userPassword = jdbcTemplate.queryForObject(getUserPasswordSql, String.class);
+
+    // unsuccessful login
+    if (userPasswordAttempt.equals(userPassword) == false) {
+      return "welcome";
+    }
+
+    String userTransferID = user.getUserToTransfer();
+    double userTransferAmt = user.getAmountToTransfer();
+    int userTransferAmtInPennies = (int) (userTransferAmt * 100);
+
+    String numberOfReversalsSql = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", userID);
+    int numOfReversals = jdbcTemplate.queryForObject(numberOfReversalsSql, Integer.class);
+
+    // If too many reversals dont do transfer or if amount entered is negative
+    if (userTransferAmt < 0 || numOfReversals >= MAX_DISPUTES){
+      return "welcome";
+    }
+
+    String getUserBalanceSql =  String.format("SELECT Balance FROM customers WHERE CustomerID='%s';", userID);
+    int userBalanceInPennies = jdbcTemplate.queryForObject(getUserBalanceSql, Integer.class);
+    
+    // User cannot transfer more money than they have
+    if (userBalanceInPennies - userTransferAmtInPennies < 0) {
+      return "welcome";
+    }
+    
+    String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date());
+
+
+    // Update user that is transferring money
+    String balanceIncreaseSql1 = String.format("UPDATE Customers SET Balance = Balance - %d WHERE CustomerID='%s';", userTransferAmtInPennies, userID);
+    
+    // Update user that money is transferred to
+    String balanceIncreaseSql2 = String.format("UPDATE Customers SET Balance = Balance + %d WHERE CustomerID='%s';", userTransferAmtInPennies, userTransferID);
+    
+    System.out.println(balanceIncreaseSql1); // Print executed SQL update for debugging
+    jdbcTemplate.update(balanceIncreaseSql1);
+    System.out.println(balanceIncreaseSql2); // Print executed SQL update for debugging
+    jdbcTemplate.update(balanceIncreaseSql2);
+    updateAccountInfo(user);
+    return "account_info";
+  }
+
 }

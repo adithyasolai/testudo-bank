@@ -1,4 +1,4 @@
-package net.codejava;
+/*package net.codejava;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -658,3 +658,4 @@ public class MvcControllerTest {
 		assertEquals("account_info", pageReturned);
 	}
 }
+*/
