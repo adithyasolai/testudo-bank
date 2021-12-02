@@ -1,4 +1,4 @@
-/*package net.codejava;
+package net.codejava;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -255,7 +255,6 @@ public class MvcControllerTest {
     // verify that customer is re-directed to "welcome" page
 		assertEquals("welcome", pageReturned);
 	}
->>>>>>> 59f3c65bdc4c2be4593bd48803a8764aed93de05
 
 	@Test
 	public void testWithdrawOverDraftBalanceSuccess() {
@@ -658,4 +657,3 @@ public class MvcControllerTest {
 		assertEquals("account_info", pageReturned);
 	}
 }
-*/
