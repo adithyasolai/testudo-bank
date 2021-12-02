@@ -56,6 +56,18 @@ CREATE TABLE TransactionHistory (
 '''
 cursor.execute(create_transactionhistory_table_sql)
 
+# Make empty TransferHistory table
+create_transferhistory_table_sql = '''
+CREATE TABLE TransferHistory (
+  CustomerID varchar(255),
+  Timestamp DATETIME,
+  FromCustomerID varchar(255),
+  ToCustomerID varchar(255),
+  Amount int
+);
+'''
+cursor.execute(create_transferhistory_table_sql)
+
 # The two sets created below are used to ensure that this
 # automated, randomized process does not accidentally 
 # generate and use a customer ID that already is in use
