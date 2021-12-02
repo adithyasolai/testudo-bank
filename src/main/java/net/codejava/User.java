@@ -27,6 +27,8 @@ public class User {
 
   @Setter @Getter
 	private String logs;
+  @Setter @Getter
+  private String transactionHist;
 
   @Setter @Getter @PositiveOrZero
 	private int overdraftBalance;
