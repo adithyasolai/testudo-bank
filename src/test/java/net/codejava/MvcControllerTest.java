@@ -656,4 +656,94 @@ public class MvcControllerTest {
     // verify "account_info" page is returned
 		assertEquals("account_info", pageReturned);
 	}
+
+  @Test
+	public void testTransferSuccesswithCorrectPassword() {
+    // initialize user input to the transfer form
+		User customer1 = new User();
+		customer1.setUsername(CUSTOMER1_USERNAME);
+		customer1.setPassword("password");
+    customer1.setUserToTransfer("987654321");
+		customer1.setAmountToTransfer(100);
+
+    // stub jdbc calls
+    // successful login
+    String getCustomer1PasswordSql=String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", customer1.getUsername());
+		when(jdbcTemplate.queryForObject(eq(getCustomer1PasswordSql), eq(String.class))).thenReturn("password");
+    // handles updateAccountInfo() helper method
+    when(jdbcTemplate.queryForList(anyString())).thenReturn(CUSTOMER1_DATA);
+    // handles account not being locked
+    String getNumReversals = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    when(jdbcTemplate.queryForObject(eq(getNumReversals), eq(Integer.class))).thenReturn(0);
+    // handles getting user balance
+    String getCustomer1BalanceSql=String.format("SELECT Balance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    when(jdbcTemplate.queryForObject(eq(getCustomer1BalanceSql), eq(Integer.class))).thenReturn(20000);
+    // not working with live DB
+		when(jdbcTemplate.update(anyString())).thenReturn(1);
+
+    // send transfer request
+    String pageReturned = controller.submitTransfer(customer1);
+
+    // Verify that the SQL Update command executed uses customer1's ID and amountToDeposit.
+    int expectedTransferAmtInPennies = (int) (customer1.getAmountToTransfer() * 100);
+    String balanceIncreaseSqlCustomer1=String.format("UPDATE Customers SET Balance = Balance - %d WHERE CustomerID='%s';",
+                                                     expectedTransferAmtInPennies,
+                                                     customer1.getUsername());
+    Mockito.verify(jdbcTemplate, Mockito.times(1)).update(eq(balanceIncreaseSqlCustomer1));
+    String balanceIncreaseSqlCustomer2=String.format("UPDATE Customers SET Balance = Balance + %d WHERE CustomerID='%s';",
+                                                     expectedTransferAmtInPennies,
+                                                     customer1.getUserToTransfer());
+    Mockito.verify(jdbcTemplate, Mockito.times(1)).update(eq(balanceIncreaseSqlCustomer2));
+
+    // verify "account_info" page is returned
+		assertEquals("account_info", pageReturned);
+	}
+
+	@Test
+	public void testTransferFailurewithIncorrectPassword() {
+		User customer1 = new User();
+		customer1.setUsername(CUSTOMER1_USERNAME);
+		customer1.setPassword("not password");
+    customer1.setUserToTransfer("987654321");
+		customer1.setAmountToTransfer(100);
+
+    // stub jdbc calls
+    // unsuccessful login
+    String getCustomer1PasswordSql=String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", customer1.getUsername());
+		when(jdbcTemplate.queryForObject(eq(getCustomer1PasswordSql), eq(String.class))).thenReturn("password");
+
+    // send deposit request
+    String pageReturned = controller.submitTransfer(customer1);
+
+    // Verify that no SQL Update commands are sent
+    Mockito.verify(jdbcTemplate, Mockito.times(0)).update(anyString());
+
+    // verify that customer is re-directed to "welcome" page
+		assertEquals("welcome", pageReturned);
+	}
+
+  @Test
+	public void testTransferLockedAccount() {
+		User customer1 = new User();
+		customer1.setUsername(CUSTOMER1_USERNAME);
+		customer1.setPassword("password");
+    customer1.setUserToTransfer("987654321");
+		customer1.setAmountToTransfer(100);
+
+    // stub jdbc calls
+    // unsuccessful login
+    String getCustomer1PasswordSql=String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", customer1.getUsername());
+		when(jdbcTemplate.queryForObject(eq(getCustomer1PasswordSql), eq(String.class))).thenReturn("password");
+    // handles account being locked
+    String getNumReversals = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    when(jdbcTemplate.queryForObject(eq(getNumReversals), eq(Integer.class))).thenReturn(2);
+    // send deposit request
+    String pageReturned = controller.submitTransfer(customer1);
+
+    // Verify that no SQL Update commands are sent
+    Mockito.verify(jdbcTemplate, Mockito.times(0)).update(anyString());
+
+    // verify that customer is re-directed to "welcome" page
+		assertEquals("welcome", pageReturned);
+	}
 }
