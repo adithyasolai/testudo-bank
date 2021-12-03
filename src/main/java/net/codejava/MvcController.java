@@ -90,15 +90,25 @@ public class MvcController {
 
     Map<String,Object> userData = queryResults.get(0);
 
+    
+    double currentEthValue = getCurrentEthValue();
+    double profits = (int)(currentEthValue * (double)userData.get("EthereumBalance") * 100) - ((int)userData.get("TotalCryptoInvestment"));
+    profits = profits/100;
+    
+    double ethBalance = (int)((double)userData.get("EthereumBalance") * 10000);
+    ethBalance = (ethBalance) / 10000;
+
     user.setFirstName((String)userData.get("FirstName"));
     user.setLastName((String)userData.get("LastName"));
     user.setBalance((int)userData.get("Balance")/100.0);
     double overDraftBalance = (int)userData.get("OverdraftBalance");
-    user.setEthbalance((double)userData.get("EthereumBalance"));
+    user.setEthbalance(ethBalance);
     user.setTotalCryptoInvestment((int)userData.get("TotalCryptoInvestment")/100.0);
+    user.setProfits(profits);
     user.setOverDraftBalance(overDraftBalance/100);
     user.setLogs(logs);
     user.setTransactionHist(transactionHistoryOutput);
+
   }
 
   /**

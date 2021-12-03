@@ -31,6 +31,9 @@ public class User {
   @Setter @Getter @PositiveOrZero
 	private double overDraftBalance;
 
+  @Setter @Getter 
+	private double profits;
+
   @Setter @Getter
 	private String logs;
   @Setter @Getter
