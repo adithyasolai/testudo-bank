@@ -31,12 +31,17 @@
 	<div align="center">
 		<h2><span>${user.firstName}</span> <span>${user.lastName}</span> Bank Account Info</h2>
 		<span>Balance is: $</span><span>${user.balance}</span><br/>
+    <span>Cryptocurrency Balance is: ETH </span><span>${user.ethbalance}</span><br/>
+    <span>Total Amount currently invested in Cryptocurrency: $</span><span>${user.totalCryptoInvestment}</span><br/>
+    <span>Total Profits/Losses in Cryptocurrency Investments: $</span><span>${user.profits}</span><br>
     <span>Overdraft Balance is: $</span><span>${user.overDraftBalance}</span><br/>
     <span>Re-payment logs: </span><span>${user.logs}</span><br/>
     <span>Transaction History: </span><span>${user.transactionHist}</span><br/>
     <br/>
     <a href='/deposit'>Deposit</a>
     <a href='/withdraw'>Withdraw</a>
+    <a href='/buycrypto'>Buy Cryptocurrency</a>
+    <a href='/sellcrypto'>Sell Cryptocurrency</a> 
     <a href='/dispute'>Dispute</a>
     <a href='/'>Logout</a>
 	</div>
