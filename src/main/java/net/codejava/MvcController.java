@@ -67,11 +67,12 @@ public class MvcController {
    * @param user
    */
   private void updateAccountInfo(User user) {
-    String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance FROM customers WHERE CustomerID='%s';", user.getUsername());
+    String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance, RewardPoints FROM customers WHERE CustomerID='%s';", user.getUsername());
     List<Map<String,Object>> queryResults = jdbcTemplate.queryForList(getUserNameAndBalanceAndOverDraftBalanceSql);
     String getOverDraftLogsSql = String.format("SELECT * FROM OverdraftLogs WHERE CustomerID='%s';", user.getUsername());
     // SQL Query that only fetches the three most recent transaction logs for this customer.
     String getTransactionHistorySql = String.format("Select * from TransactionHistory WHERE CustomerId='%s' ORDER BY Timestamp DESC LIMIT %d;", user.getUsername(), MAX_NUM_TRANSACTIONS_DISPLAYED);
+    String getRewardLogsSql = String.format("SELECT * FROM RewardLogs WHERE CustomerID='%s';", user.getUsername());
     
     List<Map<String,Object>> queryLogs = jdbcTemplate.queryForList(getOverDraftLogsSql);
     String logs = HTML_LINE_BREAK;
@@ -83,6 +84,11 @@ public class MvcController {
     for(Map<String, Object> transactionLog : transactionLogs){
       transactionHistoryOutput += transactionLog + HTML_LINE_BREAK;
     }
+    List<Map<String,Object>> rewardLogs = jdbcTemplate.queryForList(getRewardLogsSql);
+    String rewardsHistoryOutput = HTML_LINE_BREAK;
+    for(Map<String, Object> rewardLog : rewardLogs){
+      rewardsHistoryOutput += rewardLog + HTML_LINE_BREAK;
+    }
 
     Map<String,Object> userData = queryResults.get(0);
 
@@ -91,8 +97,10 @@ public class MvcController {
     user.setBalance((int)userData.get("Balance")/100.0);
     double overDraftBalance = (int)userData.get("OverdraftBalance");
     user.setOverDraftBalance(overDraftBalance/100);
+    user.setRewardPoints((int)userData.get("RewardPoints"));
     user.setLogs(logs);
     user.setTransactionHist(transactionHistoryOutput);
+    user.setRewardLogHist(rewardsHistoryOutput);
   }
 
   /**
@@ -311,6 +319,18 @@ public class MvcController {
                                                     userWithdrawAmtInPennies);
       jdbcTemplate.update(transactionHistorySql);
 
+      // calculate points 
+      String getUserCurrOverdraftToRewardsSql = String.format("SELECT CurrOverdraftToRewards FROM customers WHERE CustomerID='%s';", userID);
+      int userCurrOverdraftToRewardsSql = jdbcTemplate.queryForObject(getUserCurrOverdraftToRewardsSql, Integer.class);
+      int rewardsToAdd = (int)((newOverdraftAmtInPennies + userCurrOverdraftToRewardsSql)/(250*100));
+      int leftover = (int)((newOverdraftAmtInPennies + userCurrOverdraftToRewardsSql)%(250*100));
+
+      String updateRewardPointsSql = String.format("UPDATE Customers SET RewardPoints = RewardPoints + %d WHERE CustomerID='%s';", rewardsToAdd*100, userID);
+      jdbcTemplate.update(updateRewardPointsSql);
+      String updateLeftoverSql = String.format("UPDATE Customers SET CurrOverdraftToRewards = %d WHERE CustomerID='%s';", leftover, userID);
+      jdbcTemplate.update(updateLeftoverSql);
+
+
       // this is a valid overdraft, so we can set Balance column to 0
       String updateBalanceSql = String.format("UPDATE Customers SET Balance = %d WHERE CustomerID='%s';", 0, userID);
       jdbcTemplate.update(updateBalanceSql);
@@ -522,4 +542,149 @@ public class MvcController {
     return "account_info";
   }
 
+
+  /**
+   * HTML GET request handler that serves the "rewards_form" page to the user.
+   * An empty `User` object is also added to the Model as an Attribute to store
+   * the user's rewards form input.
+   * 
+   * @param model
+   * @return "rewards_form" page
+   */
+  @GetMapping("/rewards")
+	public String showRewardsForm(Model model) {
+    User user = new User();
+		model.addAttribute("user", user);
+		return "rewards_form";
+	}
+
+  /**
+   * HTML POST request handler for the Rewards Form page.
+   * 
+   * The same username+password handling from the login page is used.
+   * 
+   * If the password attempt is correct, the reward action is taken.
+   * The user is then served the "account_info" with an updated balance.
+   * 
+   * If the password attempt is incorrect, the user is redirected to the "welcome" page.
+   * 
+   * @param user
+   * @return "account_info" page if login successful. Otherwise, redirect to "welcome" page.
+   */
+  @PostMapping("/rewards")
+  public String submitRewards(@ModelAttribute("user") User user) {
+    String userID = user.getUsername();
+    String userPasswordAttempt = user.getPassword();
+
+    String getUserPasswordSql = String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", userID);
+    String userPassword = jdbcTemplate.queryForObject(getUserPasswordSql, String.class);
+
+    // unsuccessful login
+    if (userPasswordAttempt.equals(userPassword) == false) {
+      return "welcome";
+    }
+
+    String userRewardChoice = user.getRewardChoice();
+    int userPointsToExchange = user.getPointsToExchange();
+    
+    String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date());
+
+    String getUserRewardPointsSql = String.format("SELECT RewardPoints FROM customers WHERE CustomerID='%s';", userID);
+    int userRewardPoints = jdbcTemplate.queryForObject(getUserRewardPointsSql, Integer.class);
+
+    // Inputs more points than owned
+    if (userPointsToExchange > userRewardPoints) {
+      return "welcome";
+    }
+
+    // if the overdraft balance is positive, subtract the deposit with interest
+    if (userRewardChoice.equals("Fraud Reversal") && userRewardPoints >= 500) {
+      String rewardsLogsInsertSql = String.format("INSERT INTO RewardLogs VALUES ('%s', '%s', '%s', %d, %d);", 
+                                                    userID,
+                                                    currentTime,
+                                                    "Fraud Reversal",
+                                                    userRewardPoints,
+                                                    userRewardPoints-500);
+      jdbcTemplate.update(rewardsLogsInsertSql);
+
+      // update number of reversals
+      String addReversalSql = String.format("UPDATE Customers SET NumFraudReversals = NumFraudReversals - 1 WHERE CustomerID='%s';", userID);
+      jdbcTemplate.update(addReversalSql);
+
+      // updating customers table
+      String rewardPointsUpdateSql = String.format("UPDATE Customers SET RewardPoints = RewardPoints - 500 WHERE CustomerID='%s';", userID);
+      jdbcTemplate.update(rewardPointsUpdateSql);
+      updateAccountInfo(user);
+      return "account_info";
+    } else if (userRewardChoice.equals("Exchange Money") && userPointsToExchange >= 100 && userPointsToExchange%100 == 0) {
+      double userDepositAmt = userPointsToExchange/100;
+      int userDepositAmtInPennies = (int) (userDepositAmt * 100);
+  
+      String numberOfReversalsSql = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", userID);
+      int numOfReversals = jdbcTemplate.queryForObject(numberOfReversalsSql, Integer.class);
+      //If too many reversals dont do deposit
+      if (userDepositAmt < 0 || numOfReversals >= MAX_DISPUTES){
+        return "welcome";
+      }
+  
+      //Adds deposit to transaction historu
+      String transactionHistorySql = String.format("INSERT INTO TransactionHistory VALUES ('%s', '%s', %s, %d);",
+                                                    userID,
+                                                    currentTime,
+                                                    "'Deposit'",
+                                                    userDepositAmtInPennies);
+      jdbcTemplate.update(transactionHistorySql);
+  
+      String getUserOverdraftBalanceSql = String.format("SELECT OverdraftBalance FROM customers WHERE CustomerID='%s';", userID);
+      int userOverdraftBalanceInPennies = jdbcTemplate.queryForObject(getUserOverdraftBalanceSql, Integer.class);
+  
+      // if the overdraft balance is positive, subtract the deposit with interest
+      if (userOverdraftBalanceInPennies > 0) {
+        int newOverdraftBalanceInPennies = Math.max(userOverdraftBalanceInPennies - userDepositAmtInPennies, 0);
+        String overdraftLogsInsertSql = String.format("INSERT INTO OverdraftLogs VALUES ('%s', '%s', %d, %d, %d);", 
+                                                      userID,
+                                                      currentTime,
+                                                      userDepositAmtInPennies,
+                                                      userOverdraftBalanceInPennies,
+                                                      newOverdraftBalanceInPennies);
+        jdbcTemplate.update(overdraftLogsInsertSql);
+  
+        // updating customers table
+        String overdraftBalanceUpdateSql = String.format("UPDATE Customers SET OverdraftBalance = %d WHERE CustomerID='%s';", newOverdraftBalanceInPennies, userID);
+        jdbcTemplate.update(overdraftBalanceUpdateSql);
+        updateAccountInfo(user);
+      }
+  
+      // if in the overdraft case and there is excess deposit, deposit the excess amount.
+      // otherwise, this is a non-overdraft case, so just use the userDepositAmt.
+      int balanceIncreaseAmtInPennies = 0;
+      if (userOverdraftBalanceInPennies > 0 && userDepositAmtInPennies > userOverdraftBalanceInPennies) {
+        balanceIncreaseAmtInPennies = userDepositAmtInPennies - userOverdraftBalanceInPennies;
+      } else if (userOverdraftBalanceInPennies > 0 && userDepositAmtInPennies <= userOverdraftBalanceInPennies) {
+        balanceIncreaseAmtInPennies = 0; // overdraft case, but no excess deposit. don't increase balance column.
+      } else {
+        balanceIncreaseAmtInPennies = userDepositAmtInPennies;
+      }
+  
+      String balanceIncreaseSql = String.format("UPDATE Customers SET Balance = Balance + %d WHERE CustomerID='%s';", balanceIncreaseAmtInPennies, userID);
+      System.out.println(balanceIncreaseSql); // Print executed SQL update for debugging
+      jdbcTemplate.update(balanceIncreaseSql);
+
+      String rewardsLogsInsertSql = String.format("INSERT INTO RewardLogs VALUES ('%s', '%s', '%s', %d, %d);", 
+                                              userID,
+                                              currentTime,
+                                              "Fraud Reversal",
+                                              userRewardPoints,
+                                              userRewardPoints-userPointsToExchange);
+      jdbcTemplate.update(rewardsLogsInsertSql);
+
+      // updating customers table
+      String rewardPointsUpdateSql = String.format("UPDATE Customers SET RewardPoints = RewardPoints - %d WHERE CustomerID='%s';", userPointsToExchange, userID);
+      jdbcTemplate.update(rewardPointsUpdateSql);
+      updateAccountInfo(user);
+      return "account_info";
+    } else {
+      return "welcome";
+    }
+  }
 }

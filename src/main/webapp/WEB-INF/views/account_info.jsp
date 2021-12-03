@@ -32,12 +32,15 @@
 		<h2><span>${user.firstName}</span> <span>${user.lastName}</span> Bank Account Info</h2>
 		<span>Balance is: $</span><span>${user.balance}</span><br/>
     <span>Overdraft Balance is: $</span><span>${user.overDraftBalance}</span><br/>
+    <span>Reward Points: </span><span>${user.rewardPoints}</span><br/>
     <span>Re-payment logs: </span><span>${user.logs}</span><br/>
     <span>Transaction History: </span><span>${user.transactionHist}</span><br/>
+    <span>Reward History: </span><span>${user.rewardLogHist}</span><br/>
     <br/>
     <a href='/deposit'>Deposit</a>
     <a href='/withdraw'>Withdraw</a>
     <a href='/dispute'>Dispute</a>
+    <a href='/rewards'>Rewards</a>
     <a href='/'>Logout</a>
 	</div>
 </body>
