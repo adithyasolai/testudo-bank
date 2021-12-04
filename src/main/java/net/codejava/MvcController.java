@@ -29,6 +29,10 @@ public class MvcController {
   private final static int MAX_REVERSABLE_TRANSACTIONS_AGO = 3;
   private final static String HTML_LINE_BREAK = "<br/>";
 
+  private final static double PERCENTAGE_OF_NETWORTH_FOR_LARGE_LOAN = 0.20;
+  private final static double LARGE_LOAN_INTEREST_RATE = 1.04;
+  private final static double LARGE_LOAN_INSTALLMENTS_PERCENTAGE_OF_LOAN = 0.25;
+
   public MvcController(@Autowired JdbcTemplate jdbcTemplate) {
     this.jdbcTemplate = jdbcTemplate;
   }
@@ -93,6 +97,32 @@ public class MvcController {
     user.setOverDraftBalance(overDraftBalance/100);
     user.setLogs(logs);
     user.setTransactionHist(transactionHistoryOutput);
+
+
+    String getUserLargeLoanBalanceSql = String.format("SELECT LargeLoanBalance FROM CustomerLoans WHERE CustomerID='%s';", user.getUsername());
+    List<Map<String,Object>> queryResultsLargeLoanBalance = jdbcTemplate.queryForList(getUserLargeLoanBalanceSql);
+    if (queryResultsLargeLoanBalance.size() == 0) {
+      user.setLargeLoanBalance(0);
+
+    } else {
+      int userLargeLoanBalanceInPennies = (int) queryResultsLargeLoanBalance.get(0).get("LargeLoanBalance");
+      double userLargeLoanBalance = userLargeLoanBalanceInPennies / 100;
+      user.setLargeLoanBalance(userLargeLoanBalance);
+
+    }
+
+
+    String getUserLargeLoanInstallmentsSql = String.format("SELECT LargeLoanInstallments FROM CustomerLoans WHERE CustomerID='%s';", user.getUsername());
+    List<Map<String,Object>> queryResultsLargeLoanInstallments = jdbcTemplate.queryForList(getUserLargeLoanInstallmentsSql);
+    if (queryResultsLargeLoanInstallments.size() == 0) {
+      user.setLargeLoanInstallmentPayment(0);
+
+    } else {
+      int userLargeLoanInstallmentsInPennies = (int) queryResultsLargeLoanInstallments.get(0).get("LargeLoanInstallments");
+      double userLargeLoanInstallments = userLargeLoanInstallmentsInPennies / 100;
+      user.setLargeLoanInstallmentPayment(userLargeLoanInstallments);
+    }
+    
   }
 
   /**
@@ -517,6 +547,162 @@ public class MvcController {
         jdbcTemplate.update(transactionHistorySql);
       }
     }
+    updateAccountInfo(user);
+
+    return "account_info";
+  }
+
+
+  /**
+   * HTML GET request handler that serves the "large_loan_request_form" page to the user.
+   * An empty `User` object is also added to the Model as an Attribute to store
+   * the user's large loan request form input.
+   * 
+   * @param model
+   * @return "large_loan_request_form" page
+   */
+  @GetMapping("/large-loan-request")
+	public String showLargeLoanRequestForm(Model model) {
+    User user = new User();
+		model.addAttribute("user", user);
+		return "large_loan_request_form";
+	}
+
+
+  /**
+   * HTML POST request handler for the Large Loan Request Form page.
+   * 
+   * The same username+password handling from the login page is used.
+   * 
+   * 
+   * If the password attempt is incorrect, the user is redirected to the "welcome" page.
+   * 
+   * @param user
+   * @return "account_info" page if login successful. Otherwise, redirect to "welcome" page.
+   */
+  @PostMapping("/large-loan-request")
+  public String submitLargeLoanRequest(@ModelAttribute("user") User user) {
+    String userID = user.getUsername();
+    String userPasswordAttempt = user.getPassword();
+
+    String getUserPasswordSql = String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", userID);
+    String userPassword = jdbcTemplate.queryForObject(getUserPasswordSql, String.class);
+
+    // unsuccessful login
+    if (userPasswordAttempt.equals(userPassword) == false) {
+      return "welcome";
+    }
+
+
+
+    boolean userLargeLoanTaken;
+
+    String getUserLargeLoanTakenSql = String.format("SELECT LargeLoanTaken FROM CustomerLoans WHERE CustomerID='%s';", userID);
+    List<Map<String,Object>> queryResults = jdbcTemplate.queryForList(getUserLargeLoanTakenSql);
+    if (queryResults.size() == 0) {
+      userLargeLoanTaken = false;
+
+    } else {
+      userLargeLoanTaken = true;
+
+    }
+
+
+    if (userLargeLoanTaken == true) {
+      return "welcome";
+    }
+
+
+    int userCreditScore = user.getCreditScore();
+    double userNetworth = user.getNetworth();
+
+    // invalid credit score
+    if (userCreditScore < 300 || userCreditScore > 850) {
+      return "welcome";
+    }
+
+    // request rejected if credit score is <700
+    if (userCreditScore < 700) {
+      return "welcome";
+    }
+
+
+    // If networth is < 5000, reject request
+    if (userNetworth < 5000) {
+      return "welcome";
+    }
+
+    // Come up with logic for loan
+    double largeLoanAmount = userNetworth * PERCENTAGE_OF_NETWORTH_FOR_LARGE_LOAN * LARGE_LOAN_INTEREST_RATE;
+    int largeLoanAmountInPennies = (int) (largeLoanAmount * 100);
+    boolean largeLoanTaken = true;
+    double largeLoanInstallmentsAmount = largeLoanAmount * LARGE_LOAN_INSTALLMENTS_PERCENTAGE_OF_LOAN;
+    int largeLoanInstallmentsAmountInPennies = (int) (largeLoanInstallmentsAmount * 100);
+
+    // Insert information of customer loan to CustomerLoans table
+    String customerLoanSql = String.format("INSERT INTO CustomerLoans VALUES ('%s', %b, %d, %d, %d);",
+                                          userID,
+                                          largeLoanTaken,
+                                          largeLoanAmountInPennies,
+                                          largeLoanAmountInPennies,
+                                          largeLoanInstallmentsAmountInPennies);
+
+    jdbcTemplate.update(customerLoanSql);
+    
+
+
+
+    updateAccountInfo(user);
+
+    return "account_info";
+  }
+
+
+
+
+  /**
+   * HTML GET request handler that serves the "large_loan_repayment_form" page to the user.
+   * An empty `User` object is also added to the Model as an Attribute to store
+   * the user's large loan repayment form input.
+   * 
+   * @param model
+   * @return "large_loan_repayment_form" page
+   */
+  @GetMapping("/large-loan-repayment")
+	public String showLargeLoanRepaymentForm(Model model) {
+    User user = new User();
+		model.addAttribute("user", user);
+		return "large_loan_repayment_form";
+	}
+
+
+
+  // For PR #2
+  /**
+   * HTML POST request handler for the Large Loan Payment Form page.
+   * 
+   * The same username+password handling from the login page is used.
+   * 
+   * If the password attempt is incorrect, the user is redirected to the "welcome" page.
+   * 
+   * @param user
+   * @return "account_info" page if login successful. Otherwise, redirect to "welcome" page.
+   */
+  @PostMapping("/large-loan-repayment")
+  public String submitLargeLoanRepayment(@ModelAttribute("user") User user) {
+    String userID = user.getUsername();
+    String userPasswordAttempt = user.getPassword();
+
+    String getUserPasswordSql = String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", userID);
+    String userPassword = jdbcTemplate.queryForObject(getUserPasswordSql, String.class);
+
+    // unsuccessful login
+    if (userPasswordAttempt.equals(userPassword) == false) {
+      return "welcome";
+    }
+
+
+
     updateAccountInfo(user);
 
     return "account_info";
