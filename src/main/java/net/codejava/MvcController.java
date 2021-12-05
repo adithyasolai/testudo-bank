@@ -538,9 +538,9 @@ public class MvcController {
   }
 
   /**
-   * HTML GET request handler that serves the "dispute_form" page to the user.
+   * HTML GET request handler that serves the "transfer_form" page to the user.
    * An empty `User` object is also added to the Model as an Attribute to store
-   * the user's dispute form input.
+   * the user's transfer form input.
    * 
    * @param model
    * @return "dispute_form" page
@@ -553,12 +553,12 @@ public class MvcController {
 	}
 
   /**
-   * HTML POST request handler for the Dispute Form page.
+   * HTML POST request handler for the Transfer Form page.
    * 
    * The same username+password handling from the login page is used.
    * 
-   * If the password attempt is correct, the transaction is reversed and the proper
-   * balances are updated
+   * If the password attempt is correct, the users transfer successfully goes through
+   * if it is a valid transfer. Both customers balances are properly updated.
    * 
    * If the password attempt is incorrect, the user is redirected to the "welcome" page.
    * 
