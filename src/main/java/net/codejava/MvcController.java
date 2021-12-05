@@ -522,4 +522,132 @@ public class MvcController {
     return "account_info";
   }
 
+    /**
+   * HTML GET request handler that serves the "transfer_form" page to the user.
+   * An empty `User` object is also added to the Model as an Attribute to store
+   * the user's transfer form input.
+   * 
+   * @param model
+   * @return "transfer_form" page
+   */
+  @GetMapping("/transfer")
+	public String showTransferForm(Model model) {
+    User user = new User();
+		model.addAttribute("user", user);
+		return "transfer_form";
+	}
+
+  /**
+   * HTML POST request handler for the Transfer Form page.
+   * 
+   * The same username+password handling from the login page is used.
+   * 
+   * If the password attempt is correct, the balance is decremented by the amount specified
+   * in the Transfer Form. The user is then served the "account_info" with an updated balance.
+   * 
+   * If the password attempt is incorrect, the user is redirected to the "welcome" page.
+   * 
+   * @param user
+   * @return "account_info" page if login successful. Otherwise, redirect to "welcome" page.
+   */
+  @PostMapping("/transfer")
+  public String submitTransfer(@ModelAttribute("user") User user) {
+    String userID = user.getUsername();
+    String userPasswordAttempt = user.getPassword();
+    
+    String getUserPasswordSql = String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", userID);
+    String userPassword = jdbcTemplate.queryForObject(getUserPasswordSql, String.class);
+
+    // unsuccessful login
+    if (userPasswordAttempt.equals(userPassword) == false) {
+      return "welcome";
+    }
+
+    double userTransferAmt = user.getAmountToTransfer();
+    int userTransferAmtInPennies = (int) (userTransferAmt * 100);
+
+    String numberOfReversalsSql = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", userID);
+    int numOfReversals = jdbcTemplate.queryForObject(numberOfReversalsSql, Integer.class);
+    //If too many reversals dont do transfer
+    if (userTransferAmtInPennies <= 0 || numOfReversals >= MAX_DISPUTES){
+      return "welcome";
+    }
+
+    String getUserBalanceSql =  String.format("SELECT Balance FROM customers WHERE CustomerID='%s';", userID);
+    int userBalanceInPennies = jdbcTemplate.queryForObject(getUserBalanceSql, Integer.class);
+    
+    // if the balance is not positive, transfer is not allowed
+    if (userBalanceInPennies - userTransferAmtInPennies < 0) {
+        return "welcome";
+    }
+
+    String transferTarget = user.getTransferTarget();
+    String getTargetSql = String.format("SELECT FirstName FROM customers WHERE CustomerID='%s';", transferTarget);
+    String targetName = jdbcTemplate.queryForObject(getTargetSql, String.class);
+
+    // check that the transfer target exists
+    if (targetName == null) {
+      return "welcome";
+    }
+
+    String numberOfReversalsSql2 = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", userID);
+    int numOfReversals2 = jdbcTemplate.queryForObject(numberOfReversalsSql2, Integer.class);
+    //If too many reversals dont do transfer
+    if (numOfReversals2 >= MAX_DISPUTES){
+      return "welcome";
+    }
+
+    String getTargetOverdraftBalanceSql = String.format("SELECT OverdraftBalance FROM customers WHERE CustomerID='%s';", transferTarget);
+    int targetOverdraftBalanceInPennies = jdbcTemplate.queryForObject(getTargetOverdraftBalanceSql, Integer.class);
+
+    String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date());
+
+    //Adds record to transfer history
+    String transferHistorySql = String.format("INSERT INTO TransferHistory VALUES ('%s', '%s', '%s', %d);",
+                                                  userID,
+                                                  transferTarget,
+                                                  currentTime,
+                                                  userTransferAmtInPennies);
+    jdbcTemplate.update(transferHistorySql);
+
+    // first withdraw the transfer amount from user
+    String updateUserBalanceSql = String.format("UPDATE Customers SET Balance = Balance - %d WHERE CustomerID='%s';", userTransferAmtInPennies, userID);
+    jdbcTemplate.update(updateUserBalanceSql);
+
+    // if the overdraft balance is positive, subtract the deposit with interest
+    if (targetOverdraftBalanceInPennies > 0) {
+      int newOverdraftBalanceInPennies = Math.max(targetOverdraftBalanceInPennies - userTransferAmtInPennies, 0);
+      String overdraftLogsInsertSql = String.format("INSERT INTO OverdraftLogs VALUES ('%s', '%s', %d, %d, %d);", 
+                                                    transferTarget,
+                                                    currentTime,
+                                                    userTransferAmtInPennies,
+                                                    targetOverdraftBalanceInPennies,
+                                                    newOverdraftBalanceInPennies);
+      jdbcTemplate.update(overdraftLogsInsertSql);
+
+      // updating customers table
+      String overdraftBalanceUpdateSql = String.format("UPDATE Customers SET OverdraftBalance = %d WHERE CustomerID='%s';", newOverdraftBalanceInPennies, transferTarget);
+      jdbcTemplate.update(overdraftBalanceUpdateSql);
+      updateAccountInfo(user);
+    }
+
+    // if in the overdraft case and there is excess deposit, deposit the excess amount.
+    // otherwise, this is a non-overdraft case, so just use the userDepositAmt.
+    int balanceIncreaseAmtInPennies = 0;
+    if (targetOverdraftBalanceInPennies > 0 && userTransferAmtInPennies > targetOverdraftBalanceInPennies) {
+      balanceIncreaseAmtInPennies = userTransferAmtInPennies - targetOverdraftBalanceInPennies;
+    } else if (targetOverdraftBalanceInPennies > 0 && userTransferAmtInPennies <= targetOverdraftBalanceInPennies) {
+      balanceIncreaseAmtInPennies = 0; // overdraft case, but no excess deposit. don't increase balance column.
+    } else {
+      balanceIncreaseAmtInPennies = userTransferAmtInPennies;
+    }
+
+    String balanceIncreaseSql = String.format("UPDATE Customers SET Balance = Balance + %d WHERE CustomerID='%s';", balanceIncreaseAmtInPennies, transferTarget);
+    System.out.println(balanceIncreaseSql); // Print executed SQL update for debugging
+    jdbcTemplate.update(balanceIncreaseSql);
+    updateAccountInfo(user);
+    return "account_info";
+
+  }
+
 }

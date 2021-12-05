@@ -39,6 +39,12 @@ public class User {
   @Setter @Getter
   private int numTransactionsAgo;
 
+  @Setter @Getter
+  private String transferTarget;
+
+  @Setter @Getter @Positive
+  private double amountToTransfer;
+
 	@Override
 	public String toString() {
 		return "User [username=" + username + ", password=" + password + ", balance=" + balance + "]";
