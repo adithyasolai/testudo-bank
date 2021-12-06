@@ -45,6 +45,7 @@ public class MvcControllerTest {
     CUSTOMER1_DATA.get(0).put("LastName", "Doe");
     CUSTOMER1_DATA.get(0).put("Balance", 10000);
 	  CUSTOMER1_DATA.get(0).put("OverdraftBalance", 0);
+    CUSTOMER1_DATA.get(0).put("RewardPoints", 500);
     // prepare what seaerch for transaction history with deposit should return
     TRANSACTION_HIST = new ArrayList<>();
     TRANSACTION_HIST.add(new HashMap<>());
@@ -267,6 +268,7 @@ public class MvcControllerTest {
 		String getCustomer1PasswordSql = String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", CUSTOMER1_USERNAME);
 		String getCustomer1BalanceSql =  String.format("SELECT Balance FROM customers WHERE CustomerID='%s';", CUSTOMER1_USERNAME);
 		String getCustomer1OverdraftBalanceSql = String.format("SELECT OverdraftBalance FROM customers WHERE CustomerID='%s';", CUSTOMER1_USERNAME);
+    String getUserCurrOverdraftToRewardsSql = String.format("SELECT CurrOverdraftToRewards FROM customers WHERE CustomerID='%s';", CUSTOMER1_USERNAME);
 
     // stub jdbc calls
     // successful login
@@ -281,6 +283,7 @@ public class MvcControllerTest {
     // start customer with balance and overdraft balance of $0
 		when(jdbcTemplate.queryForObject(eq(getCustomer1BalanceSql), eq(Integer.class))).thenReturn(0);
 		when(jdbcTemplate.queryForObject(eq(getCustomer1OverdraftBalanceSql), eq(Integer.class))).thenReturn(0);
+    when(jdbcTemplate.queryForObject(eq(getUserCurrOverdraftToRewardsSql), eq(Integer.class))).thenReturn(0);
 
     // send withdraw request
     String pageReturned = controller.submitWithdraw(customer1);
@@ -482,7 +485,7 @@ public class MvcControllerTest {
     String getCustomer1BalanceSql=String.format("SELECT Balance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
     when(jdbcTemplate.queryForObject(eq(getCustomer1BalanceSql), eq(Integer.class))).thenReturn(20000);
     // handles updateAccountInfo() helper method
-    String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance, RewardPoints FROM customers WHERE CustomerID='%s';", customer1.getUsername());
     when(jdbcTemplate.queryForList(eq(getUserNameAndBalanceAndOverDraftBalanceSql))).thenReturn(CUSTOMER1_DATA);
     // handles getting 3 most recent logs from transaction history
     String getTransactionHistorySql = String.format("Select * from TransactionHistory WHERE CustomerId='%s' ORDER BY Timestamp DESC LIMIT %d;", customer1.getUsername(), 3);
@@ -530,7 +533,7 @@ public class MvcControllerTest {
     String getCustomer1BalanceSql=String.format("SELECT Balance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
     when(jdbcTemplate.queryForObject(eq(getCustomer1BalanceSql), eq(Integer.class))).thenReturn(0);
     // handles updateAccountInfo() helper method
-    String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance, RewardPoints FROM customers WHERE CustomerID='%s';", customer1.getUsername());
     when(jdbcTemplate.queryForList(eq(getUserNameAndBalanceAndOverDraftBalanceSql))).thenReturn(CUSTOMER1_DATA);
     // handles getting 3 most recent logs from transaction history
     String getTransactionHistorySql = String.format("Select * from TransactionHistory WHERE CustomerId='%s' ORDER BY Timestamp DESC LIMIT %d;", customer1.getUsername(), 3);
@@ -579,7 +582,7 @@ public class MvcControllerTest {
     String getCustomer1BalanceSql=String.format("SELECT Balance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
     when(jdbcTemplate.queryForObject(eq(getCustomer1BalanceSql), eq(Integer.class))).thenReturn(20000);
     // handles updateAccountInfo() helper method
-    String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance, RewardPoints FROM customers WHERE CustomerID='%s';", customer1.getUsername());
     when(jdbcTemplate.queryForList(eq(getUserNameAndBalanceAndOverDraftBalanceSql))).thenReturn(CUSTOMER1_DATA);
     // handles getting 3 most recent logs from transaction history
     String getTransactionHistorySql = String.format("Select * from TransactionHistory WHERE CustomerId='%s' ORDER BY Timestamp DESC LIMIT %d;", customer1.getUsername(), 3);
@@ -627,7 +630,7 @@ public class MvcControllerTest {
     String getCustomer1BalanceSql=String.format("SELECT Balance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
     when(jdbcTemplate.queryForObject(eq(getCustomer1BalanceSql), eq(Integer.class))).thenReturn(0);
     // handles updateAccountInfo() helper method
-    String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance, RewardPoints FROM customers WHERE CustomerID='%s';", customer1.getUsername());
     when(jdbcTemplate.queryForList(eq(getUserNameAndBalanceAndOverDraftBalanceSql))).thenReturn(CUSTOMER1_DATA);
     // handles getting 3 most recent logs from transaction history
     String getTransactionHistorySql = String.format("Select * from TransactionHistory WHERE CustomerId='%s' ORDER BY Timestamp DESC LIMIT %d;", customer1.getUsername(), 3);
@@ -656,5 +659,129 @@ public class MvcControllerTest {
     Mockito.verify(jdbcTemplate, Mockito.times(1)).update(eq(overdraftBalanceUpdateSql));
     // verify "account_info" page is returned
 		assertEquals("account_info", pageReturned);
+	}
+
+  @Test
+	public void testRewardFraudReversal() {
+		User customer1 = new User();
+		customer1.setUsername(CUSTOMER1_USERNAME);
+		customer1.setPassword("password");
+    customer1.setRewardChoice("Fraud Reversal");
+
+		String getCustomer1PasswordSql = String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", CUSTOMER1_USERNAME);		
+    // stub jdbc calls
+		// successful login
+		when(jdbcTemplate.queryForObject(eq(getCustomer1PasswordSql), eq(String.class))).thenReturn("password");
+    // handles updateAccountInfo() helper method
+    when(jdbcTemplate.queryForList(anyString())).thenReturn(CUSTOMER1_DATA);
+    // not working with live DB
+		when(jdbcTemplate.update(anyString())).thenReturn(1);
+    // handles account not being locked
+    String getNumReversals = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    when(jdbcTemplate.queryForObject(eq(getNumReversals), eq(Integer.class))).thenReturn(0);
+
+    String getCustomer1OverdraftBalanceSql = String.format("SELECT OverdraftBalance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    when(jdbcTemplate.queryForObject(eq(getCustomer1OverdraftBalanceSql), eq(Integer.class))).thenReturn(0);
+
+    String getUserRewardPointsSql = String.format("SELECT RewardPoints FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    when(jdbcTemplate.queryForObject(eq(getUserRewardPointsSql), eq(Integer.class))).thenReturn(500);
+
+    // send deposit request
+    String pageReturned = controller.submitRewards(customer1);
+
+    // verify queries for password
+    Mockito.verify(jdbcTemplate, Mockito.times(1)).queryForObject(eq(getCustomer1PasswordSql), eq(String.class));
+		// add one more reversal
+    String addReversalSql = String.format("UPDATE Customers SET NumFraudReversals = NumFraudReversals - 1 WHERE CustomerID='%s';", CUSTOMER1_USERNAME);
+    Mockito.verify(jdbcTemplate, Mockito.times(1)).update(eq(addReversalSql));
+
+    // reward balance update
+    String rewardPointsUpdateSql = String.format("UPDATE Customers SET RewardPoints = RewardPoints - 500 WHERE CustomerID='%s';", CUSTOMER1_USERNAME);
+    Mockito.verify(jdbcTemplate, Mockito.times(1)).update(eq(rewardPointsUpdateSql));
+
+    // verify "account_info" page is returned
+		assertEquals("account_info", pageReturned);
+	}
+
+  @Test
+	public void testRewardExchangeMoney() {
+		User customer1 = new User();
+		customer1.setUsername(CUSTOMER1_USERNAME);
+		customer1.setPassword("password");
+    customer1.setRewardChoice("Exchange Money");
+    customer1.setPointsToExchange(500);
+
+		String getCustomer1PasswordSql = String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", CUSTOMER1_USERNAME);		
+    // stub jdbc calls
+		// successful login
+		when(jdbcTemplate.queryForObject(eq(getCustomer1PasswordSql), eq(String.class))).thenReturn("password");
+    // handles updateAccountInfo() helper method
+    when(jdbcTemplate.queryForList(anyString())).thenReturn(CUSTOMER1_DATA);
+    // not working with live DB
+		when(jdbcTemplate.update(anyString())).thenReturn(0);
+
+    String getNumReversals = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    when(jdbcTemplate.queryForObject(eq(getNumReversals), eq(Integer.class))).thenReturn(0);
+
+    String getCustomer1BalanceSql=String.format("SELECT Balance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    when(jdbcTemplate.queryForObject(eq(getCustomer1BalanceSql), eq(Integer.class))).thenReturn(0);
+
+    String getUserRewardPointsSql = String.format("SELECT RewardPoints FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    when(jdbcTemplate.queryForObject(eq(getUserRewardPointsSql), eq(Integer.class))).thenReturn(500);
+
+    String getCustomer1OverdraftBalanceSql = String.format("SELECT OverdraftBalance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    when(jdbcTemplate.queryForObject(eq(getCustomer1OverdraftBalanceSql), eq(Integer.class))).thenReturn(0);
+
+    // send deposit request
+    String pageReturned = controller.submitRewards(customer1);
+
+    // verify queries for password
+    Mockito.verify(jdbcTemplate, Mockito.times(1)).queryForObject(eq(getCustomer1PasswordSql), eq(String.class));
+		// add one more reversal
+    String balanceIncreaseSql = String.format("UPDATE Customers SET Balance = Balance + %d WHERE CustomerID='%s';", 500, CUSTOMER1_USERNAME);
+    Mockito.verify(jdbcTemplate, Mockito.times(1)).update(eq(balanceIncreaseSql));
+
+    // reward balance update
+    String rewardPointsUpdateSql = String.format("UPDATE Customers SET RewardPoints = RewardPoints - 500 WHERE CustomerID='%s';", CUSTOMER1_USERNAME);
+    Mockito.verify(jdbcTemplate, Mockito.times(1)).update(eq(rewardPointsUpdateSql));
+
+    // verify "account_info" page is returned
+		assertEquals("account_info", pageReturned);
+	}
+
+  @Test
+	public void testRewardNotEnough() {
+		User customer1 = new User();
+		customer1.setUsername(CUSTOMER1_USERNAME);
+		customer1.setPassword("password");
+    customer1.setRewardChoice("Exchange Money");
+    customer1.setPointsToExchange(400);
+
+		String getCustomer1PasswordSql = String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", CUSTOMER1_USERNAME);		
+    // stub jdbc calls
+		// successful login
+		when(jdbcTemplate.queryForObject(eq(getCustomer1PasswordSql), eq(String.class))).thenReturn("password");
+    // handles updateAccountInfo() helper method
+    when(jdbcTemplate.queryForList(anyString())).thenReturn(CUSTOMER1_DATA);
+    // not working with live DB
+		when(jdbcTemplate.update(anyString())).thenReturn(0);
+
+    String getNumReversals = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    when(jdbcTemplate.queryForObject(eq(getNumReversals), eq(Integer.class))).thenReturn(0);
+
+    String getCustomer1BalanceSql=String.format("SELECT Balance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    when(jdbcTemplate.queryForObject(eq(getCustomer1BalanceSql), eq(Integer.class))).thenReturn(0);
+
+    String getUserRewardPointsSql = String.format("SELECT RewardPoints FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    when(jdbcTemplate.queryForObject(eq(getUserRewardPointsSql), eq(Integer.class))).thenReturn(0);
+
+    String getCustomer1OverdraftBalanceSql = String.format("SELECT OverdraftBalance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    when(jdbcTemplate.queryForObject(eq(getCustomer1OverdraftBalanceSql), eq(Integer.class))).thenReturn(0);
+
+    // send deposit request
+    String pageReturned = controller.submitRewards(customer1);
+
+    // verify "account_info" page is returned
+		assertEquals("welcome", pageReturned);
 	}
 }

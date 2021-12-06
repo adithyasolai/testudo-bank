@@ -39,6 +39,18 @@ public class User {
   @Setter @Getter
   private int numTransactionsAgo;
 
+  @Setter @Getter
+  private int rewardPoints;
+
+  @Setter @Getter
+  private String rewardChoice;
+  
+  @Setter @Getter
+  private int pointsToExchange;
+
+  @Setter @Getter
+  private String rewardLogHist;
+
 	@Override
 	public String toString() {
 		return "User [username=" + username + ", password=" + password + ", balance=" + balance + "]";
