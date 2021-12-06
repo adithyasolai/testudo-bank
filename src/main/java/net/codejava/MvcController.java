@@ -27,6 +27,8 @@ public class MvcController {
   private final static int MAX_DISPUTES = 2;
   private final static int MAX_NUM_TRANSACTIONS_DISPLAYED = 3;
   private final static int MAX_REVERSABLE_TRANSACTIONS_AGO = 3;
+  private final static int REWARD_DOLLAR_THRESHOLD = 250;
+  private final static int REVERSAL_REWARD_POINTS = 500;
   private final static String HTML_LINE_BREAK = "<br/>";
 
   public MvcController(@Autowired JdbcTemplate jdbcTemplate) {
@@ -61,7 +63,7 @@ public class MvcController {
 	}
 
   /**
-   * Helper method that queries the MySQL DB for the customer account info (First Name, Last Name, and Balance)
+   * Helper method that queries the MySQL DB for the customer account info (First Name, Last Name, and Balance, OverdraftBalance, RewardPoints)
    * and adds these values to the `user` Model Attribute so that they can be displayed in the "account_info" page.
    * 
    * @param user
@@ -264,6 +266,8 @@ public class MvcController {
    * 
    * If the password attempt is incorrect, the user is redirected to the "welcome" page.
    * 
+   * If the user goes into overdraft, reward points are allocated accordingly.
+   * 
    * @param user
    * @return "account_info" page if login successful. Otherwise, redirect to "welcome" page.
    */
@@ -319,11 +323,13 @@ public class MvcController {
                                                     userWithdrawAmtInPennies);
       jdbcTemplate.update(transactionHistorySql);
 
-      // calculate points 
+      // Calculates points 
       String getUserCurrOverdraftToRewardsSql = String.format("SELECT CurrOverdraftToRewards FROM customers WHERE CustomerID='%s';", userID);
       int userCurrOverdraftToRewardsSql = jdbcTemplate.queryForObject(getUserCurrOverdraftToRewardsSql, Integer.class);
-      int rewardsToAdd = (int)((newOverdraftAmtInPennies + userCurrOverdraftToRewardsSql)/(250*100));
-      int leftover = (int)((newOverdraftAmtInPennies + userCurrOverdraftToRewardsSql)%(250*100));
+      // rewardsToAdd is the number of points to add to rewards
+      int rewardsToAdd = (int)((newOverdraftAmtInPennies + userCurrOverdraftToRewardsSql)/(REWARD_DOLLAR_THRESHOLD*100));
+      // leftover is for the amount of overdraft leftover after adding points
+      int leftover = (int)((newOverdraftAmtInPennies + userCurrOverdraftToRewardsSql)%(REWARD_DOLLAR_THRESHOLD*100));
 
       String updateRewardPointsSql = String.format("UPDATE Customers SET RewardPoints = RewardPoints + %d WHERE CustomerID='%s';", rewardsToAdd*100, userID);
       jdbcTemplate.update(updateRewardPointsSql);
@@ -598,13 +604,13 @@ public class MvcController {
     }
 
     // if the overdraft balance is positive, subtract the deposit with interest
-    if (userRewardChoice.equals("Fraud Reversal") && userRewardPoints >= 500) {
+    if (userRewardChoice.equals("Fraud Reversal") && userRewardPoints >= REVERSAL_REWARD_POINTS) {
       String rewardsLogsInsertSql = String.format("INSERT INTO RewardLogs VALUES ('%s', '%s', '%s', %d, %d);", 
                                                     userID,
                                                     currentTime,
                                                     "Fraud Reversal",
                                                     userRewardPoints,
-                                                    userRewardPoints-500);
+                                                    userRewardPoints-REVERSAL_REWARD_POINTS);
       jdbcTemplate.update(rewardsLogsInsertSql);
 
       // update number of reversals
