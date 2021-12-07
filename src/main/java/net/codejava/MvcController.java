@@ -650,8 +650,6 @@ public class MvcController {
     jdbcTemplate.update(customerLoanSql);
     
 
-
-
     updateAccountInfo(user);
 
     return "account_info";
