@@ -657,4 +657,236 @@ public class MvcControllerTest {
     // verify "account_info" page is returned
 		assertEquals("account_info", pageReturned);
 	}
+
+  @Test
+	public void testTransferNormal() {
+    // initialize user input to the deposit form
+		User customer1 = new User();
+		customer1.setUsername(CUSTOMER1_USERNAME);
+		customer1.setPassword("password");
+    customer1.setBalance(100);
+    customer1.setAmountToTransfer(30);
+    customer1.setTransferTarget("88796");
+    
+		User customer2 = new User();
+		customer2.setUsername("88796");
+		customer2.setPassword("password");
+    customer2.setBalance(100);
+    
+    // stub jdbc calls
+    // successful login
+    String getCustomer1PasswordSql=String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", customer1.getUsername());
+		when(jdbcTemplate.queryForObject(eq(getCustomer1PasswordSql), eq(String.class))).thenReturn("password");
+    // has balance of 200
+    String getCustomer1BalanceSql=String.format("SELECT Balance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    when(jdbcTemplate.queryForObject(eq(getCustomer1BalanceSql), eq(Integer.class))).thenReturn(10000);
+    // handles account not being locked
+    String getNumReversals = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    when(jdbcTemplate.queryForObject(eq(getNumReversals), eq(Integer.class))).thenReturn(0);
+    // handles target exists
+    String getTargetExist = String.format("SELECT EXISTS(SELECT FirstName FROM customers WHERE CustomerID = '%s');", customer1.getTransferTarget());
+    when(jdbcTemplate.queryForObject(eq(getTargetExist), eq(Integer.class))).thenReturn(1);
+    // target has no overdraft balance
+    String getTargetOverdraftSql=String.format("SELECT OverdraftBalance FROM customers WHERE CustomerID='%s';", customer1.getTransferTarget());
+    when(jdbcTemplate.queryForObject(eq(getTargetOverdraftSql), eq(Integer.class))).thenReturn(0);
+    // handles updateAccountInfo() helper method
+    String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    when(jdbcTemplate.queryForList(eq(getUserNameAndBalanceAndOverDraftBalanceSql))).thenReturn(CUSTOMER1_DATA);
+
+    // send dispute request
+    String pageReturned = controller.submitTransfer(customer1);
+
+    // Verify that the SQL Update command executed uses dispute amount. 
+    int expectedLeftoverAmtInPennies = (30*100);
+    String balanceDecreaseSqlCustomer1=String.format("UPDATE Customers SET Balance = Balance - %d WHERE CustomerID='%s';",
+                                                     expectedLeftoverAmtInPennies,
+                                                     customer1.getUsername());
+    Mockito.verify(jdbcTemplate, Mockito.times(1)).update(eq(balanceDecreaseSqlCustomer1));
+    
+    int expectedNewAmtInPennies = (30*100);
+    String balanceIncreaseSqlCustomer2=String.format("UPDATE Customers SET Balance = Balance + %d WHERE CustomerID='%s';",
+                                                     expectedNewAmtInPennies,
+                                                     customer2.getUsername());
+    Mockito.verify(jdbcTemplate, Mockito.times(1)).update(eq(balanceIncreaseSqlCustomer2));
+		assertEquals("account_info", pageReturned);
+  }
+
+  @Test
+	public void testTransferNegativeAmt() {
+    // initialize user input to the deposit form
+		User customer1 = new User();
+		customer1.setUsername(CUSTOMER1_USERNAME);
+		customer1.setPassword("password");
+    customer1.setBalance(100);
+    customer1.setAmountToTransfer(-30);
+    customer1.setTransferTarget("88796");
+    
+		User customer2 = new User();
+		customer2.setUsername("88796");
+		customer2.setPassword("password");
+    customer2.setBalance(100);
+    
+    // stub jdbc calls
+    // successful login
+    String getCustomer1PasswordSql=String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", customer1.getUsername());
+		when(jdbcTemplate.queryForObject(eq(getCustomer1PasswordSql), eq(String.class))).thenReturn("password");
+    // has balance of 200
+    String getCustomer1BalanceSql=String.format("SELECT Balance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    when(jdbcTemplate.queryForObject(eq(getCustomer1BalanceSql), eq(Integer.class))).thenReturn(10000);
+    // handles account not being locked
+    String getNumReversals = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    when(jdbcTemplate.queryForObject(eq(getNumReversals), eq(Integer.class))).thenReturn(0);
+    // handles target exists
+    String getTargetExist = String.format("SELECT EXISTS(SELECT FirstName FROM customers WHERE CustomerID = '%s');", customer1.getTransferTarget());
+    when(jdbcTemplate.queryForObject(eq(getTargetExist), eq(Integer.class))).thenReturn(1);
+    // target has no overdraft balance
+    String getTargetOverdraftSql=String.format("SELECT OverdraftBalance FROM customers WHERE CustomerID='%s';", customer1.getTransferTarget());
+    when(jdbcTemplate.queryForObject(eq(getTargetOverdraftSql), eq(Integer.class))).thenReturn(0);
+    // handles updateAccountInfo() helper method
+    String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    when(jdbcTemplate.queryForList(eq(getUserNameAndBalanceAndOverDraftBalanceSql))).thenReturn(CUSTOMER1_DATA);
+
+    // send dispute request
+    String pageReturned = controller.submitTransfer(customer1);
+		assertEquals("welcome", pageReturned);
+  }
+
+  @Test
+	public void testTransferTargetNoExist() {
+    // initialize user input to the deposit form
+		User customer1 = new User();
+		customer1.setUsername(CUSTOMER1_USERNAME);
+		customer1.setPassword("password");
+    customer1.setBalance(100);
+    customer1.setAmountToTransfer(30);
+    customer1.setTransferTarget("88796");
+    
+		User customer2 = new User();
+		customer2.setUsername("88796");
+		customer2.setPassword("password");
+    customer2.setBalance(100);
+    
+    // stub jdbc calls
+    // successful login
+    String getCustomer1PasswordSql=String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", customer1.getUsername());
+		when(jdbcTemplate.queryForObject(eq(getCustomer1PasswordSql), eq(String.class))).thenReturn("password");
+    // has balance of 200
+    String getCustomer1BalanceSql=String.format("SELECT Balance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    when(jdbcTemplate.queryForObject(eq(getCustomer1BalanceSql), eq(Integer.class))).thenReturn(10000);
+    // handles account not being locked
+    String getNumReversals = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    when(jdbcTemplate.queryForObject(eq(getNumReversals), eq(Integer.class))).thenReturn(0);
+    // handles target exists
+    String getTargetExist = String.format("SELECT EXISTS(SELECT FirstName FROM customers WHERE CustomerID = '%s');", customer1.getTransferTarget());
+    when(jdbcTemplate.queryForObject(eq(getTargetExist), eq(Integer.class))).thenReturn(0);
+    // target has no overdraft balance
+    String getTargetOverdraftSql=String.format("SELECT OverdraftBalance FROM customers WHERE CustomerID='%s';", customer1.getTransferTarget());
+    when(jdbcTemplate.queryForObject(eq(getTargetOverdraftSql), eq(Integer.class))).thenReturn(0);
+    // handles updateAccountInfo() helper method
+    String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    when(jdbcTemplate.queryForList(eq(getUserNameAndBalanceAndOverDraftBalanceSql))).thenReturn(CUSTOMER1_DATA);
+
+    // send dispute request
+    String pageReturned = controller.submitTransfer(customer1);
+		assertEquals("welcome", pageReturned);
+  }
+
+  @Test
+	public void testTransferToSelf() {
+    // initialize user input to the deposit form
+		User customer1 = new User();
+		customer1.setUsername(CUSTOMER1_USERNAME);
+		customer1.setPassword("password");
+    customer1.setBalance(100);
+    customer1.setAmountToTransfer(30);
+    customer1.setTransferTarget(CUSTOMER1_USERNAME);
+    
+		User customer2 = new User();
+		customer2.setUsername("88796");
+		customer2.setPassword("password");
+    customer2.setBalance(100);
+    
+    // stub jdbc calls
+    // successful login
+    String getCustomer1PasswordSql=String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", customer1.getUsername());
+		when(jdbcTemplate.queryForObject(eq(getCustomer1PasswordSql), eq(String.class))).thenReturn("password");
+    // has balance of 200
+    String getCustomer1BalanceSql=String.format("SELECT Balance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    when(jdbcTemplate.queryForObject(eq(getCustomer1BalanceSql), eq(Integer.class))).thenReturn(10000);
+    // handles account not being locked
+    String getNumReversals = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    when(jdbcTemplate.queryForObject(eq(getNumReversals), eq(Integer.class))).thenReturn(0);
+    // handles target exists
+    String getTargetExist = String.format("SELECT EXISTS(SELECT FirstName FROM customers WHERE CustomerID = '%s');", customer1.getTransferTarget());
+    when(jdbcTemplate.queryForObject(eq(getTargetExist), eq(Integer.class))).thenReturn(1);
+    // target has no overdraft balance
+    String getTargetOverdraftSql=String.format("SELECT OverdraftBalance FROM customers WHERE CustomerID='%s';", customer1.getTransferTarget());
+    when(jdbcTemplate.queryForObject(eq(getTargetOverdraftSql), eq(Integer.class))).thenReturn(0);
+    // handles updateAccountInfo() helper method
+    String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    when(jdbcTemplate.queryForList(eq(getUserNameAndBalanceAndOverDraftBalanceSql))).thenReturn(CUSTOMER1_DATA);
+
+    // send dispute request
+    String pageReturned = controller.submitTransfer(customer1);
+		assertEquals("welcome", pageReturned);
+  }
+
+  @Test
+	public void testTransferToOverdraft() {
+    // initialize user input to the deposit form
+		User customer1 = new User();
+		customer1.setUsername(CUSTOMER1_USERNAME);
+		customer1.setPassword("password");
+    customer1.setBalance(100);
+    customer1.setAmountToTransfer(30);
+    customer1.setTransferTarget("88796");
+    
+		User customer2 = new User();
+		customer2.setUsername("88796");
+		customer2.setPassword("password");
+    customer2.setBalance(0);
+    customer2.setOverDraftBalance(500);
+    
+    // stub jdbc calls
+    // successful login
+    String getCustomer1PasswordSql=String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", customer1.getUsername());
+		when(jdbcTemplate.queryForObject(eq(getCustomer1PasswordSql), eq(String.class))).thenReturn("password");
+    // has balance of 200
+    String getCustomer1BalanceSql=String.format("SELECT Balance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    when(jdbcTemplate.queryForObject(eq(getCustomer1BalanceSql), eq(Integer.class))).thenReturn(10000);
+    // handles account not being locked
+    String getNumReversals = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    when(jdbcTemplate.queryForObject(eq(getNumReversals), eq(Integer.class))).thenReturn(0);
+    // handles target exists
+    String getTargetExist = String.format("SELECT EXISTS(SELECT FirstName FROM customers WHERE CustomerID = '%s');", customer1.getTransferTarget());
+    when(jdbcTemplate.queryForObject(eq(getTargetExist), eq(Integer.class))).thenReturn(1);
+    // target has no overdraft balance
+    String getTargetOverdraftSql=String.format("SELECT OverdraftBalance FROM customers WHERE CustomerID='%s';", customer1.getTransferTarget());
+    when(jdbcTemplate.queryForObject(eq(getTargetOverdraftSql), eq(Integer.class))).thenReturn(50000);
+    // handles updateAccountInfo() helper method
+    String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    when(jdbcTemplate.queryForList(eq(getUserNameAndBalanceAndOverDraftBalanceSql))).thenReturn(CUSTOMER1_DATA);
+
+    // send dispute request
+    String pageReturned = controller.submitTransfer(customer1);
+
+    // Verify that the SQL Update command executed uses dispute amount. 
+    int expectedLeftoverAmtInPennies = (30*100);
+    String balanceDecreaseSqlCustomer1=String.format("UPDATE Customers SET Balance = Balance - %d WHERE CustomerID='%s';",
+                                                     expectedLeftoverAmtInPennies,
+                                                     customer1.getUsername());
+    Mockito.verify(jdbcTemplate, Mockito.times(1)).update(eq(balanceDecreaseSqlCustomer1));
+    
+    String balanceIncreaseSqlCustomer2=String.format("UPDATE Customers SET Balance = Balance + 0 WHERE CustomerID='%s';",
+                                                     customer2.getUsername());
+    Mockito.verify(jdbcTemplate, Mockito.times(1)).update(eq(balanceIncreaseSqlCustomer2));
+
+    int expectedRepayment = 50000 - (30*100);
+    String repaymentSqlCustomer2=String.format("UPDATE Customers SET OverdraftBalance = %d WHERE CustomerID='%s';",
+                                                     expectedRepayment,
+                                                     customer2.getUsername());
+    Mockito.verify(jdbcTemplate, Mockito.times(1)).update(eq(repaymentSqlCustomer2));
+
+		assertEquals("account_info", pageReturned);
+  }
 }
