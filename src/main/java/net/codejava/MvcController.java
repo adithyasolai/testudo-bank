@@ -72,7 +72,7 @@ public class MvcController {
     String getOverDraftLogsSql = String.format("SELECT * FROM OverdraftLogs WHERE CustomerID='%s';", user.getUsername());
     // SQL Query that only fetches the three most recent transaction logs for this customer.
     String getTransactionHistorySql = String.format("Select * from TransactionHistory WHERE CustomerId='%s' ORDER BY Timestamp DESC LIMIT %d;", user.getUsername(), MAX_NUM_TRANSACTIONS_DISPLAYED);
-    String getTransferHistoryLogsSql = String.format("SELECT * FROM TransferHistory WHERE CustomerID='%s';", user.getUsername());
+    String getTransferHistoryLogsSql = String.format("SELECT * FROM TransferHistory WHERE FromCustomerID='%s' OR ToCustomerID='%s';", user.getUsername(), user.getUsername());
 
     // Overdraft Logs
     List<Map<String,Object>> queryLogs = jdbcTemplate.queryForList(getOverDraftLogsSql);
@@ -573,14 +573,15 @@ public class MvcController {
     }
 
     String userTransferID = user.getUserToTransfer();
+    System.out.println(userTransferID);
     double userTransferAmt = user.getAmountToTransfer();
     int userTransferAmtInPennies = (int) (userTransferAmt * 100);
 
     String numberOfReversalsSql = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", userID);
     int numOfReversals = jdbcTemplate.queryForObject(numberOfReversalsSql, Integer.class);
 
-    // If too many reversals dont do transfer or if amount entered is negative
-    if (userTransferAmt < 0 || numOfReversals >= MAX_DISPUTES){
+    // If too many reversals dont do transfer or if amount entered is negative or if transferring to themself
+    if (userTransferAmt < 0 || numOfReversals >= MAX_DISPUTES || userTransferID.equals(userID)){
       return "welcome";
     }
 
@@ -598,8 +599,7 @@ public class MvcController {
     // Update user that is transferring money
     String balanceIncreaseSql1 = String.format("UPDATE Customers SET Balance = Balance - %d WHERE CustomerID='%s';", userTransferAmtInPennies, userID);
     jdbcTemplate.update(balanceIncreaseSql1);
-    String transferLogsInsertSql1 = String.format("INSERT INTO TransferHistory VALUES ('%s', '%s', %s, %s, %d);", 
-                                                    userID,
+    String transferLogsInsertSql1 = String.format("INSERT INTO TransferHistory VALUES ('%s', '%s', '%s', %d);",
                                                     currentTime,
                                                     userID,
                                                     userTransferID,
@@ -611,13 +611,6 @@ public class MvcController {
     // Update user that money is transferred to
     String balanceIncreaseSql2 = String.format("UPDATE Customers SET Balance = Balance + %d WHERE CustomerID='%s';", userTransferAmtInPennies, userTransferID);
     jdbcTemplate.update(balanceIncreaseSql2);
-    String transferLogsInsertSql2 = String.format("INSERT INTO TransferHistory VALUES ('%s', '%s', %s, %s, %d);", 
-                                                    userTransferID,
-                                                    currentTime,
-                                                    userID,
-                                                    userTransferID,
-                                                    userTransferAmtInPennies);
-    jdbcTemplate.update(transferLogsInsertSql2);
     
     System.out.println(balanceIncreaseSql2); // Print executed SQL update for debugging
     

@@ -59,7 +59,6 @@ cursor.execute(create_transactionhistory_table_sql)
 # Make empty TransferHistory table
 create_transferhistory_table_sql = '''
 CREATE TABLE TransferHistory (
-  CustomerID varchar(255),
   Timestamp DATETIME,
   FromCustomerID varchar(255),
   ToCustomerID varchar(255),

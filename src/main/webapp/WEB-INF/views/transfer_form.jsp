@@ -6,7 +6,7 @@
 <head>
   <link rel="icon" href="https://fanapeel.com/wp-content/uploads/logo_-university-of-maryland-terrapins-testudo-turtle-hold-red-white-m.png">
   <meta charset="ISO-8859-1">
-  <title>Deposit Form</title>
+  <title>Transfer Form</title>
   <style type="text/css">
     label {
       display: inline-block;
@@ -43,7 +43,7 @@
 			<form:password path="password"/><br/>		
 
       <form:label path="userToTransfer">User to transfer to:</form:label>
-			<form:password path="userToTransfer"/><br/>	
+			<form:input path="userToTransfer"/><br/>
 
       <form:label path="amountToTransfer">Amount to Transfer ($):</form:label>
 			<form:input path="amountToTransfer"/><br/>	
