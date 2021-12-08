@@ -582,11 +582,18 @@ public class MvcController {
     }
 
     String transferTarget = user.getTransferTarget();
-    String getTargetSql = String.format("SELECT FirstName FROM customers WHERE CustomerID='%s';", transferTarget);
-    String targetName = jdbcTemplate.queryForObject(getTargetSql, String.class);
 
+    String checkTargetExistSql = String.format("SELECT EXISTS(SELECT FirstName FROM customers WHERE CustomerID = '%s');", transferTarget);
+    int targetCount = jdbcTemplate.queryForObject(checkTargetExistSql, Integer.class);
+
+    // check if the user is transferring to himself
+    if (transferTarget.equals(userID)) {
+      return "welcome";
+    }
+    
     // check that the transfer target exists
-    if (targetName == null) {
+    if (targetCount < 1) {
+      System.out.println("transfer target doesn't even eixst....");
       return "welcome";
     }
 
