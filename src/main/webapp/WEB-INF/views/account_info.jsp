@@ -34,6 +34,7 @@
     <span>Overdraft Balance is: $</span><span>${user.overDraftBalance}</span><br/>
     <span>Re-payment logs: </span><span>${user.logs}</span><br/>
     <span>Transaction History: </span><span>${user.transactionHist}</span><br/>
+    <span>Transfer History: </span><span>${user.transferHist}</span><br/>
     <br/>
     <a href='/deposit'>Deposit</a>
     <a href='/withdraw'>Withdraw</a>

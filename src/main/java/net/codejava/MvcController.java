@@ -72,6 +72,7 @@ public class MvcController {
     String getOverDraftLogsSql = String.format("SELECT * FROM OverdraftLogs WHERE CustomerID='%s';", user.getUsername());
     // SQL Query that only fetches the three most recent transaction logs for this customer.
     String getTransactionHistorySql = String.format("Select * from TransactionHistory WHERE CustomerId='%s' ORDER BY Timestamp DESC LIMIT %d;", user.getUsername(), MAX_NUM_TRANSACTIONS_DISPLAYED);
+    String getTransferHistorySql = String.format("Select * from TransferHistory WHERE FromID='%s' OR ToID='%s' ORDER BY Timestamp DESC LIMIT %d;", user.getUsername(), user.getUsername(), MAX_NUM_TRANSACTIONS_DISPLAYED);
     
     List<Map<String,Object>> queryLogs = jdbcTemplate.queryForList(getOverDraftLogsSql);
     String logs = HTML_LINE_BREAK;
@@ -83,6 +84,11 @@ public class MvcController {
     for(Map<String, Object> transactionLog : transactionLogs){
       transactionHistoryOutput += transactionLog + HTML_LINE_BREAK;
     }
+    List<Map<String,Object>> transferLogs = jdbcTemplate.queryForList(getTransferHistorySql);
+    String transferHistoryOutput = HTML_LINE_BREAK;
+    for(Map<String, Object> transferLog : transferLogs){
+      transferHistoryOutput += transferLog + HTML_LINE_BREAK;
+    }
 
     Map<String,Object> userData = queryResults.get(0);
 
@@ -93,6 +99,7 @@ public class MvcController {
     user.setOverDraftBalance(overDraftBalance/100);
     user.setLogs(logs);
     user.setTransactionHist(transactionHistoryOutput);
+    user.setTransferHist(transferHistoryOutput);
   }
 
   /**
@@ -590,10 +597,9 @@ public class MvcController {
     if (transferTarget.equals(userID)) {
       return "welcome";
     }
-    
+
     // check that the transfer target exists
     if (targetCount < 1) {
-      System.out.println("transfer target doesn't even eixst....");
       return "welcome";
     }
 

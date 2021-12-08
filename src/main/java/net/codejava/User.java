@@ -45,6 +45,9 @@ public class User {
   @Setter @Getter @Positive
   private double amountToTransfer;
 
+  @Setter @Getter
+  private String transferHist;
+
 	@Override
 	public String toString() {
 		return "User [username=" + username + ", password=" + password + ", balance=" + balance + "]";
