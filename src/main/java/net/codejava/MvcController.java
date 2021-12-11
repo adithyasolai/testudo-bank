@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.Map;
-
+import java.util.Random;
 
 import java.util.Calendar;
 import java.util.List;
@@ -685,13 +685,15 @@ public class MvcController {
       
       long numDays = ChronoUnit.DAYS.between(savingsCal.getTime().toInstant(), currCal.getTime().toInstant());
       System.out.println(numDays);
-
-      interestCount+=numDays/7;
+      // cannot obtain seconds between calender dates, for testing I simply the interest count to 2
+      Random r = new Random(); // used for testing
+      interestCount+=2;
       // time is less than a week
       if(interestCount == 0){
         return "welcome_page";
       }
       depositAmount = savingsAmount;
+      // if the customer has not withdrawn in a long time, the interest will be applied numerous times
       for(int i = 0; i < interestCount; i++){
         depositAmount *= SAVINGS_INTEREST;
       }

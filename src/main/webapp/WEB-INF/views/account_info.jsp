@@ -39,7 +39,8 @@
     <a href='/deposit'>Deposit</a>
     <a href='/withdraw'>Withdraw</a>
     <a href='/dispute'>Dispute</a>
-    <a href='/savings'>Savings</a>
+    <a href='/savings'>Deposit Savings</a>
+    <a href='/withdraw_savings'>Withdraw Savings</a>
     <a href='/'>Logout</a>
 	</div>
 </body>
