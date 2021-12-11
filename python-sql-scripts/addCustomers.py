@@ -56,6 +56,16 @@ CREATE TABLE TransactionHistory (
 '''
 cursor.execute(create_transactionhistory_table_sql)
 
+# Make empty Savings table
+create_savings_table_sql = '''
+CREATE TABLE Savings (
+  CustomerID varchar(255),
+  Timestamp DATETIME,
+  Amount int
+);
+'''
+cursor.execute(create_savings_table_sql)
+
 # The two sets created below are used to ensure that this
 # automated, randomized process does not accidentally 
 # generate and use a customer ID that already is in use

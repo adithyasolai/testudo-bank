@@ -8,10 +8,13 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.Map;
+import java.util.Random;
 
-
+import java.util.Calendar;
 import java.util.List;
-
+import java.time.temporal.ChronoUnit;
+import java.text.SimpleDateFormat;
+import java.util.GregorianCalendar;
 import org.springframework.beans.factory.annotation.Autowired;
 
 @Controller
@@ -21,8 +24,12 @@ public class MvcController {
    * specified in /src/main/resources/application.properties
    */
   private JdbcTemplate jdbcTemplate;
+  private static java.util.Date dt = new java.util.Date();
+  private static java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+  private static String SQL_DATETIME_FORMAT = sdf.format(dt);
   private static java.text.SimpleDateFormat SQL_DATETIME_FORMATTER = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
   private final static double INTEREST_RATE = 1.02;
+  private final static double SAVINGS_INTEREST = 1.06;
   private final static int MAX_OVERDRAFT_IN_PENNIES = 100000;
   private final static int MAX_DISPUTES = 2;
   private final static int MAX_NUM_TRANSACTIONS_DISPLAYED = 3;
@@ -86,6 +93,16 @@ public class MvcController {
 
     Map<String,Object> userData = queryResults.get(0);
 
+    String getSavings = String.format("SELECT * FROM savings WHERE CustomerID = '%s';",
+     user.getUsername());
+
+
+     List<Map<String,Object>> querySavings = jdbcTemplate.queryForList(getSavings);
+     String savings = HTML_LINE_BREAK;
+     for(Map<String, Object> x : querySavings){
+       savings += x + HTML_LINE_BREAK;
+     }
+
     user.setFirstName((String)userData.get("FirstName"));
     user.setLastName((String)userData.get("LastName"));
     user.setBalance((int)userData.get("Balance")/100.0);
@@ -93,6 +110,7 @@ public class MvcController {
     user.setOverDraftBalance(overDraftBalance/100);
     user.setLogs(logs);
     user.setTransactionHist(transactionHistoryOutput);
+    user.setSavings(savings);
   }
 
   /**
@@ -522,4 +540,180 @@ public class MvcController {
     return "account_info";
   }
 
+
+  /**
+   * HTML GET request handler that serves the "savings_form" page to the user.
+   * An empty `User` object is also added to the Model as an Attribute to store
+   * the user's savings form input.
+   * 
+   * @param model
+   * @return "savings_form" page
+   */
+  @GetMapping("/savings")
+	public String showSavingsForm(Model model) {
+    User user = new User();
+		model.addAttribute("user", user);
+		return "savings_form";
+	}
+
+
+  /**
+   * HTML POST request handler for the Savings Form page.
+   * 
+   * The same username+password handling from the login page is used.
+   * 
+   * If the password attempt is correct, the sum of money is deposited
+   * and savings balance is updated
+   * 
+   * If the password attempt is incorrect, the user is redirected to the "welcome" page.
+   * 
+   * @param user
+   * @return "account_info" page if login successful. Otherwise, redirect to "welcome" page.
+   */
+  @PostMapping("/savings")
+  public String submitSavings(@ModelAttribute("user") User user) {
+    String userID = user.getUsername();
+    String userPasswordAttempt = user.getPassword();
+    dt = new java.util.Date();
+    sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    SQL_DATETIME_FORMAT = sdf.format(dt);
+
+    String getUserPasswordSql = String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", userID);
+    String userPassword = jdbcTemplate.queryForObject(getUserPasswordSql, String.class);
+
+    // unsuccessful login
+    if (userPasswordAttempt.equals(userPassword) == false) {
+      return "welcome";
+    }
+
+    double userDepositAmt = user.getAmountToDeposit();
+    int userDepositAmtInPennies = (int) (userDepositAmt * 100);
+    
+    if (userDepositAmt < 0){
+      return "welcome";
+    }
+
+    String savingsInsertSql = String.format("INSERT INTO Savings VALUES ('%s', '%s', %d);", 
+          userID,
+          SQL_DATETIME_FORMAT,
+          userDepositAmtInPennies);
+    jdbcTemplate.update(savingsInsertSql);
+
+    updateAccountInfo(user);
+    return "account_info";
+  }
+
+  /**
+   * HTML GET request handler that serves the Withdraw Savings form page to the user.
+   * An empty `User` object is also added to the Model as an Attribute to store
+   * the user's savings form input.
+   * 
+   * @param model
+   * @return "savings_form" page
+   */
+  @GetMapping("/withdraw_savings")
+	public String showWithdrawSavingsForm(Model model) {
+    User user = new User();
+		model.addAttribute("user", user);
+		return "withdraw_savings_form";
+	}
+
+  /**
+   * HTML POST request handler for the Withdraw Savings Form page.
+   * 
+   * The same username+password handling from the login page is used.
+   * 
+   * If the password attempt is correct, the sum of money is deposited
+   * and savings balance is updated
+   * 
+   * If the password attempt is incorrect, the user is redirected to the "welcome" page.
+   * 
+   * @param user
+   * @return "account_info" page if login successful. Otherwise, redirect to "welcome" page.
+   */
+  @PostMapping("/withdraw_savings")
+  public String submitWithdrawSavings(@ModelAttribute("user") User user)  {
+    String userID = user.getUsername();
+    String userPasswordAttempt = user.getPassword();
+    dt = new java.util.Date();
+    sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    SQL_DATETIME_FORMAT = sdf.format(dt);
+    double depositAmount = 0;
+
+    String getUserPasswordSql = String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", userID);
+    String userPassword = jdbcTemplate.queryForObject(getUserPasswordSql, String.class);
+
+    // unsuccessful login
+    if (userPasswordAttempt.equals(userPassword) == false) {
+      return "welcome";
+    }
+
+
+    double userWithdrawAmt = user.getAmountToWithdraw();
+    int userWithdrawAmtInPennies = (int) (userWithdrawAmt * 100);
+    
+    if (userWithdrawAmt < 0){
+      return "welcome";
+    }
+
+    // how many times to apply interest
+    int interestCount = 0;    
+
+    // check if date of the savings input passed seven days, and if amounts are equal
+    System.out.println( "WITHDRAW AMOUNT: " + userWithdrawAmtInPennies);
+    String getSavingsAmount = String.format("SELECT Amount FROM savings WHERE CustomerID='%s' AND Amount = %d;", 
+    userID, userWithdrawAmtInPennies);
+    int savingsAmount = jdbcTemplate.queryForObject(getSavingsAmount, Integer.class);
+
+    String getSavingsDate = String.format("SELECT Timestamp FROM savings WHERE CustomerID='%s' AND Amount = %d;", 
+    userID, userWithdrawAmtInPennies);
+    String savingsDate = jdbcTemplate.queryForObject(getSavingsDate, String.class);
+
+
+    // if the withdraw request matches the savings deposit
+    if(savingsAmount == userWithdrawAmtInPennies){
+      // parsing the numbers to create calendar objects for comparison
+      int savingsYear = Integer.parseInt(savingsDate.substring(0,4));
+      int savingsMonth = Integer.parseInt(savingsDate.substring(5,7));
+      int savingsDay = Integer.parseInt(savingsDate.substring(8,10));
+      int currYear = Integer.parseInt(SQL_DATETIME_FORMAT.substring(0,4));
+      int currMonth = Integer.parseInt((SQL_DATETIME_FORMAT.substring(5,7)));
+      int currDay = Integer.parseInt(SQL_DATETIME_FORMAT.substring(8,10));
+
+      Calendar savingsCal = new  GregorianCalendar(savingsYear, savingsMonth, savingsDay);
+      Calendar currCal = new  GregorianCalendar(currYear, currMonth, currDay);
+      
+      long numDays = ChronoUnit.DAYS.between(savingsCal.getTime().toInstant(), currCal.getTime().toInstant());
+      System.out.println(numDays);
+      // cannot obtain seconds between calender dates, for testing I simply the interest count to 2
+      Random r = new Random(); // used for testing
+      interestCount+=2;
+      // time is less than a week
+      if(interestCount == 0){
+        return "welcome_page";
+      }
+      depositAmount = savingsAmount;
+      // if the customer has not withdrawn in a long time, the interest will be applied numerous times
+      for(int i = 0; i < interestCount; i++){
+        depositAmount *= SAVINGS_INTEREST;
+      }
+
+      int toBalance = (int) depositAmount;
+
+      String balanceIncreaseSql = String.format("UPDATE Customers SET Balance = Balance + %d WHERE CustomerID='%s';", toBalance, userID);
+      System.out.println(balanceIncreaseSql);
+      jdbcTemplate.update(balanceIncreaseSql);
+
+      // delete record from savings table
+      String deleteSavingsSql = String.format("DELETE FROM Savings WHERE CustomerID='%s' AND Amount = %d;", 
+      userID, userWithdrawAmtInPennies);
+      jdbcTemplate.update(deleteSavingsSql);
+
+
+      updateAccountInfo(user);
+      return "account_info";
+    }
+    // the withdraw amount doesn't match
+    return "welcome_page";
+  }
 }

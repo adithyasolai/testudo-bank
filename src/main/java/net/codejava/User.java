@@ -26,6 +26,9 @@ public class User {
 	private double overDraftBalance;
 
   @Setter @Getter
+	private String savings;
+
+  @Setter @Getter
 	private String logs;
   @Setter @Getter
   private String transactionHist;
