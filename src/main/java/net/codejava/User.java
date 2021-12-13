@@ -46,10 +46,16 @@ public class User {
   private double networth;
 
   @Setter @Getter
-  private double largeLoanInstallmentPayment;
+  private double largeLoanInstallments;
 
   @Setter @Getter
   private double largeLoanBalance;
+
+  @Setter @Getter
+  private double largeLoanInstallmentPayment;
+
+  @Setter @Getter
+  private String largeLoanLogs;
 
 	@Override
 	public String toString() {

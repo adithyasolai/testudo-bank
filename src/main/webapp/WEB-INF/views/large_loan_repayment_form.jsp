@@ -42,7 +42,7 @@
 			<form:label path="password">Password:</form:label>
 			<form:password path="password"/><br/>		
 
-            <form:label path="largeLoanInstallmentPayment">Installment Payment ($):</form:label>
+            <form:label path="largeLoanInstallmentPayment">Installment Payment ($) (Charged fee if less than 25% of Large Loan Balance):</form:label>
 			<form:input path="largeLoanInstallmentPayment"/><br/>	
 				
 			<form:button>Submit Payment</form:button>

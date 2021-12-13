@@ -32,6 +32,13 @@ public class MvcController {
   private final static double PERCENTAGE_OF_NETWORTH_FOR_LARGE_LOAN = 0.20;
   private final static double LARGE_LOAN_INTEREST_RATE = 1.04;
   private final static double LARGE_LOAN_INSTALLMENTS_PERCENTAGE_OF_LOAN = 0.25;
+  private final static int MINIMUM_CREDIT_SCORE_FOR_LARGE_LOAN = 700;
+  private final static int LOWEST_POSSIBLE_CREDIT_SCORE = 300;
+  private final static int HIGHEST_POSSIBLE_CREDIT_SCORE = 850;
+  private final static int MINIMUM_NETWORTH_FOR_LARGE_LOAN = 5000;
+  private final static double UNDER_MINIMUM_INSTALLMENT_PAYMENT_FEE = 50;
+  
+
 
   public MvcController(@Autowired JdbcTemplate jdbcTemplate) {
     this.jdbcTemplate = jdbcTemplate;
@@ -115,13 +122,24 @@ public class MvcController {
     String getUserLargeLoanInstallmentsSql = String.format("SELECT LargeLoanInstallments FROM CustomerLoans WHERE CustomerID='%s';", user.getUsername());
     List<Map<String,Object>> queryResultsLargeLoanInstallments = jdbcTemplate.queryForList(getUserLargeLoanInstallmentsSql);
     if (queryResultsLargeLoanInstallments.size() == 0) {
-      user.setLargeLoanInstallmentPayment(0);
+      user.setLargeLoanInstallments(0);
 
     } else {
       int userLargeLoanInstallmentsInPennies = (int) queryResultsLargeLoanInstallments.get(0).get("LargeLoanInstallments");
       double userLargeLoanInstallments = userLargeLoanInstallmentsInPennies / 100;
-      user.setLargeLoanInstallmentPayment(userLargeLoanInstallments);
+      user.setLargeLoanInstallments(userLargeLoanInstallments);
     }
+
+    // Fetch the LargeLoanLogs
+    String getLargeLoanLogsSql = String.format("SELECT * FROM LargeLoanLogs WHERE CustomerID='%s';", user.getUsername());
+
+    List<Map<String,Object>> queryLargeLoanLogs = jdbcTemplate.queryForList(getLargeLoanLogsSql);
+    String largeLoanLogs = HTML_LINE_BREAK;
+    for(Map<String, Object> largeLoanLog : queryLargeLoanLogs){
+      largeLoanLogs += largeLoanLog + HTML_LINE_BREAK;
+    }
+
+    user.setLargeLoanLogs(largeLoanLogs);
     
   }
 
@@ -593,17 +611,27 @@ public class MvcController {
       return "welcome";
     }
 
+    
+    // check if customer account is frozen
+    String numberOfReversalsSql = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", userID);
+    int numOfReversals = jdbcTemplate.queryForObject(numberOfReversalsSql, Integer.class);
+    if (numOfReversals >= MAX_DISPUTES) {
+      return "welcome";
+    }
 
 
+    // Check if user has taken a large loan
     boolean userLargeLoanTaken;
+    boolean userFirstLargeLoan = false;
 
     String getUserLargeLoanTakenSql = String.format("SELECT LargeLoanTaken FROM CustomerLoans WHERE CustomerID='%s';", userID);
     List<Map<String,Object>> queryResults = jdbcTemplate.queryForList(getUserLargeLoanTakenSql);
     if (queryResults.size() == 0) {
       userLargeLoanTaken = false;
+      userFirstLargeLoan = true;
 
     } else {
-      userLargeLoanTaken = true;
+      userLargeLoanTaken = (boolean) queryResults.get(0).get("LargeLoanTaken");
 
     }
 
@@ -617,39 +645,55 @@ public class MvcController {
     double userNetworth = user.getNetworth();
 
     // invalid credit score
-    if (userCreditScore < 300 || userCreditScore > 850) {
+    if (userCreditScore < LOWEST_POSSIBLE_CREDIT_SCORE || userCreditScore > HIGHEST_POSSIBLE_CREDIT_SCORE) {
       return "welcome";
     }
 
     // request rejected if credit score is <700
-    if (userCreditScore < 700) {
+    if (userCreditScore < MINIMUM_CREDIT_SCORE_FOR_LARGE_LOAN) {
       return "welcome";
     }
 
 
     // If networth is < 5000, reject request
-    if (userNetworth < 5000) {
+    if (userNetworth < MINIMUM_NETWORTH_FOR_LARGE_LOAN) {
       return "welcome";
     }
 
-    // Come up with logic for loan
+    // Details of LargeLoan for user
     double largeLoanAmount = userNetworth * PERCENTAGE_OF_NETWORTH_FOR_LARGE_LOAN * LARGE_LOAN_INTEREST_RATE;
     int largeLoanAmountInPennies = (int) (largeLoanAmount * 100);
     boolean largeLoanTaken = true;
     double largeLoanInstallmentsAmount = largeLoanAmount * LARGE_LOAN_INSTALLMENTS_PERCENTAGE_OF_LOAN;
     int largeLoanInstallmentsAmountInPennies = (int) (largeLoanInstallmentsAmount * 100);
 
-    // Insert information of customer loan to CustomerLoans table
-    String customerLoanSql = String.format("INSERT INTO CustomerLoans VALUES ('%s', %b, %d, %d, %d);",
-                                          userID,
-                                          largeLoanTaken,
-                                          largeLoanAmountInPennies,
-                                          largeLoanAmountInPennies,
-                                          largeLoanInstallmentsAmountInPennies);
+    // Insert information of customer loan to CustomerLoans table if it's user's first LargeLoan ever
+    if (userFirstLargeLoan == true) {
+      String customerLoanSql = String.format("INSERT INTO CustomerLoans VALUES ('%s', %b, %d, %d, %d);",
+                                            userID,
+                                            largeLoanTaken,
+                                            largeLoanAmountInPennies,
+                                            largeLoanAmountInPennies,
+                                            largeLoanInstallmentsAmountInPennies);
 
-    jdbcTemplate.update(customerLoanSql);
+      jdbcTemplate.update(customerLoanSql);
+
+
+    // Update the info associated with the new LargeLoan for the user if it's not their first time taking a LargeLoan
+    } else {
+      String customerLoansUpdateSql = String.format("UPDATE CustomerLoans SET LargeLoanTaken = %b, LargeLoanTakenAmt = %d, LargeLoanBalance = %d, LargeLoanInstallments = %d WHERE CustomerID='%s';", 
+                                                    largeLoanTaken,
+                                                    largeLoanAmountInPennies,
+                                                    largeLoanAmountInPennies,
+                                                    largeLoanInstallmentsAmountInPennies,
+                                                    userID);
+      
+      jdbcTemplate.update(customerLoansUpdateSql);
+
+
+    }
+
     
-
     updateAccountInfo(user);
 
     return "account_info";
@@ -675,7 +719,7 @@ public class MvcController {
 
 
 
-  // For PR #2
+
   /**
    * HTML POST request handler for the Large Loan Payment Form page.
    * 
@@ -699,6 +743,176 @@ public class MvcController {
       return "welcome";
     }
 
+    // check if customer account is frozen
+    String numberOfReversalsSql = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", userID);
+    int numOfReversals = jdbcTemplate.queryForObject(numberOfReversalsSql, Integer.class);
+    if (numOfReversals >= MAX_DISPUTES) {
+      return "welcome";
+    }
+
+
+    // Check if user has taken a large loan
+    boolean userLargeLoanTaken;
+
+    String getUserLargeLoanTakenSql = String.format("SELECT LargeLoanTaken FROM CustomerLoans WHERE CustomerID='%s';", userID);
+    List<Map<String,Object>> queryResultsLargeLoanTaken = jdbcTemplate.queryForList(getUserLargeLoanTakenSql);
+    if (queryResultsLargeLoanTaken.size() == 0) {
+      userLargeLoanTaken = false;
+
+    } else {
+      userLargeLoanTaken = (boolean) queryResultsLargeLoanTaken.get(0).get("LargeLoanTaken");
+    }
+
+    // Return to welcome page if the user doesn't have a loan
+    if (userLargeLoanTaken == false) {
+      return "welcome";
+    }
+
+
+    double userLargeLoanInstallmentPayment = user.getLargeLoanInstallmentPayment();
+    int userLargeLoanInstallmentPaymentInPennies = (int) (userLargeLoanInstallmentPayment * 100);
+
+
+    // Get the user's LargeLoanInstallments value
+    String getUserLargeLoanInstallmentsSql = String.format("SELECT LargeLoanInstallments FROM CustomerLoans WHERE CustomerID='%s';", userID);
+    List<Map<String,Object>> queryResultsLargeLoanInstallments = jdbcTemplate.queryForList(getUserLargeLoanInstallmentsSql);
+    double userLargeLoanInstallments = 0;
+    if (queryResultsLargeLoanInstallments.size() > 0) {
+      int userLargeLoanInstallmentsInPennies = (int) queryResultsLargeLoanInstallments.get(0).get("LargeLoanInstallments");
+      userLargeLoanInstallments = userLargeLoanInstallmentsInPennies / 100;
+
+    }
+
+    // Get the user's LargeLoanBalance value
+    String getUserLargeLoanBalanceSql = String.format("SELECT LargeLoanBalance FROM CustomerLoans WHERE CustomerID='%s';", userID);
+    List<Map<String,Object>> queryResultsLargeLoanBalance = jdbcTemplate.queryForList(getUserLargeLoanBalanceSql);
+    double userLargeLoanBalance = 0;
+    int userLargeLoanBalanceInPennies = 0;
+    if (queryResultsLargeLoanBalance.size() > 0) {
+      userLargeLoanBalanceInPennies = (int) queryResultsLargeLoanBalance.get(0).get("LargeLoanBalance");
+      userLargeLoanBalance = userLargeLoanBalanceInPennies / 100;
+
+    }
+
+
+    // If LargeLoanInstallmentPayment is 0 or less, return to welcome page
+    if (userLargeLoanInstallmentPayment <= 0) {
+      return "welcome";
+    }
+
+
+
+    // If installment payment is less than than 25% of the current large loan balance, then add a fee after decrementing the large loan balance.
+    if ((userLargeLoanInstallments > 0) && (userLargeLoanInstallmentPayment < userLargeLoanInstallments)) {
+
+      // Calculate new LargeLoanBalance with fee added
+      double newLargeLoanBalance = (userLargeLoanBalance - userLargeLoanInstallmentPayment) + UNDER_MINIMUM_INSTALLMENT_PAYMENT_FEE;
+      int newLargeLoanBalanceInPennies = (int) (newLargeLoanBalance * 100);
+
+
+
+      // Insert payment into LargeLoanLogs
+      String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date());
+
+      String largeLoanLogsInsertSql = String.format("INSERT INTO LargeLoanLogs VALUES ('%s', '%s', %d, %d, %d);", 
+                                                    userID,
+                                                    currentTime,
+                                                    userLargeLoanInstallmentPaymentInPennies,
+                                                    userLargeLoanBalanceInPennies,
+                                                    newLargeLoanBalanceInPennies);
+
+      jdbcTemplate.update(largeLoanLogsInsertSql);
+
+      
+      // Recalculate LargeLoanInstallments
+      double newlargeLoanInstallmentsAmount = newLargeLoanBalance * LARGE_LOAN_INSTALLMENTS_PERCENTAGE_OF_LOAN;
+      int newlargeLoanInstallmentsAmountInPennies = (int) (newlargeLoanInstallmentsAmount * 100);
+
+
+
+      // Update LargeLoanBalance and LargeLoanInstallments in CustomerLoans table
+      String customerLoansLargeLoanBalanceAndLargeLoanInstallmentsUpdateSql = String.format("UPDATE CustomerLoans SET LargeLoanBalance = %d, LargeLoanInstallments = %d WHERE CustomerID='%s';", 
+                                                                                            newLargeLoanBalanceInPennies,
+                                                                                            newlargeLoanInstallmentsAmountInPennies,
+                                                                                            userID);
+      
+      jdbcTemplate.update(customerLoansLargeLoanBalanceAndLargeLoanInstallmentsUpdateSql);
+
+
+    // No fee charged
+    } else if ((userLargeLoanInstallments > 0) && (userLargeLoanInstallmentPayment >= userLargeLoanInstallments)) {
+      // Calculate new LargeLoanBalance
+      double newLargeLoanBalance = userLargeLoanBalance - userLargeLoanInstallmentPayment;
+      int newLargeLoanBalanceInPennies = (int) (newLargeLoanBalance * 100);
+
+      // Check if balance is paid off
+      // LargeLoanBalance is paid off
+      if (newLargeLoanBalance <= 0) {
+        //isLargeLoanPaidOff = true;
+        boolean largeLoanTakenReset = false;
+        int largeLoanTakenAmtReset = 0;
+        int largeLoanBalanceResetToZero = 0;
+        int largeLoanInstallmentsReset = 0;
+
+
+        // Insert payment into LargeLoanLogs
+        String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date());
+
+        String largeLoanLogsInsertSql = String.format("INSERT INTO LargeLoanLogs VALUES ('%s', '%s', %d, %d, %d);", 
+                                                      userID,
+                                                      currentTime,
+                                                      userLargeLoanInstallmentPaymentInPennies,
+                                                      userLargeLoanBalanceInPennies,
+                                                      largeLoanBalanceResetToZero);
+
+        jdbcTemplate.update(largeLoanLogsInsertSql);
+
+
+
+        // LargeLoan is paid off, so reset LargeLoanTaken, LargeLoanTakenAmt, LargeLoanBalance, LargeLoanInstallments
+        String customerLoansUpdateSql = String.format("UPDATE CustomerLoans SET LargeLoanTaken = %b, LargeLoanTakenAmt = %d, LargeLoanBalance = %d, LargeLoanInstallments = %d WHERE CustomerID='%s';", 
+                                                    largeLoanTakenReset,
+                                                    largeLoanTakenAmtReset,
+                                                    largeLoanBalanceResetToZero,
+                                                    largeLoanInstallmentsReset,
+                                                    userID);
+      
+        jdbcTemplate.update(customerLoansUpdateSql);
+
+
+
+      // LargeLoanBalance isn't entirely paid off
+      } else {
+        // Insert payment into LargeLoanLogs
+        String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date());
+
+        String largeLoanLogsInsertSql = String.format("INSERT INTO LargeLoanLogs VALUES ('%s', '%s', %d, %d, %d);", 
+                                                      userID,
+                                                      currentTime,
+                                                      userLargeLoanInstallmentPaymentInPennies,
+                                                      userLargeLoanBalanceInPennies,
+                                                      newLargeLoanBalanceInPennies);
+        jdbcTemplate.update(largeLoanLogsInsertSql);
+
+
+        // Recalculate LargeLoanInstallments
+        double newlargeLoanInstallmentsAmount = newLargeLoanBalance * LARGE_LOAN_INSTALLMENTS_PERCENTAGE_OF_LOAN;
+        int newlargeLoanInstallmentsAmountInPennies = (int) (newlargeLoanInstallmentsAmount * 100);
+
+
+
+        // Update LargeLoanBalance and LargeLoanInstallments in CustomerLoans table
+        String customerLoansLargeLoanBalanceAndLargeLoanInstallmentsUpdateSql = String.format("UPDATE CustomerLoans SET LargeLoanBalance = %d, LargeLoanInstallments = %d WHERE CustomerID='%s';", 
+                                                                                            newLargeLoanBalanceInPennies,
+                                                                                            newlargeLoanInstallmentsAmountInPennies,
+                                                                                            userID);
+      
+        jdbcTemplate.update(customerLoansLargeLoanBalanceAndLargeLoanInstallmentsUpdateSql);
+
+
+      }
+
+    }
 
 
     updateAccountInfo(user);
