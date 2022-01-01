@@ -5,6 +5,7 @@ import javax.validation.constraints.PositiveOrZero;
 
 import lombok.Getter;
 import lombok.Setter;
+import lombok.With;
 
 public class User {
   @Setter @Getter
@@ -27,6 +28,7 @@ public class User {
 
   @Setter @Getter
 	private String logs;
+
   @Setter @Getter
   private String transactionHist;
 

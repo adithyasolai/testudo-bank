@@ -7,5 +7,22 @@ CREATE TABLE Customers (
   NumFraudReversals int
 );
 
-INSERT INTO Customers
-VALUES ('123456789', 'John', 'Adams', 100, 0, 0);
+CREATE TABLE Passwords (
+  CustomerID varchar(255),
+  Password varchar(255)
+);
+
+CREATE TABLE OverdraftLogs (
+  CustomerID varchar(255),
+  Timestamp DATETIME,
+  DepositAmt int,
+  OldOverBalance int,
+  NewOverBalance int
+);
+
+CREATE TABLE TransactionHistory (
+  CustomerID varchar(255),
+  Timestamp DATETIME,
+  Action varchar(255) CHECK (Action IN ('Deposit', 'Withdraw')),
+  Amount int
+);
