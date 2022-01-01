@@ -92,7 +92,7 @@ public class MvcControllerTest {
 
     // stub jdbc calls
     // successful login
-    String getCustomer1PasswordSql=String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", customer1.getUsername());
+    String getCustomer1PasswordSql=String.format("SELECT Password FROM Passwords WHERE CustomerID='%s';", customer1.getUsername());
 		when(jdbcTemplate.queryForObject(eq(getCustomer1PasswordSql), eq(String.class))).thenReturn("password");
     // handles updateAccountInfo() helper method
     when(jdbcTemplate.queryForList(anyString())).thenReturn(CUSTOMER1_DATA);
@@ -115,7 +115,7 @@ public class MvcControllerTest {
 
     // stub jdbc calls
     // successful login
-    String getCustomer1PasswordSql=String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", customer1.getUsername());
+    String getCustomer1PasswordSql=String.format("SELECT Password FROM Passwords WHERE CustomerID='%s';", customer1.getUsername());
 		when(jdbcTemplate.queryForObject(eq(getCustomer1PasswordSql), eq(String.class))).thenReturn("password");
     // handles updateAccountInfo() helper method
     when(jdbcTemplate.queryForList(anyString())).thenReturn(CUSTOMER1_DATA);
@@ -145,15 +145,15 @@ public class MvcControllerTest {
 
     // stub jdbc calls
     // successful login
-    String getCustomer1PasswordSql=String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", customer1.getUsername());
+    String getCustomer1PasswordSql=String.format("SELECT Password FROM Passwords WHERE CustomerID='%s';", customer1.getUsername());
 		when(jdbcTemplate.queryForObject(eq(getCustomer1PasswordSql), eq(String.class))).thenReturn("password");
     // no overdraft
-    String getCustomer1OverdraftBalanceSql = String.format("SELECT OverdraftBalance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    String getCustomer1OverdraftBalanceSql = String.format("SELECT OverdraftBalance FROM Customers WHERE CustomerID='%s';", customer1.getUsername());
     when(jdbcTemplate.queryForObject(eq(getCustomer1OverdraftBalanceSql), eq(Integer.class))).thenReturn(0);
     // handles updateAccountInfo() helper method
     when(jdbcTemplate.queryForList(anyString())).thenReturn(CUSTOMER1_DATA);
     // handles account not being locked
-    String getNumReversals = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    String getNumReversals = String.format("SELECT NumFraudReversals FROM Customers WHERE CustomerID='%s';", customer1.getUsername());
     when(jdbcTemplate.queryForObject(eq(getNumReversals), eq(Integer.class))).thenReturn(0);
     // not working with live DB
 		when(jdbcTemplate.update(anyString())).thenReturn(1);
@@ -181,7 +181,7 @@ public class MvcControllerTest {
 
     // stub jdbc calls
     // unsuccessful login
-    String getCustomer1PasswordSql=String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", customer1.getUsername());
+    String getCustomer1PasswordSql=String.format("SELECT Password FROM Passwords WHERE CustomerID='%s';", customer1.getUsername());
 		when(jdbcTemplate.queryForObject(eq(getCustomer1PasswordSql), eq(String.class))).thenReturn("password");
 
     // send deposit request
@@ -208,15 +208,15 @@ public class MvcControllerTest {
 
     // stub jdbc calls
     // successful login
-    String getCustomer1PasswordSql=String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", customer1.getUsername());
+    String getCustomer1PasswordSql=String.format("SELECT Password FROM Passwords WHERE CustomerID='%s';", customer1.getUsername());
 		when(jdbcTemplate.queryForObject(eq(getCustomer1PasswordSql), eq(String.class))).thenReturn("password");
     // retrieve balance of $200 (which is stored as 20000 pennies) from DB
-    String getCustomer1BalanceSql=String.format("SELECT Balance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    String getCustomer1BalanceSql=String.format("SELECT Balance FROM Customers WHERE CustomerID='%s';", customer1.getUsername());
     when(jdbcTemplate.queryForObject(eq(getCustomer1BalanceSql), eq(Integer.class))).thenReturn(20000);
     // handles updateAccountInfo() helper method
     when(jdbcTemplate.queryForList(anyString())).thenReturn(CUSTOMER1_DATA);
     // handles account not being locked
-    String getNumReversals = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    String getNumReversals = String.format("SELECT NumFraudReversals FROM Customers WHERE CustomerID='%s';", customer1.getUsername());
     when(jdbcTemplate.queryForObject(eq(getNumReversals), eq(Integer.class))).thenReturn(0);
     // not working with live DB
 		when(jdbcTemplate.update(anyString())).thenReturn(1);
@@ -244,7 +244,7 @@ public class MvcControllerTest {
 
     // stub jdbc calls
     // unsuccessful login
-    String getCustomer1PasswordSql=String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", customer1.getUsername());
+    String getCustomer1PasswordSql=String.format("SELECT Password FROM Passwords WHERE CustomerID='%s';", customer1.getUsername());
 		when(jdbcTemplate.queryForObject(eq(getCustomer1PasswordSql), eq(String.class))).thenReturn("password");
 
     // send withdraw request
@@ -264,9 +264,9 @@ public class MvcControllerTest {
 		customer1.setPassword("password");
 		customer1.setAmountToWithdraw(10); // withdraw $10 in overdraft
 
-		String getCustomer1PasswordSql = String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", CUSTOMER1_USERNAME);
-		String getCustomer1BalanceSql =  String.format("SELECT Balance FROM customers WHERE CustomerID='%s';", CUSTOMER1_USERNAME);
-		String getCustomer1OverdraftBalanceSql = String.format("SELECT OverdraftBalance FROM customers WHERE CustomerID='%s';", CUSTOMER1_USERNAME);
+		String getCustomer1PasswordSql = String.format("SELECT Password FROM Passwords WHERE CustomerID='%s';", CUSTOMER1_USERNAME);
+		String getCustomer1BalanceSql =  String.format("SELECT Balance FROM Customers WHERE CustomerID='%s';", CUSTOMER1_USERNAME);
+		String getCustomer1OverdraftBalanceSql = String.format("SELECT OverdraftBalance FROM Customers WHERE CustomerID='%s';", CUSTOMER1_USERNAME);
 
     // stub jdbc calls
     // successful login
@@ -276,7 +276,7 @@ public class MvcControllerTest {
     // not working with live DB
 		when(jdbcTemplate.update(anyString())).thenReturn(1);
     // handles account not being locked
-    String getNumReversals = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    String getNumReversals = String.format("SELECT NumFraudReversals FROM Customers WHERE CustomerID='%s';", customer1.getUsername());
     when(jdbcTemplate.queryForObject(eq(getNumReversals), eq(Integer.class))).thenReturn(0);
     // start customer with balance and overdraft balance of $0
 		when(jdbcTemplate.queryForObject(eq(getCustomer1BalanceSql), eq(Integer.class))).thenReturn(0);
@@ -303,8 +303,8 @@ public class MvcControllerTest {
 		customer1.setPassword("password");
 		customer1.setAmountToWithdraw(2000); // try to withdraw $2000 in overdraft, but the max allowed is $1000
 
-		String getCustomer1PasswordSql = String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", CUSTOMER1_USERNAME);
-		String getCustomer1BalanceSql =  String.format("SELECT Balance FROM customers WHERE CustomerID='%s';", CUSTOMER1_USERNAME);
+		String getCustomer1PasswordSql = String.format("SELECT Password FROM Passwords WHERE CustomerID='%s';", CUSTOMER1_USERNAME);
+		String getCustomer1BalanceSql =  String.format("SELECT Balance FROM Customers WHERE CustomerID='%s';", CUSTOMER1_USERNAME);
 		
     // stub jdbc calls
     // successful login
@@ -314,7 +314,7 @@ public class MvcControllerTest {
     // not working with live DB
 		when(jdbcTemplate.update(anyString())).thenReturn(1);
     // handles account not being locked
-    String getNumReversals = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    String getNumReversals = String.format("SELECT NumFraudReversals FROM Customers WHERE CustomerID='%s';", customer1.getUsername());
     when(jdbcTemplate.queryForObject(eq(getNumReversals), eq(Integer.class))).thenReturn(0);
     // start customer with balance of $0
 		when(jdbcTemplate.queryForObject(eq(getCustomer1BalanceSql), eq(Integer.class))).thenReturn(0);
@@ -338,8 +338,8 @@ public class MvcControllerTest {
 		customer1.setPassword("password");
 		customer1.setAmountToDeposit(100); // deposit $100 to pay off $10 of overdraft and deposit $90 excess into main balance
 
-		String getCustomer1PasswordSql = String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", CUSTOMER1_USERNAME);
-		String getCustomer1OverdraftBalanceSql = String.format("SELECT OverdraftBalance FROM customers WHERE CustomerID='%s';", CUSTOMER1_USERNAME);
+		String getCustomer1PasswordSql = String.format("SELECT Password FROM Passwords WHERE CustomerID='%s';", CUSTOMER1_USERNAME);
+		String getCustomer1OverdraftBalanceSql = String.format("SELECT OverdraftBalance FROM Customers WHERE CustomerID='%s';", CUSTOMER1_USERNAME);
 
     // stub jdbc calls
     // successful login
@@ -349,7 +349,7 @@ public class MvcControllerTest {
     // not working with live DB
 		when(jdbcTemplate.update(anyString())).thenReturn(1);
     // handles account not being locked
-    String getNumReversals = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    String getNumReversals = String.format("SELECT NumFraudReversals FROM Customers WHERE CustomerID='%s';", customer1.getUsername());
     when(jdbcTemplate.queryForObject(eq(getNumReversals), eq(Integer.class))).thenReturn(0);
     // start customer with overdraft balance of $10 (represented as 1000 pennies in the DB)
 		when(jdbcTemplate.queryForObject(eq(getCustomer1OverdraftBalanceSql), eq(Integer.class))).thenReturn(1000); 
@@ -380,8 +380,8 @@ public class MvcControllerTest {
 		customer1.setPassword("password");
 		customer1.setAmountToDeposit(100); // deposit $100 to pay off part of a $500 overdraft balance
 
-		String getCustomer1PasswordSql = String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", CUSTOMER1_USERNAME);
-		String getCustomer1OverdraftBalanceSql = String.format("SELECT OverdraftBalance FROM customers WHERE CustomerID='%s';", CUSTOMER1_USERNAME);
+		String getCustomer1PasswordSql = String.format("SELECT Password FROM Passwords WHERE CustomerID='%s';", CUSTOMER1_USERNAME);
+		String getCustomer1OverdraftBalanceSql = String.format("SELECT OverdraftBalance FROM Customers WHERE CustomerID='%s';", CUSTOMER1_USERNAME);
 		
     // stub jdbc calls
 		// successful login
@@ -391,7 +391,7 @@ public class MvcControllerTest {
     // not working with live DB
 		when(jdbcTemplate.update(anyString())).thenReturn(1);
     // handles account not being locked
-    String getNumReversals = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    String getNumReversals = String.format("SELECT NumFraudReversals FROM Customers WHERE CustomerID='%s';", customer1.getUsername());
     when(jdbcTemplate.queryForObject(eq(getNumReversals), eq(Integer.class))).thenReturn(0);
     // start customer with overdraft balance of $500 (represented as 50000 pennies in the DB)
 		when(jdbcTemplate.queryForObject(eq(getCustomer1OverdraftBalanceSql), eq(Integer.class))).thenReturn(50000); 
@@ -423,10 +423,10 @@ public class MvcControllerTest {
 		customer1.setAmountToWithdraw(100);
 
     // stub jdbc calls
-    String getCustomer1PasswordSql=String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", customer1.getUsername());
+    String getCustomer1PasswordSql=String.format("SELECT Password FROM Passwords WHERE CustomerID='%s';", customer1.getUsername());
 		when(jdbcTemplate.queryForObject(eq(getCustomer1PasswordSql), eq(String.class))).thenReturn("password");
     // handles account being locked
-    String getNumReversals = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    String getNumReversals = String.format("SELECT NumFraudReversals FROM Customers WHERE CustomerID='%s';", customer1.getUsername());
     when(jdbcTemplate.queryForObject(eq(getNumReversals), eq(Integer.class))).thenReturn(2);
     // send withdraw request
     String pageReturned = controller.submitWithdraw(customer1);
@@ -447,10 +447,10 @@ public class MvcControllerTest {
 
     // stub jdbc calls
     // unsuccessful login
-    String getCustomer1PasswordSql=String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", customer1.getUsername());
+    String getCustomer1PasswordSql=String.format("SELECT Password FROM Passwords WHERE CustomerID='%s';", customer1.getUsername());
 		when(jdbcTemplate.queryForObject(eq(getCustomer1PasswordSql), eq(String.class))).thenReturn("password");
     // handles account being locked
-    String getNumReversals = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    String getNumReversals = String.format("SELECT NumFraudReversals FROM Customers WHERE CustomerID='%s';", customer1.getUsername());
     when(jdbcTemplate.queryForObject(eq(getNumReversals), eq(Integer.class))).thenReturn(2);
     // send deposit request
     String pageReturned = controller.submitDeposit(customer1);
@@ -473,16 +473,16 @@ public class MvcControllerTest {
 
     // stub jdbc calls
     // successful login
-    String getCustomer1PasswordSql=String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", customer1.getUsername());
+    String getCustomer1PasswordSql=String.format("SELECT Password FROM Passwords WHERE CustomerID='%s';", customer1.getUsername());
 		when(jdbcTemplate.queryForObject(eq(getCustomer1PasswordSql), eq(String.class))).thenReturn("password");
     // no overdraft
-    String getCustomer1OverdraftBalanceSql = String.format("SELECT OverdraftBalance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    String getCustomer1OverdraftBalanceSql = String.format("SELECT OverdraftBalance FROM Customers WHERE CustomerID='%s';", customer1.getUsername());
     when(jdbcTemplate.queryForObject(eq(getCustomer1OverdraftBalanceSql), eq(Integer.class))).thenReturn(0);
     // has balance of 200
-    String getCustomer1BalanceSql=String.format("SELECT Balance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    String getCustomer1BalanceSql=String.format("SELECT Balance FROM Customers WHERE CustomerID='%s';", customer1.getUsername());
     when(jdbcTemplate.queryForObject(eq(getCustomer1BalanceSql), eq(Integer.class))).thenReturn(20000);
     // handles updateAccountInfo() helper method
-    String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance FROM Customers WHERE CustomerID='%s';", customer1.getUsername());
     when(jdbcTemplate.queryForList(eq(getUserNameAndBalanceAndOverDraftBalanceSql))).thenReturn(CUSTOMER1_DATA);
     // handles getting 3 most recent logs from transaction history
     String getTransactionHistorySql = String.format("Select * from TransactionHistory WHERE CustomerId='%s' ORDER BY Timestamp DESC LIMIT %d;", customer1.getUsername(), 3);
@@ -491,7 +491,7 @@ public class MvcControllerTest {
     String getOverDraftLogsSql = String.format("SELECT * FROM OverdraftLogs WHERE CustomerID='%s' AND Timestamp='%s';", customer1.getUsername(), TRANSACTION_HIST.get(0).get("Timestamp"));
     when(jdbcTemplate.queryForList(eq(getOverDraftLogsSql))).thenReturn(OVERDRAFT_LOGS);
     // handles account not being locked
-    String getNumReversals = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    String getNumReversals = String.format("SELECT NumFraudReversals FROM Customers WHERE CustomerID='%s';", customer1.getUsername());
     when(jdbcTemplate.queryForObject(eq(getNumReversals), eq(Integer.class))).thenReturn(0);
     // not working with live DB
 		when(jdbcTemplate.update(anyString())).thenReturn(1);
@@ -521,16 +521,16 @@ public class MvcControllerTest {
 
     // stub jdbc calls
     // successful login
-    String getCustomer1PasswordSql=String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", customer1.getUsername());
+    String getCustomer1PasswordSql=String.format("SELECT Password FROM Passwords WHERE CustomerID='%s';", customer1.getUsername());
 		when(jdbcTemplate.queryForObject(eq(getCustomer1PasswordSql), eq(String.class))).thenReturn("password");
     // no overdraft
-    String getCustomer1OverdraftBalanceSql = String.format("SELECT OverdraftBalance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    String getCustomer1OverdraftBalanceSql = String.format("SELECT OverdraftBalance FROM Customers WHERE CustomerID='%s';", customer1.getUsername());
     when(jdbcTemplate.queryForObject(eq(getCustomer1OverdraftBalanceSql), eq(Integer.class))).thenReturn(0);
     // has balance of 0
-    String getCustomer1BalanceSql=String.format("SELECT Balance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    String getCustomer1BalanceSql=String.format("SELECT Balance FROM Customers WHERE CustomerID='%s';", customer1.getUsername());
     when(jdbcTemplate.queryForObject(eq(getCustomer1BalanceSql), eq(Integer.class))).thenReturn(0);
     // handles updateAccountInfo() helper method
-    String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance FROM Customers WHERE CustomerID='%s';", customer1.getUsername());
     when(jdbcTemplate.queryForList(eq(getUserNameAndBalanceAndOverDraftBalanceSql))).thenReturn(CUSTOMER1_DATA);
     // handles getting 3 most recent logs from transaction history
     String getTransactionHistorySql = String.format("Select * from TransactionHistory WHERE CustomerId='%s' ORDER BY Timestamp DESC LIMIT %d;", customer1.getUsername(), 3);
@@ -539,7 +539,7 @@ public class MvcControllerTest {
     String getOverDraftLogsSql = String.format("SELECT * FROM OverdraftLogs WHERE CustomerID='%s' AND Timestamp='%s';", customer1.getUsername(), TRANSACTION_HIST.get(0).get("Timestamp"));
     when(jdbcTemplate.queryForList(eq(getOverDraftLogsSql))).thenReturn(OVERDRAFT_LOGS);
     // handles account not being locked
-    String getNumReversals = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    String getNumReversals = String.format("SELECT NumFraudReversals FROM Customers WHERE CustomerID='%s';", customer1.getUsername());
     when(jdbcTemplate.queryForObject(eq(getNumReversals), eq(Integer.class))).thenReturn(0);
     // not working with live DB
 		when(jdbcTemplate.update(anyString())).thenReturn(1);
@@ -570,16 +570,16 @@ public class MvcControllerTest {
 
     // stub jdbc calls
     // successful login
-    String getCustomer1PasswordSql=String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", customer1.getUsername());
+    String getCustomer1PasswordSql=String.format("SELECT Password FROM Passwords WHERE CustomerID='%s';", customer1.getUsername());
 		when(jdbcTemplate.queryForObject(eq(getCustomer1PasswordSql), eq(String.class))).thenReturn("password");
     // no overdraft
-    String getCustomer1OverdraftBalanceSql = String.format("SELECT OverdraftBalance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    String getCustomer1OverdraftBalanceSql = String.format("SELECT OverdraftBalance FROM Customers WHERE CustomerID='%s';", customer1.getUsername());
     when(jdbcTemplate.queryForObject(eq(getCustomer1OverdraftBalanceSql), eq(Integer.class))).thenReturn(0);
     // has balance of 200
-    String getCustomer1BalanceSql=String.format("SELECT Balance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    String getCustomer1BalanceSql=String.format("SELECT Balance FROM Customers WHERE CustomerID='%s';", customer1.getUsername());
     when(jdbcTemplate.queryForObject(eq(getCustomer1BalanceSql), eq(Integer.class))).thenReturn(20000);
     // handles updateAccountInfo() helper method
-    String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance FROM Customers WHERE CustomerID='%s';", customer1.getUsername());
     when(jdbcTemplate.queryForList(eq(getUserNameAndBalanceAndOverDraftBalanceSql))).thenReturn(CUSTOMER1_DATA);
     // handles getting 3 most recent logs from transaction history
     String getTransactionHistorySql = String.format("Select * from TransactionHistory WHERE CustomerId='%s' ORDER BY Timestamp DESC LIMIT %d;", customer1.getUsername(), 3);
@@ -588,7 +588,7 @@ public class MvcControllerTest {
     String getOverDraftLogsSql = String.format("SELECT * FROM OverdraftLogs WHERE CustomerID='%s' AND Timestamp='%s';", customer1.getUsername(), TRANSACTION_HIST.get(0).get("Timestamp"));
     when(jdbcTemplate.queryForList(eq(getOverDraftLogsSql))).thenReturn(OVERDRAFT_LOGS);
     // handles account not being locked
-    String getNumReversals = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    String getNumReversals = String.format("SELECT NumFraudReversals FROM Customers WHERE CustomerID='%s';", customer1.getUsername());
     when(jdbcTemplate.queryForObject(eq(getNumReversals), eq(Integer.class))).thenReturn(0);
     // not working with live DB
 		when(jdbcTemplate.update(anyString())).thenReturn(1);
@@ -618,16 +618,16 @@ public class MvcControllerTest {
 
     // stub jdbc calls
     // successful login
-    String getCustomer1PasswordSql=String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", customer1.getUsername());
+    String getCustomer1PasswordSql=String.format("SELECT Password FROM Passwords WHERE CustomerID='%s';", customer1.getUsername());
 		when(jdbcTemplate.queryForObject(eq(getCustomer1PasswordSql), eq(String.class))).thenReturn("password");
     // no overdraft
-    String getCustomer1OverdraftBalanceSql = String.format("SELECT OverdraftBalance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    String getCustomer1OverdraftBalanceSql = String.format("SELECT OverdraftBalance FROM Customers WHERE CustomerID='%s';", customer1.getUsername());
     when(jdbcTemplate.queryForObject(eq(getCustomer1OverdraftBalanceSql), eq(Integer.class))).thenReturn(5000);
     // has balance of 200
-    String getCustomer1BalanceSql=String.format("SELECT Balance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    String getCustomer1BalanceSql=String.format("SELECT Balance FROM Customers WHERE CustomerID='%s';", customer1.getUsername());
     when(jdbcTemplate.queryForObject(eq(getCustomer1BalanceSql), eq(Integer.class))).thenReturn(0);
     // handles updateAccountInfo() helper method
-    String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance FROM Customers WHERE CustomerID='%s';", customer1.getUsername());
     when(jdbcTemplate.queryForList(eq(getUserNameAndBalanceAndOverDraftBalanceSql))).thenReturn(CUSTOMER1_DATA);
     // handles getting 3 most recent logs from transaction history
     String getTransactionHistorySql = String.format("Select * from TransactionHistory WHERE CustomerId='%s' ORDER BY Timestamp DESC LIMIT %d;", customer1.getUsername(), 3);
@@ -636,7 +636,7 @@ public class MvcControllerTest {
     String getOverDraftLogsSql = String.format("SELECT * FROM OverdraftLogs WHERE CustomerID='%s' AND Timestamp='%s';", customer1.getUsername(), TRANSACTION_HIST.get(0).get("Timestamp"));
     when(jdbcTemplate.queryForList(eq(getOverDraftLogsSql))).thenReturn(OVERDRAFT_LOGS);
     // handles account not being locked
-    String getNumReversals = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", customer1.getUsername());
+    String getNumReversals = String.format("SELECT NumFraudReversals FROM Customers WHERE CustomerID='%s';", customer1.getUsername());
     when(jdbcTemplate.queryForObject(eq(getNumReversals), eq(Integer.class))).thenReturn(0);
     // not working with live DB
 		when(jdbcTemplate.update(anyString())).thenReturn(1);
