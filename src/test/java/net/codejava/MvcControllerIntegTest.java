@@ -11,12 +11,7 @@ import com.mysql.cj.jdbc.MysqlDataSource;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-// import org.springframework.beans.factory.annotation.Autowired;
-// import org.springframework.boot.test.context.SpringBootTest;
-// import org.testcontainers.containers.MySQLContainer;
-// import org.testcontainers.junit.jupiter.Container;
-// import org.testcontainers.junit.jupiter.Testcontainers;
+import org.python.util.PythonInterpreter;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -75,21 +70,3 @@ public class MvcControllerIntegTest {
   }
 
 }
-
-
-// @Testcontainers
-// public class MvcControllerIntegTest {
-
-//   @Container
-//   private MySQLContainer db = new MySQLContainer<>("mysql:5.5");
-
-//   // @Autowired
-//   // private MvcController mvc;
-
-//   @Test
-//   public void testSimpleDeposit() {
-//     System.out.println(db.getUsername());
-//   }
-
-
-// }
