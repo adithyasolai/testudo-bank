@@ -5,7 +5,6 @@ import javax.validation.constraints.PositiveOrZero;
 
 import lombok.Getter;
 import lombok.Setter;
-import lombok.With;
 
 public class User {
   @Setter @Getter
