@@ -21,8 +21,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.delegate.DatabaseDelegate;
 import org.testcontainers.ext.ScriptUtils;
@@ -39,15 +37,6 @@ public class MvcControllerIntegTest {
     .withUsername("root")
     .withPassword("Prathu123$")
     .withDatabaseName("testudo_bank");
-
-
-  @DynamicPropertySource
-  static void properties(DynamicPropertyRegistry registry) {
-    registry.add("spring.datasource.url", db::getJdbcUrl);
-    registry.add("spring.datasource.username", db::getUsername);
-    registry.add("spring.datasource.password", db::getPassword);
-  }
-
 
   private static DataSource dataSource() {
     MysqlDataSource dataSource = new MysqlDataSource();
