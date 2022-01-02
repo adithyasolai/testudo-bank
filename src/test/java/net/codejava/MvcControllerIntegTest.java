@@ -31,20 +31,12 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @Testcontainers
 @SpringBootTest
 public class MvcControllerIntegTest {
-
+  // Spins up small MySQL DB in local Docker container
   @Container
   public static MySQLContainer db = new MySQLContainer<>("mysql:5.5")
     .withUsername("root")
     .withPassword("Prathu123$")
     .withDatabaseName("testudo_bank");
-
-  private static DataSource dataSource() {
-    MysqlDataSource dataSource = new MysqlDataSource();
-    dataSource.setUrl(db.getJdbcUrl());
-    dataSource.setUser(db.getUsername());
-    dataSource.setPassword(db.getPassword());
-    return dataSource;
-  }
 
   private static MvcController controller;
   private static JdbcTemplate jdbcTemplate;
@@ -75,6 +67,18 @@ public class MvcControllerIntegTest {
     ScriptUtils.runInitScript(dbDelegate, "clearDB.sql");
   }
 
+  //// HELPER FUNCTIONS ////
+
+  // Fetches DB credentials to initialize jdbcTemplate client
+  private static DataSource dataSource() {
+    MysqlDataSource dataSource = new MysqlDataSource();
+    dataSource.setUrl(db.getJdbcUrl());
+    dataSource.setUser(db.getUsername());
+    dataSource.setPassword(db.getPassword());
+    return dataSource;
+  }
+
+  // Uses given customer details to initialize the customer in the Customers and Passwords table in the MySQL DB.
   private void addCustomerToDB(String ID, String password, String firstName, String lastName, int balance) throws ScriptException {
     String insertCustomerSql = String.format("INSERT INTO Customers VALUES ('%s', '%s', '%s', %d, 0, 0)", ID, firstName, lastName, balance);
     ScriptUtils.executeDatabaseScript(dbDelegate, null, insertCustomerSql);
@@ -83,25 +87,36 @@ public class MvcControllerIntegTest {
     ScriptUtils.executeDatabaseScript(dbDelegate, null, insertCustomerPasswordSql);
   }
 
-  // Helper function for converting dollar amounts in frontend to penny representation in backend MySQL DB
+  // Converts dollar amounts in frontend to penny representation in backend MySQL DB
   private int convertDollarsToPennies(double dollarAmount) {
     return (int) dollarAmount * 100;
   }
 
+  // Fetches current local time with no milliseconds because the MySQL DB has granularity only up to seconds (does not use milliseconds)
   private LocalDateTime fetchCurrentTimeAsLocalDateTimeNoMilliseconds() {
-    // store timestamp that deposit request is sent so that we can verify timestamps in the TransactionHistory table later
     LocalDateTime currentTimeAsLocalDateTime = convertDateToLocalDateTime(new java.util.Date());
-    // truncate milliseconds because backend MySQL DB has granularity only at the seconds level (and not the milliseconds level)
     currentTimeAsLocalDateTime = currentTimeAsLocalDateTime.truncatedTo(ChronoUnit.SECONDS);
-
     return currentTimeAsLocalDateTime;
   }
 
-  // Helper function to convert the general Date returned by Java into the LocalDateTime returned by the MySQL DB
+  // Converts the java.util.Date object into the LocalDateTime returned by the MySQL DB
   private LocalDateTime convertDateToLocalDateTime(Date dateToConvert) { 
     return dateToConvert.toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
   }
 
+  //// INTEGRATION TESTS ////
+
+  /**
+   * Verifies the simplest deposit case.
+   * The customer's Balance in the Customers table should be increased,
+   * and the Deposit should be logged in the TransactionHistory table.
+   * 
+   * Assumes that the customer's account is in the simplest state
+   * (not in overdraft, account is not frozen due to too many transaction disputes, etc.)
+   * 
+   * @throws SQLException
+   * @throws ScriptException
+   */
   @Test
   public void testSimpleDeposit() throws SQLException, ScriptException {
     // initialize customer1 with a balance of $150. represented as pennies in the DB.
@@ -159,6 +174,18 @@ public class MvcControllerIntegTest {
     System.out.println("Passed Deposit test!");
   }
 
+  /**
+   * Verifies the simplest withdraw case.
+   * The customer's Balance in the Customers table should be decreased,
+   * and the Withdraw should be logged in the TransactionHistory table.
+   * 
+   * Assumes that the customer's account is in the simplest state
+   * (not already in overdraft, the withdraw does not put customer in overdraft,
+   *  account is not frozen due to too many transaction disputes, etc.)
+   * 
+   * @throws SQLException
+   * @throws ScriptException
+   */
   @Test
   public void testSimpleWithdraw() throws SQLException, ScriptException {
     // initialize customer1 with a balance of $150. represented as pennies in the DB.
