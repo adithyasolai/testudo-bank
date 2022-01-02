@@ -1,8 +1,13 @@
 package net.codejava;
 
+import static org.junit.Assert.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.sql.SQLException;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
@@ -60,6 +65,9 @@ public class MvcControllerIntegTest {
   private static String CUSTOMER1_PASSWORD = "password";
   private static String CUSTOMER1_FIRST_NAME = "Foo";
   private static String CUSTOMER1_LAST_NAME = "Bar";
+  private static String TRANSACTION_HISTORY_DEPOSIT_ACTION = "Deposit";
+  private static String TRANSACTION_HISTORY_WITHDRAW_ACTION = "Withdraw";
+  private static long REASONABLE_TIMESTAMP_EPSILON_IN_SECONDS = 1L;
 
   @BeforeAll
   public static void init() throws SQLException {
@@ -85,37 +93,136 @@ public class MvcControllerIntegTest {
     ScriptUtils.executeDatabaseScript(dbDelegate, null, insertCustomerPasswordSql);
   }
 
+  // Helper function for converting dollar amounts in frontend to penny representation in backend MySQL DB
   private int convertDollarsToPennies(double dollarAmount) {
     return (int) dollarAmount * 100;
   }
 
+  private LocalDateTime fetchCurrentTimeAsLocalDateTimeNoMilliseconds() {
+    // store timestamp that deposit request is sent so that we can verify timestamps in the TransactionHistory table later
+    LocalDateTime currentTimeAsLocalDateTime = convertDateToLocalDateTime(new java.util.Date());
+    // truncate milliseconds because backend MySQL DB has granularity only at the seconds level (and not the milliseconds level)
+    currentTimeAsLocalDateTime = currentTimeAsLocalDateTime.truncatedTo(ChronoUnit.SECONDS);
+
+    return currentTimeAsLocalDateTime;
+  }
+
+  // Helper function to convert the general Date returned by Java into the LocalDateTime returned by the MySQL DB
+  private LocalDateTime convertDateToLocalDateTime(Date dateToConvert) { 
+    return dateToConvert.toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
+  }
+
   @Test
   public void testSimpleDeposit() throws SQLException, ScriptException {
-    // initialize customer 1 with a balance of $100. represented as pennies in the DB.
-    double CUSTOMER1_BALANCE = 100;
+    // initialize customer1 with a balance of $150. represented as pennies in the DB.
+    double CUSTOMER1_BALANCE = 150;
     int CUSTOMER1_BALANCE_IN_PENNIES = convertDollarsToPennies(CUSTOMER1_BALANCE);
     addCustomerToDB(CUSTOMER1_ID, CUSTOMER1_PASSWORD, CUSTOMER1_FIRST_NAME, CUSTOMER1_LAST_NAME, CUSTOMER1_BALANCE_IN_PENNIES);
 
     // Prepare Deposit Form to Deposit $50 to customer 1's account.
+    double CUSTOMER1_AMOUNT_TO_DEPOSIT = 50; // user input is in dollar amount, not pennies.
     User customer1DepositFormInputs = new User();
     customer1DepositFormInputs.setUsername(CUSTOMER1_ID);
     customer1DepositFormInputs.setPassword(CUSTOMER1_PASSWORD);
-    customer1DepositFormInputs.setAmountToDeposit(50); // user input is in dollar amount, not pennies.
+    customer1DepositFormInputs.setAmountToDeposit(CUSTOMER1_AMOUNT_TO_DEPOSIT); 
 
-    // send request to POST handler for Deposit Form in MvcController
+    // verify that there are no logs in TransactionHistory table before Deposit
+    assertEquals(0, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM TransactionHistory;", Integer.class));
+
+    // store timestamp of when Deposit request is sent to verify timestamps in the TransactionHistory table later
+    LocalDateTime timeWhenDepositRequestSent = fetchCurrentTimeAsLocalDateTimeNoMilliseconds();
+    System.out.println("Timestamp when Deposit Request is sent: " + timeWhenDepositRequestSent);
+
+    // send request to the Deposit Form's POST handler in MvcController
     controller.submitDeposit(customer1DepositFormInputs);
 
-    // fetch customer1's updated data from the DB
-    List<Map<String,Object>> queryResults = jdbcTemplate.queryForList(String.format("SELECT * FROM Customers WHERE CustomerID='%s';", CUSTOMER1_ID));
+    // fetch updated data from the DB
+    List<Map<String,Object>> customersTableData = jdbcTemplate.queryForList("SELECT * FROM Customers;");
+    List<Map<String,Object>> transactionHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM TransactionHistory;");
   
-    // verify that customer1's data still exists in Customers table
-    assertEquals(1, queryResults.size());
+    // verify that customer1's data is still the only data populated in Customers table
+    assertEquals(1, customersTableData.size());
+    Map<String,Object> customer1Data = customersTableData.get(0);
+    assertEquals(CUSTOMER1_ID, (String)customer1Data.get("CustomerID"));
 
     // verify customer balance was increased by $50
-    double CUSTOMER1_EXPECTED_FINAL_BALANCE = 150;
+    double CUSTOMER1_EXPECTED_FINAL_BALANCE = 200;
     double CUSTOMER1_EXPECTED_FINAL_BALANCE_IN_PENNIES = convertDollarsToPennies(CUSTOMER1_EXPECTED_FINAL_BALANCE);
-    Map<String,Object> customer1Data = queryResults.get(0);
     assertEquals(CUSTOMER1_EXPECTED_FINAL_BALANCE_IN_PENNIES, (int)customer1Data.get("Balance"));
+
+    // verify that the Deposit is the only log in TransactionHistory table
+    assertEquals(1, transactionHistoryTableData.size());
+    
+    // verify that the Deposit's details are accurately logged in the TransactionHistory table
+    Map<String,Object> customer1TransactionLog = transactionHistoryTableData.get(0);
+    assertEquals(CUSTOMER1_ID, (String)customer1TransactionLog.get("CustomerID"));
+    assertEquals(TRANSACTION_HISTORY_DEPOSIT_ACTION, (String)customer1TransactionLog.get("Action"));
+    int CUSTOMER1_AMOUNT_TO_DEPOSIT_IN_PENNIES = convertDollarsToPennies(CUSTOMER1_AMOUNT_TO_DEPOSIT);
+    assertEquals(CUSTOMER1_AMOUNT_TO_DEPOSIT_IN_PENNIES, (int)customer1TransactionLog.get("Amount"));
+    // verify that the timestamp for the Deposit is within a reasonable range from when the Deposit request was first sent
+    LocalDateTime transactionLogTimestamp = (LocalDateTime)customer1TransactionLog.get("Timestamp");
+    LocalDateTime transactionLogTimestampAllowedUpperBound = timeWhenDepositRequestSent.plusSeconds(REASONABLE_TIMESTAMP_EPSILON_IN_SECONDS);
+    assertTrue(transactionLogTimestamp.compareTo(timeWhenDepositRequestSent) >= 0 && transactionLogTimestamp.compareTo(transactionLogTimestampAllowedUpperBound) <= 0);
+
+    System.out.println("Timestamp stored in TransactionHistory table for the Deposit: " + transactionLogTimestamp);
+
+    System.out.println("Passed Deposit test!");
+  }
+
+  @Test
+  public void testSimpleWithdraw() throws SQLException, ScriptException {
+    // initialize customer1 with a balance of $150. represented as pennies in the DB.
+    double CUSTOMER1_BALANCE = 150;
+    int CUSTOMER1_BALANCE_IN_PENNIES = convertDollarsToPennies(CUSTOMER1_BALANCE);
+    addCustomerToDB(CUSTOMER1_ID, CUSTOMER1_PASSWORD, CUSTOMER1_FIRST_NAME, CUSTOMER1_LAST_NAME, CUSTOMER1_BALANCE_IN_PENNIES);
+
+    // Prepare Withdraw Form to Withdraw $50 from customer 1's account.
+    double CUSTOMER1_AMOUNT_TO_WITHDRAW = 50; // user input is in dollar amount, not pennies.
+    User customer1WithdrawFormInputs = new User();
+    customer1WithdrawFormInputs.setUsername(CUSTOMER1_ID);
+    customer1WithdrawFormInputs.setPassword(CUSTOMER1_PASSWORD);
+    customer1WithdrawFormInputs.setAmountToWithdraw(CUSTOMER1_AMOUNT_TO_WITHDRAW); // user input is in dollar amount, not pennies.
+
+    // verify that there are no logs in TransactionHistory table before Withdraw
+    assertEquals(0, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM TransactionHistory;", Integer.class));
+
+    // store timestamp of when Withdraw request is sent to verify timestamps in the TransactionHistory table later
+    LocalDateTime timeWhenWithdrawRequestSent = fetchCurrentTimeAsLocalDateTimeNoMilliseconds();
+    System.out.println("Timestamp when Withdraw Request is sent: " + timeWhenWithdrawRequestSent);
+
+    // send request to the Withdraw Form's POST handler in MvcController
+    controller.submitWithdraw(customer1WithdrawFormInputs);
+
+    // fetch updated data from the DB
+    List<Map<String,Object>> customersTableData = jdbcTemplate.queryForList("SELECT * FROM Customers;");
+    List<Map<String,Object>> transactionHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM TransactionHistory;");
+  
+    // verify that customer1's data is still the only data populated in Customers table
+    assertEquals(1, customersTableData.size());
+    Map<String,Object> customer1Data = customersTableData.get(0);
+    assertEquals(CUSTOMER1_ID, (String)customer1Data.get("CustomerID"));
+
+    // verify customer balance was decreased by $50
+    double CUSTOMER1_EXPECTED_FINAL_BALANCE = 100;
+    double CUSTOMER1_EXPECTED_FINAL_BALANCE_IN_PENNIES = convertDollarsToPennies(CUSTOMER1_EXPECTED_FINAL_BALANCE);
+    assertEquals(CUSTOMER1_EXPECTED_FINAL_BALANCE_IN_PENNIES, (int)customer1Data.get("Balance"));
+
+    // verify that the Withdraw is the only log in TransactionHistory table
+    assertEquals(1, transactionHistoryTableData.size());
+
+    // verify that the Withdraw's details are accurately logged in the TransactionHistory table
+    Map<String,Object> customer1TransactionLog = transactionHistoryTableData.get(0);
+    assertEquals(CUSTOMER1_ID, (String)customer1TransactionLog.get("CustomerID"));
+    assertEquals(TRANSACTION_HISTORY_WITHDRAW_ACTION, (String)customer1TransactionLog.get("Action"));
+    int CUSTOMER1_AMOUNT_TO_WITHDRAW_IN_PENNIES = convertDollarsToPennies(CUSTOMER1_AMOUNT_TO_WITHDRAW);
+    assertEquals(CUSTOMER1_AMOUNT_TO_WITHDRAW_IN_PENNIES, (int)customer1TransactionLog.get("Amount"));
+    // verify that the timestamp for the Deposit is within a reasonable range from when the Withdraw request was first sent
+    LocalDateTime transactionLogTimestamp = (LocalDateTime)customer1TransactionLog.get("Timestamp");
+    LocalDateTime transactionLogTimestampAllowedUpperBound = timeWhenWithdrawRequestSent.plusSeconds(REASONABLE_TIMESTAMP_EPSILON_IN_SECONDS);
+    assertTrue(transactionLogTimestamp.compareTo(timeWhenWithdrawRequestSent) >= 0 && transactionLogTimestamp.compareTo(transactionLogTimestampAllowedUpperBound) <= 0);
+
+    System.out.println("Timestamp stored in TransactionHistory table for the Withdraw: " + transactionLogTimestamp);
+    System.out.println("Passed Withdraw test!");
   }
 
 
