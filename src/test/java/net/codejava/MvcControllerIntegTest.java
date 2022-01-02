@@ -48,7 +48,7 @@ public class MvcControllerIntegTest {
 
   private static MvcController controller;
   private static JdbcTemplate jdbcTemplate;
-  private static DatabaseDelegate dbDelegate = new JdbcDatabaseDelegate(db, "");
+  private static DatabaseDelegate dbDelegate;
 
   private static String CUSTOMER1_ID = "123456789";
   private static String CUSTOMER1_PASSWORD = "password";
@@ -60,6 +60,7 @@ public class MvcControllerIntegTest {
 
   @BeforeAll
   public static void init() throws SQLException {
+    dbDelegate = new JdbcDatabaseDelegate(db, "");
     ScriptUtils.runInitScript(dbDelegate, "createDB.sql");
     jdbcTemplate = new JdbcTemplate(dataSource());
     jdbcTemplate.getDataSource().getConnection().setCatalog(db.getDatabaseName());
