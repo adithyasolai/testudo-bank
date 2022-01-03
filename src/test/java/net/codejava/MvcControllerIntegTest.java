@@ -35,7 +35,7 @@ public class MvcControllerIntegTest {
   @Container
   public static MySQLContainer db = new MySQLContainer<>("mysql:5.5")
     .withUsername("root")
-    .withPassword("Prathu123$")
+    .withPassword("db_password")
     .withDatabaseName("testudo_bank");
 
   private static MvcController controller;
