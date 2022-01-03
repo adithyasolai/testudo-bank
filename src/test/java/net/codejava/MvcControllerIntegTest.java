@@ -311,7 +311,7 @@ public class MvcControllerIntegTest {
    * in the Customers table should be set to $0, and their main Balance
    * should be set to the excess deposit amount.
    * 
-   * This Deposit should also be logged in the OverdraftLogs table since it is a repayment.
+   * This Deposit should be logged in the OverdraftLogs table since it is a repayment.
    * 
    * This Deposit should still be recorded in the TransactionHistory table.
    * 
@@ -389,7 +389,7 @@ public class MvcControllerIntegTest {
    * in the Customers table should be set to $0, and their main Balance
    * should still be $0 in the MySQL DB.
    * 
-   * This Deposit should also be logged in the OverdraftLogs table since it is a repayment.
+   * This Deposit should be logged in the OverdraftLogs table since it is a repayment.
    * 
    * This Deposit should still be recorded in the TransactionHistory table.
    * 
@@ -464,5 +464,104 @@ public class MvcControllerIntegTest {
 
   }
 
+  /**
+   * Verifies the transaction dispute feature on a simple deposit transaction.
+   * The customer's main balance should go back to the original value after the
+   * reversal of the deposit. The customer's numFraudReversals counter should
+   * also be incremented by 1.
+   * 
+   * The initial Deposit should be recorded in the TransactionHistory table.
+   * 
+   * The reversed Deposit should be recorded in the TransactionHistory table
+   * as a Withdraw.
+   * 
+   * Some verifications are not done on the initial deposit since it is already
+   * checked in detail in testSimpleDeposit().
+   * 
+   * @throws SQLException
+   * @throws ScriptException
+   * @throws InterruptedException
+   */
+  @Test
+  public void testReversalOfSimpleDeposit() throws SQLException, ScriptException, InterruptedException {
+    // initialize customer1 with a balance of $150. represented as pennies in the DB.
+    // No overdraft or numFraudReversals.
+    int CUSTOMER1_BALANCE_IN_PENNIES = convertDollarsToPennies(150);
+    addCustomerToDB(CUSTOMER1_ID, CUSTOMER1_PASSWORD, CUSTOMER1_FIRST_NAME, CUSTOMER1_LAST_NAME, CUSTOMER1_BALANCE_IN_PENNIES);
+
+    // Prepare Deposit Form to Deposit $50 to customer 1's account.
+    double CUSTOMER1_AMOUNT_TO_DEPOSIT = 50; // user input is in dollar amount, not pennies.
+    User customer1DepositFormInputs = new User();
+    customer1DepositFormInputs.setUsername(CUSTOMER1_ID);
+    customer1DepositFormInputs.setPassword(CUSTOMER1_PASSWORD);
+    customer1DepositFormInputs.setAmountToDeposit(CUSTOMER1_AMOUNT_TO_DEPOSIT);
+
+    // store timestamp of when Deposit request is sent to verify timestamps in the TransactionHistory table later
+    LocalDateTime timeWhenDepositRequestSent = fetchCurrentTimeAsLocalDateTimeNoMilliseconds();
+    System.out.println("Timestamp when Deposit Request is sent: " + timeWhenDepositRequestSent);
+
+    // send request to the Deposit Form's POST handler in MvcController
+    controller.submitDeposit(customer1DepositFormInputs);
+
+    // verify that customer1's balance is now $200 after the deposit
+    List<Map<String,Object>> customersTableData = jdbcTemplate.queryForList("SELECT * FROM Customers;");
+    Map<String,Object> customer1Data = customersTableData.get(0);
+    int CUSTOMER1_EXPECTED_BALANCE_AFTER_DEPOSIT_IN_PENNIES = convertDollarsToPennies(200);
+    assertEquals(CUSTOMER1_EXPECTED_BALANCE_AFTER_DEPOSIT_IN_PENNIES, (int)customer1Data.get("Balance"));
+
+    // sleep for 1 second to ensure the timestamps of Deposit and Reversal are different (and sortable) in TransactionHistory table
+    Thread.sleep(1000);
+
+    // Prepare Reversal Form to reverse the Deposit
+    User customer1ReversalFormInputs = customer1DepositFormInputs;
+    customer1ReversalFormInputs.setNumTransactionsAgo(1); // reverse the most recent transaction
+
+    // store timestamp of when Reversal request is sent to verify timestamps in the TransactionHistory table later
+    LocalDateTime timeWhenReversalRequestSent = fetchCurrentTimeAsLocalDateTimeNoMilliseconds();
+    System.out.println("Timestamp when Reversal Request is sent: " + timeWhenReversalRequestSent);
+
+    // send request to the Deposit Form's POST handler in MvcController
+    controller.submitDispute(customer1ReversalFormInputs);
+
+    // re-fetch updated customer data from the DB
+    customersTableData = jdbcTemplate.queryForList("SELECT * FROM Customers;");
+    customer1Data = customersTableData.get(0);
+
+    // verify that customer1's balance is back to the original value of $150
+    int CUSTOMER1_EXPECTED_BALANCE_AFTER_REVERSAL_IN_PENNIES = convertDollarsToPennies(150);
+    assertEquals(CUSTOMER1_EXPECTED_BALANCE_AFTER_REVERSAL_IN_PENNIES, (int)customer1Data.get("Balance"));
+
+    // verify that customer1's numFraudReversals counter is now 1
+    assertEquals(1, (int) customer1Data.get("NumFraudReversals"));
+
+    // fetch transaction data from the DB in chronological order
+    // the more recent transaction should be the Reversal, and the older transaction should be the Deposit
+    List<Map<String,Object>> transactionHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM TransactionHistory ORDER BY Timestamp DESC;");
+    Map<String,Object> customer1ReversalTransactionLog = transactionHistoryTableData.get(0);
+    Map<String,Object> customer1DepositTransactionLog = transactionHistoryTableData.get(1);
+
+    // verify that the Deposit's details are accurately logged in the TransactionHistory table
+    assertEquals(CUSTOMER1_ID, (String)customer1DepositTransactionLog.get("CustomerID"));
+    assertEquals(TRANSACTION_HISTORY_DEPOSIT_ACTION, (String)customer1DepositTransactionLog.get("Action"));
+    int CUSTOMER1_AMOUNT_TO_DEPOSIT_IN_PENNIES = convertDollarsToPennies(CUSTOMER1_AMOUNT_TO_DEPOSIT);
+    assertEquals(CUSTOMER1_AMOUNT_TO_DEPOSIT_IN_PENNIES, (int)customer1DepositTransactionLog.get("Amount"));
+    // verify that the timestamp for the Deposit is within a reasonable range from when the Deposit request was first sent
+    LocalDateTime transactionLogTimestamp = (LocalDateTime)customer1DepositTransactionLog.get("Timestamp");
+    LocalDateTime transactionLogTimestampAllowedUpperBound = timeWhenDepositRequestSent.plusSeconds(REASONABLE_TIMESTAMP_EPSILON_IN_SECONDS);
+    assertTrue(transactionLogTimestamp.compareTo(timeWhenDepositRequestSent) >= 0 && transactionLogTimestamp.compareTo(transactionLogTimestampAllowedUpperBound) <= 0);
+    System.out.println("Timestamp stored in TransactionHistory table for the Deposit: " + transactionLogTimestamp);
+
+    // verify that the Reversal is accurately logged in the TransactionHistory table as a Withdraw
+    assertEquals(CUSTOMER1_ID, (String)customer1ReversalTransactionLog.get("CustomerID"));
+    assertEquals(TRANSACTION_HISTORY_WITHDRAW_ACTION, (String)customer1ReversalTransactionLog.get("Action"));
+    int CUSTOMER1_AMOUNT_TO_WITHDRAW_IN_PENNIES = CUSTOMER1_AMOUNT_TO_DEPOSIT_IN_PENNIES;
+    assertEquals(CUSTOMER1_AMOUNT_TO_WITHDRAW_IN_PENNIES, (int)customer1ReversalTransactionLog.get("Amount"));
+    // verify that the timestamp for the Deposit is within a reasonable range from when the Deposit request was first sent
+    transactionLogTimestamp = (LocalDateTime)customer1ReversalTransactionLog.get("Timestamp");
+    transactionLogTimestampAllowedUpperBound = timeWhenDepositRequestSent.plusSeconds(REASONABLE_TIMESTAMP_EPSILON_IN_SECONDS);
+    assertTrue(transactionLogTimestamp.compareTo(timeWhenDepositRequestSent) >= 0 && transactionLogTimestamp.compareTo(transactionLogTimestampAllowedUpperBound) <= 0);
+    System.out.println("Timestamp stored in TransactionHistory table for the Reversal: " + transactionLogTimestamp);
+
+  }
 
 }
