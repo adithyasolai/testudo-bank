@@ -79,7 +79,7 @@ public class MvcControllerIntegTest {
   }
 
   // Uses given customer details to initialize the customer in the Customers and Passwords table in the MySQL DB.
-  private void addCustomerToDB(String ID, String password, String firstName, String lastName, int balance, int overdraftBalance, int numFraudReversals) throws ScriptException {
+  private static void addCustomerToDB(String ID, String password, String firstName, String lastName, int balance, int overdraftBalance, int numFraudReversals) throws ScriptException {
     String insertCustomerSql = String.format("INSERT INTO Customers VALUES ('%s', '%s', '%s', %d, %d, %d)", ID, firstName, lastName, balance, overdraftBalance, numFraudReversals);
     ScriptUtils.executeDatabaseScript(dbDelegate, null, insertCustomerSql);
 
@@ -88,24 +88,49 @@ public class MvcControllerIntegTest {
   }
 
   // Adds a customer to the MySQL DB with no overdraft balance or fraud disputes
-  private void addCustomerToDB(String ID, String password, String firstName, String lastName, int balance) throws ScriptException {
+  private static void addCustomerToDB(String ID, String password, String firstName, String lastName, int balance) throws ScriptException {
     addCustomerToDB(ID, password, firstName, lastName, balance, 0, 0);
   }
 
+  // Verifies that a single transaction log in the TransactionHistory table matches the expected customerID, timestamp, action, and amount
+  private static void checkTransactionLog(Map<String,Object> transactionLog, LocalDateTime timeWhenRequestSent, String expectedCustomerID, String expectedAction, int expectedAmountInPennies) {
+    assertEquals(expectedCustomerID, (String)transactionLog.get("CustomerID"));
+    assertEquals(expectedAction, (String)transactionLog.get("Action"));
+    assertEquals(expectedAmountInPennies, (int)transactionLog.get("Amount"));
+    // verify that the timestamp for the Deposit is within a reasonable range from when the request was first sent
+    LocalDateTime transactionLogTimestamp = (LocalDateTime)transactionLog.get("Timestamp");
+    LocalDateTime transactionLogTimestampAllowedUpperBound = timeWhenRequestSent.plusSeconds(REASONABLE_TIMESTAMP_EPSILON_IN_SECONDS);
+    assertTrue(transactionLogTimestamp.compareTo(timeWhenRequestSent) >= 0 && transactionLogTimestamp.compareTo(transactionLogTimestampAllowedUpperBound) <= 0);
+    System.out.println("Timestamp stored in TransactionHistory table for the request: " + transactionLogTimestamp);
+  }
+
+  // Verifies that a single overdraft repayment log in the OverdraftLogs table matches the expected customerID, timestamp, depositAmt, oldOverBalance, and newOverBalance
+  private static void checkOverdraftLog(Map<String,Object> overdraftLog, LocalDateTime timeWhenRequestSent, String expectedCustomerID, int expectedDepositAmtInPennies, int expectedOldOverBalanceInPennies, int expectedNewOverBalanceInPennies) {
+    assertEquals(expectedCustomerID, (String)overdraftLog.get("CustomerID"));
+    assertEquals(expectedDepositAmtInPennies, (int)overdraftLog.get("DepositAmt"));
+    assertEquals(expectedOldOverBalanceInPennies, (int)overdraftLog.get("OldOverBalance"));
+    assertEquals(expectedNewOverBalanceInPennies, (int)overdraftLog.get("NewOverBalance"));
+    // verify that the timestamp for the overdraft repayement is within a reasonable range from when the Deposit request was first sent
+    LocalDateTime overdraftLogTimestamp = (LocalDateTime)overdraftLog.get("Timestamp");
+    LocalDateTime overdraftLogTimestampAllowedUpperBound = timeWhenRequestSent.plusSeconds(REASONABLE_TIMESTAMP_EPSILON_IN_SECONDS);
+    assertTrue(overdraftLogTimestamp.compareTo(timeWhenRequestSent) >= 0 && overdraftLogTimestamp.compareTo(overdraftLogTimestampAllowedUpperBound) <= 0);
+    System.out.println("Timestamp stored in OverdraftLogs table for the Repayment: " + overdraftLogTimestamp);
+  }
+
   // Converts dollar amounts in frontend to penny representation in backend MySQL DB
-  private int convertDollarsToPennies(double dollarAmount) {
+  private static int convertDollarsToPennies(double dollarAmount) {
     return (int) (dollarAmount * 100);
   }
 
   // Fetches current local time with no milliseconds because the MySQL DB has granularity only up to seconds (does not use milliseconds)
-  private LocalDateTime fetchCurrentTimeAsLocalDateTimeNoMilliseconds() {
+  private static LocalDateTime fetchCurrentTimeAsLocalDateTimeNoMilliseconds() {
     LocalDateTime currentTimeAsLocalDateTime = convertDateToLocalDateTime(new java.util.Date());
     currentTimeAsLocalDateTime = currentTimeAsLocalDateTime.truncatedTo(ChronoUnit.SECONDS);
     return currentTimeAsLocalDateTime;
   }
 
   // Converts the java.util.Date object into the LocalDateTime returned by the MySQL DB
-  private LocalDateTime convertDateToLocalDateTime(Date dateToConvert) { 
+  private static LocalDateTime convertDateToLocalDateTime(Date dateToConvert) { 
     return dateToConvert.toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
   }
 
@@ -165,15 +190,8 @@ public class MvcControllerIntegTest {
     
     // verify that the Deposit's details are accurately logged in the TransactionHistory table
     Map<String,Object> customer1TransactionLog = transactionHistoryTableData.get(0);
-    assertEquals(CUSTOMER1_ID, (String)customer1TransactionLog.get("CustomerID"));
-    assertEquals(TRANSACTION_HISTORY_DEPOSIT_ACTION, (String)customer1TransactionLog.get("Action"));
     int CUSTOMER1_AMOUNT_TO_DEPOSIT_IN_PENNIES = convertDollarsToPennies(CUSTOMER1_AMOUNT_TO_DEPOSIT);
-    assertEquals(CUSTOMER1_AMOUNT_TO_DEPOSIT_IN_PENNIES, (int)customer1TransactionLog.get("Amount"));
-    // verify that the timestamp for the Deposit is within a reasonable range from when the Deposit request was first sent
-    LocalDateTime transactionLogTimestamp = (LocalDateTime)customer1TransactionLog.get("Timestamp");
-    LocalDateTime transactionLogTimestampAllowedUpperBound = timeWhenDepositRequestSent.plusSeconds(REASONABLE_TIMESTAMP_EPSILON_IN_SECONDS);
-    assertTrue(transactionLogTimestamp.compareTo(timeWhenDepositRequestSent) >= 0 && transactionLogTimestamp.compareTo(transactionLogTimestampAllowedUpperBound) <= 0);
-    System.out.println("Timestamp stored in TransactionHistory table for the Deposit: " + transactionLogTimestamp);
+    checkTransactionLog(customer1TransactionLog, timeWhenDepositRequestSent, CUSTOMER1_ID, TRANSACTION_HISTORY_DEPOSIT_ACTION, CUSTOMER1_AMOUNT_TO_DEPOSIT_IN_PENNIES);
   }
 
   /**
@@ -231,15 +249,8 @@ public class MvcControllerIntegTest {
 
     // verify that the Withdraw's details are accurately logged in the TransactionHistory table
     Map<String,Object> customer1TransactionLog = transactionHistoryTableData.get(0);
-    assertEquals(CUSTOMER1_ID, (String)customer1TransactionLog.get("CustomerID"));
-    assertEquals(TRANSACTION_HISTORY_WITHDRAW_ACTION, (String)customer1TransactionLog.get("Action"));
     int CUSTOMER1_AMOUNT_TO_WITHDRAW_IN_PENNIES = convertDollarsToPennies(CUSTOMER1_AMOUNT_TO_WITHDRAW);
-    assertEquals(CUSTOMER1_AMOUNT_TO_WITHDRAW_IN_PENNIES, (int)customer1TransactionLog.get("Amount"));
-    // verify that the timestamp for the Withdraw is within a reasonable range from when the Withdraw request was first sent
-    LocalDateTime transactionLogTimestamp = (LocalDateTime)customer1TransactionLog.get("Timestamp");
-    LocalDateTime transactionLogTimestampAllowedUpperBound = timeWhenWithdrawRequestSent.plusSeconds(REASONABLE_TIMESTAMP_EPSILON_IN_SECONDS);
-    assertTrue(transactionLogTimestamp.compareTo(timeWhenWithdrawRequestSent) >= 0 && transactionLogTimestamp.compareTo(transactionLogTimestampAllowedUpperBound) <= 0);
-    System.out.println("Timestamp stored in TransactionHistory table for the Withdraw: " + transactionLogTimestamp);
+    checkTransactionLog(customer1TransactionLog, timeWhenWithdrawRequestSent, CUSTOMER1_ID, TRANSACTION_HISTORY_WITHDRAW_ACTION, CUSTOMER1_AMOUNT_TO_WITHDRAW_IN_PENNIES);
   }
 
   /**
@@ -295,14 +306,7 @@ public class MvcControllerIntegTest {
 
     // verify that the Withdraw's details are accurately logged in the TransactionHistory table
     Map<String,Object> customer1TransactionLog = transactionHistoryTableData.get(0);
-    assertEquals(CUSTOMER1_ID, (String)customer1TransactionLog.get("CustomerID"));
-    assertEquals(TRANSACTION_HISTORY_WITHDRAW_ACTION, (String)customer1TransactionLog.get("Action"));
-    assertEquals(CUSTOMER1_AMOUNT_TO_WITHDRAW_IN_PENNIES, (int)customer1TransactionLog.get("Amount"));
-    // verify that the timestamp for the Withdraw is within a reasonable range from when the Withdraw request was first sent
-    LocalDateTime transactionLogTimestamp = (LocalDateTime)customer1TransactionLog.get("Timestamp");
-    LocalDateTime transactionLogTimestampAllowedUpperBound = timeWhenWithdrawRequestSent.plusSeconds(REASONABLE_TIMESTAMP_EPSILON_IN_SECONDS);
-    assertTrue(transactionLogTimestamp.compareTo(timeWhenWithdrawRequestSent) >= 0 && transactionLogTimestamp.compareTo(transactionLogTimestampAllowedUpperBound) <= 0);
-    System.out.println("Timestamp stored in TransactionHistory table for the Withdraw: " + transactionLogTimestamp);
+    checkTransactionLog(customer1TransactionLog, timeWhenWithdrawRequestSent, CUSTOMER1_ID, TRANSACTION_HISTORY_WITHDRAW_ACTION, CUSTOMER1_AMOUNT_TO_WITHDRAW_IN_PENNIES);
   }
 
   /**
@@ -361,26 +365,11 @@ public class MvcControllerIntegTest {
 
     // verify that the deposit is logged properly in the OverdraftLogs table
     Map<String,Object> customer1OverdraftLog = overdraftLogsTableData.get(0);
-    assertEquals(CUSTOMER1_ID, (String)customer1OverdraftLog.get("CustomerID"));
-    assertEquals(CUSTOMER1_AMOUNT_TO_DEPOSIT_IN_PENNIES, (int)customer1OverdraftLog.get("DepositAmt"));
-    assertEquals(CUSTOMER1_ORIGINAL_OVERDRAFT_BALANCE_IN_PENNIES, (int)customer1OverdraftLog.get("OldOverBalance"));
-    assertEquals(0, (int)customer1OverdraftLog.get("NewOverBalance"));
-    // verify that the timestamp for the overdraft repayement is within a reasonable range from when the Deposit request was first sent
-    LocalDateTime overdraftLogTimestamp = (LocalDateTime)customer1OverdraftLog.get("Timestamp");
-    LocalDateTime overdraftLogTimestampAllowedUpperBound = timeWhenDepositRequestSent.plusSeconds(REASONABLE_TIMESTAMP_EPSILON_IN_SECONDS);
-    assertTrue(overdraftLogTimestamp.compareTo(timeWhenDepositRequestSent) >= 0 && overdraftLogTimestamp.compareTo(overdraftLogTimestampAllowedUpperBound) <= 0);
-    System.out.println("Timestamp stored in OverdraftLogs table for the Repayment: " + overdraftLogTimestamp);
+    checkOverdraftLog(customer1OverdraftLog, timeWhenDepositRequestSent, CUSTOMER1_ID, CUSTOMER1_AMOUNT_TO_DEPOSIT_IN_PENNIES, CUSTOMER1_ORIGINAL_OVERDRAFT_BALANCE_IN_PENNIES, 0);
 
-    // verify that the Withdraw's details are accurately logged in the TransactionHistory table
+    // verify that the Deposit's details are accurately logged in the TransactionHistory table
     Map<String,Object> customer1TransactionLog = transactionHistoryTableData.get(0);
-    assertEquals(CUSTOMER1_ID, (String)customer1TransactionLog.get("CustomerID"));
-    assertEquals(TRANSACTION_HISTORY_DEPOSIT_ACTION, (String)customer1TransactionLog.get("Action"));
-    assertEquals(CUSTOMER1_AMOUNT_TO_DEPOSIT_IN_PENNIES, (int)customer1TransactionLog.get("Amount"));
-    // verify that the timestamp for the Deposit is within a reasonable range from when the Deposit request was first sent
-    LocalDateTime transactionLogTimestamp = (LocalDateTime)customer1TransactionLog.get("Timestamp");
-    LocalDateTime transactionLogTimestampAllowedUpperBound = timeWhenDepositRequestSent.plusSeconds(REASONABLE_TIMESTAMP_EPSILON_IN_SECONDS);
-    assertTrue(transactionLogTimestamp.compareTo(timeWhenDepositRequestSent) >= 0 && transactionLogTimestamp.compareTo(transactionLogTimestampAllowedUpperBound) <= 0);
-    System.out.println("Timestamp stored in TransactionHistory table for the Deposit: " + transactionLogTimestamp);
+    checkTransactionLog(customer1TransactionLog, timeWhenDepositRequestSent, CUSTOMER1_ID, TRANSACTION_HISTORY_DEPOSIT_ACTION, CUSTOMER1_AMOUNT_TO_DEPOSIT_IN_PENNIES);
   }
 
   /**
@@ -440,28 +429,11 @@ public class MvcControllerIntegTest {
 
     // verify that the deposit is logged properly in the OverdraftLogs table
     Map<String,Object> customer1OverdraftLog = overdraftLogsTableData.get(0);
-    assertEquals(CUSTOMER1_ID, (String)customer1OverdraftLog.get("CustomerID"));
-    assertEquals(CUSTOMER1_AMOUNT_TO_DEPOSIT_IN_PENNIES, (int)customer1OverdraftLog.get("DepositAmt"));
-    assertEquals(CUSTOMER1_ORIGINAL_OVERDRAFT_BALANCE_IN_PENNIES, (int)customer1OverdraftLog.get("OldOverBalance"));
-    assertEquals(CUSTOMER1_EXPECTED_FINAL_OVERDRAFT_BALANCE_IN_PENNIES, (int)customer1OverdraftLog.get("NewOverBalance"));
-    // verify that the timestamp for the overdraft repayement is within a reasonable range from when the Deposit request was first sent
-    LocalDateTime overdraftLogTimestamp = (LocalDateTime)customer1OverdraftLog.get("Timestamp");
-    LocalDateTime overdraftLogTimestampAllowedUpperBound = timeWhenDepositRequestSent.plusSeconds(REASONABLE_TIMESTAMP_EPSILON_IN_SECONDS);
-    assertTrue(overdraftLogTimestamp.compareTo(timeWhenDepositRequestSent) >= 0 && overdraftLogTimestamp.compareTo(overdraftLogTimestampAllowedUpperBound) <= 0);
-    System.out.println("Timestamp stored in OverdraftLogs table for the Repayment: " + overdraftLogTimestamp);
+    checkOverdraftLog(customer1OverdraftLog, timeWhenDepositRequestSent, CUSTOMER1_ID, CUSTOMER1_AMOUNT_TO_DEPOSIT_IN_PENNIES, CUSTOMER1_ORIGINAL_OVERDRAFT_BALANCE_IN_PENNIES, CUSTOMER1_EXPECTED_FINAL_OVERDRAFT_BALANCE_IN_PENNIES);
 
     // verify that the Withdraw's details are accurately logged in the TransactionHistory table
     Map<String,Object> customer1TransactionLog = transactionHistoryTableData.get(0);
-    assertEquals(CUSTOMER1_ID, (String)customer1TransactionLog.get("CustomerID"));
-    assertEquals(TRANSACTION_HISTORY_DEPOSIT_ACTION, (String)customer1TransactionLog.get("Action"));
-    assertEquals(CUSTOMER1_AMOUNT_TO_DEPOSIT_IN_PENNIES, (int)customer1TransactionLog.get("Amount"));
-    // verify that the timestamp for the Deposit is within a reasonable range from when the Deposit request was first sent
-    LocalDateTime transactionLogTimestamp = (LocalDateTime)customer1TransactionLog.get("Timestamp");
-    LocalDateTime transactionLogTimestampAllowedUpperBound = timeWhenDepositRequestSent.plusSeconds(REASONABLE_TIMESTAMP_EPSILON_IN_SECONDS);
-    assertTrue(transactionLogTimestamp.compareTo(timeWhenDepositRequestSent) >= 0 && transactionLogTimestamp.compareTo(transactionLogTimestampAllowedUpperBound) <= 0);
-    System.out.println("Timestamp stored in TransactionHistory table for the Deposit: " + transactionLogTimestamp);
-
-
+    checkTransactionLog(customer1TransactionLog, timeWhenDepositRequestSent, CUSTOMER1_ID, TRANSACTION_HISTORY_DEPOSIT_ACTION, CUSTOMER1_AMOUNT_TO_DEPOSIT_IN_PENNIES);
   }
 
   /**
@@ -536,32 +508,18 @@ public class MvcControllerIntegTest {
 
     // fetch transaction data from the DB in chronological order
     // the more recent transaction should be the Reversal, and the older transaction should be the Deposit
-    List<Map<String,Object>> transactionHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM TransactionHistory ORDER BY Timestamp DESC;");
-    Map<String,Object> customer1ReversalTransactionLog = transactionHistoryTableData.get(0);
-    Map<String,Object> customer1DepositTransactionLog = transactionHistoryTableData.get(1);
+    List<Map<String,Object>> transactionHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM TransactionHistory ORDER BY Timestamp ASC;");
+    Map<String,Object> customer1DepositTransactionLog = transactionHistoryTableData.get(0);
+    Map<String,Object> customer1ReversalTransactionLog = transactionHistoryTableData.get(1);
+    
 
     // verify that the Deposit's details are accurately logged in the TransactionHistory table
-    assertEquals(CUSTOMER1_ID, (String)customer1DepositTransactionLog.get("CustomerID"));
-    assertEquals(TRANSACTION_HISTORY_DEPOSIT_ACTION, (String)customer1DepositTransactionLog.get("Action"));
     int CUSTOMER1_AMOUNT_TO_DEPOSIT_IN_PENNIES = convertDollarsToPennies(CUSTOMER1_AMOUNT_TO_DEPOSIT);
-    assertEquals(CUSTOMER1_AMOUNT_TO_DEPOSIT_IN_PENNIES, (int)customer1DepositTransactionLog.get("Amount"));
-    // verify that the timestamp for the Deposit is within a reasonable range from when the Deposit request was first sent
-    LocalDateTime transactionLogTimestamp = (LocalDateTime)customer1DepositTransactionLog.get("Timestamp");
-    LocalDateTime transactionLogTimestampAllowedUpperBound = timeWhenDepositRequestSent.plusSeconds(REASONABLE_TIMESTAMP_EPSILON_IN_SECONDS);
-    assertTrue(transactionLogTimestamp.compareTo(timeWhenDepositRequestSent) >= 0 && transactionLogTimestamp.compareTo(transactionLogTimestampAllowedUpperBound) <= 0);
-    System.out.println("Timestamp stored in TransactionHistory table for the Deposit: " + transactionLogTimestamp);
+    checkTransactionLog(customer1DepositTransactionLog, timeWhenDepositRequestSent, CUSTOMER1_ID, TRANSACTION_HISTORY_DEPOSIT_ACTION, CUSTOMER1_AMOUNT_TO_DEPOSIT_IN_PENNIES);
 
     // verify that the Reversal is accurately logged in the TransactionHistory table as a Withdraw
-    assertEquals(CUSTOMER1_ID, (String)customer1ReversalTransactionLog.get("CustomerID"));
-    assertEquals(TRANSACTION_HISTORY_WITHDRAW_ACTION, (String)customer1ReversalTransactionLog.get("Action"));
     int CUSTOMER1_AMOUNT_TO_WITHDRAW_IN_PENNIES = CUSTOMER1_AMOUNT_TO_DEPOSIT_IN_PENNIES;
-    assertEquals(CUSTOMER1_AMOUNT_TO_WITHDRAW_IN_PENNIES, (int)customer1ReversalTransactionLog.get("Amount"));
-    // verify that the timestamp for the Deposit is within a reasonable range from when the Deposit request was first sent
-    transactionLogTimestamp = (LocalDateTime)customer1ReversalTransactionLog.get("Timestamp");
-    transactionLogTimestampAllowedUpperBound = timeWhenDepositRequestSent.plusSeconds(REASONABLE_TIMESTAMP_EPSILON_IN_SECONDS);
-    assertTrue(transactionLogTimestamp.compareTo(timeWhenDepositRequestSent) >= 0 && transactionLogTimestamp.compareTo(transactionLogTimestampAllowedUpperBound) <= 0);
-    System.out.println("Timestamp stored in TransactionHistory table for the Reversal: " + transactionLogTimestamp);
-
+    checkTransactionLog(customer1ReversalTransactionLog, timeWhenReversalRequestSent, CUSTOMER1_ID, TRANSACTION_HISTORY_WITHDRAW_ACTION, CUSTOMER1_AMOUNT_TO_WITHDRAW_IN_PENNIES);
   }
 
 }
