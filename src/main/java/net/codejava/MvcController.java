@@ -407,7 +407,6 @@ public class MvcController {
     String getTransactionHistorySql = String.format("Select * from TransactionHistory WHERE CustomerId='%s' ORDER BY Timestamp DESC LIMIT %d;", user.getUsername(), MAX_NUM_TRANSACTIONS_DISPLAYED);
     List<Map<String,Object>> transactionLogs = jdbcTemplate.queryForList(getTransactionHistorySql);
     
-
     // Ensure customer has enough transactions to complete the reversal
     if (user.getNumTransactionsAgo() > transactionLogs.size()) {
       return "welcome";
@@ -466,10 +465,6 @@ public class MvcController {
                                                   reversalAmount);
       jdbcTemplate.update(transactionHistorySql);
     } else { // Case when reversing a withdraw, deposit the money instead
-      // Adds to number of reversals
-      numOfReversals++;
-      String numOfReversalsUpdateSql = String.format("UPDATE Customers SET NumFraudReversals = %d WHERE CustomerID='%s';", numOfReversals, userID);
-      jdbcTemplate.update(numOfReversalsUpdateSql);
       if (userOverdraftBalanceInPennies == 0) {
         String balanceIncreaseSql = String.format("UPDATE Customers SET Balance = Balance + %d WHERE CustomerID='%s';", reversalAmount, userID);
         jdbcTemplate.update(balanceIncreaseSql);
@@ -517,6 +512,12 @@ public class MvcController {
         jdbcTemplate.update(transactionHistorySql);
       }
     }
+
+    // Adds to number of reversals only after a successful reversal 
+    numOfReversals++;
+    String numOfReversalsUpdateSql = String.format("UPDATE Customers SET NumFraudReversals = %d WHERE CustomerID='%s';", numOfReversals, userID);
+    jdbcTemplate.update(numOfReversalsUpdateSql);
+
     updateAccountInfo(user);
 
     return "account_info";
