@@ -219,49 +219,6 @@ public class MvcControllerTest {
 		assertEquals("welcome", pageReturned);
 	}
 
-
-	@Test
-	public void testDepositOverDraftBalanceNotCleared() {
-		User customer1 = new User();
-		customer1.setUsername(CUSTOMER1_USERNAME);
-		customer1.setPassword("password");
-		customer1.setAmountToDeposit(100); // deposit $100 to pay off part of a $500 overdraft balance
-
-		String getCustomer1PasswordSql = String.format("SELECT Password FROM Passwords WHERE CustomerID='%s';", CUSTOMER1_USERNAME);
-		String getCustomer1OverdraftBalanceSql = String.format("SELECT OverdraftBalance FROM Customers WHERE CustomerID='%s';", CUSTOMER1_USERNAME);
-		
-    // stub jdbc calls
-		// successful login
-		when(jdbcTemplate.queryForObject(eq(getCustomer1PasswordSql), eq(String.class))).thenReturn("password");
-    // handles updateAccountInfo() helper method
-    when(jdbcTemplate.queryForList(anyString())).thenReturn(CUSTOMER1_DATA);
-    // not working with live DB
-		when(jdbcTemplate.update(anyString())).thenReturn(1);
-    // handles account not being locked
-    String getNumReversals = String.format("SELECT NumFraudReversals FROM Customers WHERE CustomerID='%s';", customer1.getUsername());
-    when(jdbcTemplate.queryForObject(eq(getNumReversals), eq(Integer.class))).thenReturn(0);
-    // start customer with overdraft balance of $500 (represented as 50000 pennies in the DB)
-		when(jdbcTemplate.queryForObject(eq(getCustomer1OverdraftBalanceSql), eq(Integer.class))).thenReturn(50000); 
-
-    // send deposit request
-    String pageReturned = controller.submitDeposit(customer1);
-
-    // verify queries for password and overdraft balance
-    Mockito.verify(jdbcTemplate, Mockito.times(1)).queryForObject(eq(getCustomer1PasswordSql), eq(String.class));
-    Mockito.verify(jdbcTemplate, Mockito.times(1)).queryForObject(eq(getCustomer1OverdraftBalanceSql), eq(Integer.class));
-
-		// overdraft balance > customer deposit, so new overdraft balance must be $400 (represented as 40000 pennies in DB)
-    String overDraftBalanceUpdateSql = String.format("UPDATE Customers SET OverdraftBalance = %d WHERE CustomerID='%s';", 40000, CUSTOMER1_USERNAME);
-    Mockito.verify(jdbcTemplate, Mockito.times(1)).update(eq(overDraftBalanceUpdateSql));
-
-    // main balance should remain unchanged
-    String balanceUpdateSql = String.format("UPDATE Customers SET Balance = Balance + %d WHERE CustomerID='%s';", 0, CUSTOMER1_USERNAME);
-    Mockito.verify(jdbcTemplate, Mockito.times(1)).update(eq(balanceUpdateSql));
-
-    // verify "account_info" page is returned
-		assertEquals("account_info", pageReturned);
-	}
-
   @Test
 	public void testWithdrawLockedAccount() {
 		User customer1 = new User();
