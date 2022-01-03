@@ -267,7 +267,7 @@ public class MvcControllerTest {
 	}
 
   @Test
-	public void testDepositCausesOverdraft() {
+	public void testDisputeCausesOverdraft() {
     // initialize user input to the deposit form
 		User customer1 = new User();
 		customer1.setUsername(CUSTOMER1_USERNAME);
@@ -310,54 +310,6 @@ public class MvcControllerTest {
     //makes sure overdraft balance is increased by 10000*1.02 (the tax)
     String overdraftBalanceUpdateSql = String.format("UPDATE Customers SET OverdraftBalance = OverdraftBalance + 10200 WHERE CustomerID='%s';", customer1.getUsername());
     Mockito.verify(jdbcTemplate, Mockito.times(1)).update(eq(overdraftBalanceUpdateSql));
-
-    // verify "account_info" page is returned
-		assertEquals("account_info", pageReturned);
-	}
-
-  @Test
-	public void testWithdrawDisputeSuccess() {
-    // initialize user input to the deposit form
-		User customer1 = new User();
-		customer1.setUsername(CUSTOMER1_USERNAME);
-		customer1.setPassword("password");
-    //tests reverting most recent deposit
-    customer1.setNumTransactionsAgo(1);
-
-    // stub jdbc calls
-    // successful login
-    String getCustomer1PasswordSql=String.format("SELECT Password FROM Passwords WHERE CustomerID='%s';", customer1.getUsername());
-		when(jdbcTemplate.queryForObject(eq(getCustomer1PasswordSql), eq(String.class))).thenReturn("password");
-    // no overdraft
-    String getCustomer1OverdraftBalanceSql = String.format("SELECT OverdraftBalance FROM Customers WHERE CustomerID='%s';", customer1.getUsername());
-    when(jdbcTemplate.queryForObject(eq(getCustomer1OverdraftBalanceSql), eq(Integer.class))).thenReturn(0);
-    // has balance of 200
-    String getCustomer1BalanceSql=String.format("SELECT Balance FROM Customers WHERE CustomerID='%s';", customer1.getUsername());
-    when(jdbcTemplate.queryForObject(eq(getCustomer1BalanceSql), eq(Integer.class))).thenReturn(20000);
-    // handles updateAccountInfo() helper method
-    String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance FROM Customers WHERE CustomerID='%s';", customer1.getUsername());
-    when(jdbcTemplate.queryForList(eq(getUserNameAndBalanceAndOverDraftBalanceSql))).thenReturn(CUSTOMER1_DATA);
-    // handles getting 3 most recent logs from transaction history
-    String getTransactionHistorySql = String.format("Select * from TransactionHistory WHERE CustomerId='%s' ORDER BY Timestamp DESC LIMIT %d;", customer1.getUsername(), 3);
-    when(jdbcTemplate.queryForList(eq(getTransactionHistorySql))).thenReturn(TRANSACTION_HIST_WITHDRAW);
-    // sends empty overdraft log when fetching overdraft logs for customer that match timestamp of reversed transaction
-    String getOverDraftLogsSql = String.format("SELECT * FROM OverdraftLogs WHERE CustomerID='%s' AND Timestamp='%s';", customer1.getUsername(), TRANSACTION_HIST.get(0).get("Timestamp"));
-    when(jdbcTemplate.queryForList(eq(getOverDraftLogsSql))).thenReturn(OVERDRAFT_LOGS);
-    // handles account not being locked
-    String getNumReversals = String.format("SELECT NumFraudReversals FROM Customers WHERE CustomerID='%s';", customer1.getUsername());
-    when(jdbcTemplate.queryForObject(eq(getNumReversals), eq(Integer.class))).thenReturn(0);
-    // not working with live DB
-		when(jdbcTemplate.update(anyString())).thenReturn(1);
-
-    // send dispute request
-    String pageReturned = controller.submitDispute(customer1);
-
-    // Verify that the SQL Update command executed uses dispute amount
-    int expectedDepositAmtInPennies = (int) (100*100);
-    String balanceDecreaseSqlCustomer1=String.format("UPDATE Customers SET Balance = Balance + %d WHERE CustomerID='%s';",
-                                                     expectedDepositAmtInPennies,
-                                                     customer1.getUsername());
-    Mockito.verify(jdbcTemplate, Mockito.times(1)).update(eq(balanceDecreaseSqlCustomer1));
 
     // verify "account_info" page is returned
 		assertEquals("account_info", pageReturned);
