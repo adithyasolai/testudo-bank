@@ -28,6 +28,8 @@ public class MvcController {
   private final static int MAX_NUM_TRANSACTIONS_DISPLAYED = 3;
   private final static int MAX_REVERSABLE_TRANSACTIONS_AGO = 3;
   private final static String HTML_LINE_BREAK = "<br/>";
+  public static String TRANSACTION_HISTORY_DEPOSIT_ACTION = "Deposit";
+  public static String TRANSACTION_HISTORY_WITHDRAW_ACTION = "Withdraw";
 
   public MvcController(@Autowired JdbcTemplate jdbcTemplate) {
     this.jdbcTemplate = jdbcTemplate;
@@ -189,7 +191,7 @@ public class MvcController {
     String transactionHistorySql = String.format("INSERT INTO TransactionHistory VALUES ('%s', '%s', %s, %d);",
                                                   userID,
                                                   currentTime,
-                                                  "'Deposit'",
+                                                  String.format("'%s'", TRANSACTION_HISTORY_DEPOSIT_ACTION),
                                                   userDepositAmtInPennies);
     jdbcTemplate.update(transactionHistorySql);
 
@@ -307,7 +309,7 @@ public class MvcController {
       String transactionHistorySql = String.format("INSERT INTO TransactionHistory VALUES ('%s', '%s', %s, %d);",
                                                     userID,
                                                     currentTime,
-                                                    "'Withdraw'",
+                                                    String.format("'%s'", TRANSACTION_HISTORY_WITHDRAW_ACTION),
                                                     userWithdrawAmtInPennies);
       jdbcTemplate.update(transactionHistorySql);
 
@@ -339,7 +341,7 @@ public class MvcController {
     String transactionHistorySql = String.format("INSERT INTO TransactionHistory VALUES ('%s', '%s', %s, %d);",
                                                     userID,
                                                     currentTime,
-                                                    "'Withdraw'",
+                                                    String.format("'%s'", TRANSACTION_HISTORY_WITHDRAW_ACTION),
                                                     userWithdrawAmtInPennies);
     jdbcTemplate.update(transactionHistorySql);
 
@@ -461,7 +463,7 @@ public class MvcController {
       String transactionHistorySql = String.format("INSERT INTO TransactionHistory VALUES ('%s', '%s', %s, %d);",
                                                   userID,
                                                   currentTime,
-                                                  "'Withdraw'",
+                                                  String.format("'%s'", TRANSACTION_HISTORY_WITHDRAW_ACTION),
                                                   reversalAmount);
       jdbcTemplate.update(transactionHistorySql);
     } else { // Case when reversing a withdraw, deposit the money instead
@@ -475,7 +477,7 @@ public class MvcController {
         String transactionHistorySql = String.format("INSERT INTO TransactionHistory VALUES ('%s', '%s', %s, %d);",
                                                   userID,
                                                   currentTime,
-                                                  "'Deposit'",
+                                                  String.format("'%s'", TRANSACTION_HISTORY_DEPOSIT_ACTION),
                                                   reversalAmount);
         jdbcTemplate.update(transactionHistorySql);
       } else { // case when user is in overdraft
@@ -507,7 +509,7 @@ public class MvcController {
         String transactionHistorySql = String.format("INSERT INTO TransactionHistory VALUES ('%s', '%s', %s, %d);",
                                                     userID,
                                                     currentTime,
-                                                    "'Deposit'",
+                                                    String.format("'%s'", TRANSACTION_HISTORY_DEPOSIT_ACTION),
                                                     reversalAmount);
         jdbcTemplate.update(transactionHistorySql);
       }

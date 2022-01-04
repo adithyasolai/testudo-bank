@@ -46,8 +46,6 @@ public class MvcControllerIntegTest {
   private static String CUSTOMER1_PASSWORD = "password";
   private static String CUSTOMER1_FIRST_NAME = "Foo";
   private static String CUSTOMER1_LAST_NAME = "Bar";
-  private static String TRANSACTION_HISTORY_DEPOSIT_ACTION = "Deposit";
-  private static String TRANSACTION_HISTORY_WITHDRAW_ACTION = "Withdraw";
   private static long REASONABLE_TIMESTAMP_EPSILON_IN_SECONDS = 1L;
 
   @BeforeAll
@@ -191,7 +189,7 @@ public class MvcControllerIntegTest {
     // verify that the Deposit's details are accurately logged in the TransactionHistory table
     Map<String,Object> customer1TransactionLog = transactionHistoryTableData.get(0);
     int CUSTOMER1_AMOUNT_TO_DEPOSIT_IN_PENNIES = convertDollarsToPennies(CUSTOMER1_AMOUNT_TO_DEPOSIT);
-    checkTransactionLog(customer1TransactionLog, timeWhenDepositRequestSent, CUSTOMER1_ID, TRANSACTION_HISTORY_DEPOSIT_ACTION, CUSTOMER1_AMOUNT_TO_DEPOSIT_IN_PENNIES);
+    checkTransactionLog(customer1TransactionLog, timeWhenDepositRequestSent, CUSTOMER1_ID, MvcController.TRANSACTION_HISTORY_DEPOSIT_ACTION, CUSTOMER1_AMOUNT_TO_DEPOSIT_IN_PENNIES);
   }
 
   /**
@@ -250,7 +248,7 @@ public class MvcControllerIntegTest {
     // verify that the Withdraw's details are accurately logged in the TransactionHistory table
     Map<String,Object> customer1TransactionLog = transactionHistoryTableData.get(0);
     int CUSTOMER1_AMOUNT_TO_WITHDRAW_IN_PENNIES = convertDollarsToPennies(CUSTOMER1_AMOUNT_TO_WITHDRAW);
-    checkTransactionLog(customer1TransactionLog, timeWhenWithdrawRequestSent, CUSTOMER1_ID, TRANSACTION_HISTORY_WITHDRAW_ACTION, CUSTOMER1_AMOUNT_TO_WITHDRAW_IN_PENNIES);
+    checkTransactionLog(customer1TransactionLog, timeWhenWithdrawRequestSent, CUSTOMER1_ID, MvcController.TRANSACTION_HISTORY_WITHDRAW_ACTION, CUSTOMER1_AMOUNT_TO_WITHDRAW_IN_PENNIES);
   }
 
   /**
@@ -306,7 +304,7 @@ public class MvcControllerIntegTest {
 
     // verify that the Withdraw's details are accurately logged in the TransactionHistory table
     Map<String,Object> customer1TransactionLog = transactionHistoryTableData.get(0);
-    checkTransactionLog(customer1TransactionLog, timeWhenWithdrawRequestSent, CUSTOMER1_ID, TRANSACTION_HISTORY_WITHDRAW_ACTION, CUSTOMER1_AMOUNT_TO_WITHDRAW_IN_PENNIES);
+    checkTransactionLog(customer1TransactionLog, timeWhenWithdrawRequestSent, CUSTOMER1_ID, MvcController.TRANSACTION_HISTORY_WITHDRAW_ACTION, CUSTOMER1_AMOUNT_TO_WITHDRAW_IN_PENNIES);
   }
 
   /**
@@ -369,7 +367,7 @@ public class MvcControllerIntegTest {
 
     // verify that the Deposit's details are accurately logged in the TransactionHistory table
     Map<String,Object> customer1TransactionLog = transactionHistoryTableData.get(0);
-    checkTransactionLog(customer1TransactionLog, timeWhenDepositRequestSent, CUSTOMER1_ID, TRANSACTION_HISTORY_DEPOSIT_ACTION, CUSTOMER1_AMOUNT_TO_DEPOSIT_IN_PENNIES);
+    checkTransactionLog(customer1TransactionLog, timeWhenDepositRequestSent, CUSTOMER1_ID, MvcController.TRANSACTION_HISTORY_DEPOSIT_ACTION, CUSTOMER1_AMOUNT_TO_DEPOSIT_IN_PENNIES);
   }
 
   /**
@@ -433,7 +431,7 @@ public class MvcControllerIntegTest {
 
     // verify that the Withdraw's details are accurately logged in the TransactionHistory table
     Map<String,Object> customer1TransactionLog = transactionHistoryTableData.get(0);
-    checkTransactionLog(customer1TransactionLog, timeWhenDepositRequestSent, CUSTOMER1_ID, TRANSACTION_HISTORY_DEPOSIT_ACTION, CUSTOMER1_AMOUNT_TO_DEPOSIT_IN_PENNIES);
+    checkTransactionLog(customer1TransactionLog, timeWhenDepositRequestSent, CUSTOMER1_ID, MvcController.TRANSACTION_HISTORY_DEPOSIT_ACTION, CUSTOMER1_AMOUNT_TO_DEPOSIT_IN_PENNIES);
   }
 
   /**
@@ -514,11 +512,11 @@ public class MvcControllerIntegTest {
 
     // verify that the Deposit's details are accurately logged in the TransactionHistory table
     int CUSTOMER1_AMOUNT_TO_DEPOSIT_IN_PENNIES = convertDollarsToPennies(CUSTOMER1_AMOUNT_TO_DEPOSIT);
-    checkTransactionLog(customer1DepositTransactionLog, timeWhenDepositRequestSent, CUSTOMER1_ID, TRANSACTION_HISTORY_DEPOSIT_ACTION, CUSTOMER1_AMOUNT_TO_DEPOSIT_IN_PENNIES);
+    checkTransactionLog(customer1DepositTransactionLog, timeWhenDepositRequestSent, CUSTOMER1_ID, MvcController.TRANSACTION_HISTORY_DEPOSIT_ACTION, CUSTOMER1_AMOUNT_TO_DEPOSIT_IN_PENNIES);
 
     // verify that the Reversal is accurately logged in the TransactionHistory table as a Withdraw
     int CUSTOMER1_AMOUNT_TO_WITHDRAW_IN_PENNIES = CUSTOMER1_AMOUNT_TO_DEPOSIT_IN_PENNIES;
-    checkTransactionLog(customer1ReversalTransactionLog, timeWhenReversalRequestSent, CUSTOMER1_ID, TRANSACTION_HISTORY_WITHDRAW_ACTION, CUSTOMER1_AMOUNT_TO_WITHDRAW_IN_PENNIES);
+    checkTransactionLog(customer1ReversalTransactionLog, timeWhenReversalRequestSent, CUSTOMER1_ID, MvcController.TRANSACTION_HISTORY_WITHDRAW_ACTION, CUSTOMER1_AMOUNT_TO_WITHDRAW_IN_PENNIES);
   }
 
   /**
@@ -599,11 +597,11 @@ public class MvcControllerIntegTest {
 
     // verify that the Deposit's details are accurately logged in the TransactionHistory table
     int CUSTOMER1_AMOUNT_TO_WITHDRAW_IN_PENNIES = convertDollarsToPennies(CUSTOMER1_AMOUNT_TO_WITHDRAW);
-    checkTransactionLog(customer1WithdrawTransactionLog, timeWhenWithdrawRequestSent, CUSTOMER1_ID, TRANSACTION_HISTORY_WITHDRAW_ACTION, CUSTOMER1_AMOUNT_TO_WITHDRAW_IN_PENNIES);
+    checkTransactionLog(customer1WithdrawTransactionLog, timeWhenWithdrawRequestSent, CUSTOMER1_ID, MvcController.TRANSACTION_HISTORY_WITHDRAW_ACTION, CUSTOMER1_AMOUNT_TO_WITHDRAW_IN_PENNIES);
 
     // verify that the Reversal is accurately logged in the TransactionHistory table as a Withdraw
     int CUSTOMER1_AMOUNT_TO_DEPOSIT_IN_PENNIES = CUSTOMER1_AMOUNT_TO_WITHDRAW_IN_PENNIES;
-    checkTransactionLog(customer1ReversalTransactionLog, timeWhenReversalRequestSent, CUSTOMER1_ID, TRANSACTION_HISTORY_DEPOSIT_ACTION, CUSTOMER1_AMOUNT_TO_DEPOSIT_IN_PENNIES);
+    checkTransactionLog(customer1ReversalTransactionLog, timeWhenReversalRequestSent, CUSTOMER1_ID, MvcController.TRANSACTION_HISTORY_DEPOSIT_ACTION, CUSTOMER1_AMOUNT_TO_DEPOSIT_IN_PENNIES);
   }
 
 }
