@@ -425,7 +425,7 @@ public class MvcController {
         } else { // otherwise don't apply interest and remove from overdraft logs
           String overdraftBalanceUpdateSql = String.format("UPDATE Customers SET OverdraftBalance = OverdraftBalance + %d WHERE CustomerID='%s';", difference, userID);
           jdbcTemplate.update(overdraftBalanceUpdateSql);
-          String removeFromOverdraftLogsSql = String.format("DELETE from OverdraftLogs where Timestamp='%s';", logToReverse.get("Timestamp"));
+          String removeFromOverdraftLogsSql = String.format("DELETE from OverdraftLogs where CustomerID='%s' AND Timestamp='%s';", userID, logToReverse.get("Timestamp"));
           jdbcTemplate.update(removeFromOverdraftLogsSql);
         }
       }
