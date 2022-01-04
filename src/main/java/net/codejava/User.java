@@ -40,6 +40,24 @@ public class User {
   @Setter @Getter
   private int numTransactionsAgo;
 
+  @Setter @Getter
+  private int creditScore;
+
+  @Setter @Getter
+  private double networth;
+
+  @Setter @Getter
+  private double largeLoanInstallments;
+
+  @Setter @Getter
+  private double largeLoanBalance;
+
+  @Setter @Getter
+  private double largeLoanInstallmentPayment;
+
+  @Setter @Getter
+  private String largeLoanLogs;
+
 	@Override
 	public String toString() {
 		return "User [username=" + username + ", password=" + password + ", balance=" + balance + "]";

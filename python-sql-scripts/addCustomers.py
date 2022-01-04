@@ -56,6 +56,30 @@ CREATE TABLE TransactionHistory (
 '''
 cursor.execute(create_transactionhistory_table_sql)
 
+# Make empty CustomerLoans table
+create_customerloans_table_sql = '''
+CREATE TABLE CustomerLoans (
+  CustomerID varchar(255),
+  LargeLoanTaken bool,
+  LargeLoanTakenAmt int,
+  LargeLoanBalance int,
+  LargeLoanInstallments int
+);
+'''
+cursor.execute(create_customerloans_table_sql)
+
+# Make empty LargeLoanLogs table
+create_largeloanlogs_table_sql = '''
+CREATE TABLE LargeLoanLogs (
+  CustomerID varchar(255),
+  Timestamp DATETIME,
+  LargeLoanInstallmentPayment int,
+  OldLargeLoanBalance int,
+  NewLargeLoanBalance int
+);
+'''
+cursor.execute(create_largeloanlogs_table_sql)
+
 # The two sets created below are used to ensure that this
 # automated, randomized process does not accidentally 
 # generate and use a customer ID that already is in use

@@ -34,10 +34,15 @@
     <span>Overdraft Balance is: $</span><span>${user.overDraftBalance}</span><br/>
     <span>Re-payment logs: </span><span>${user.logs}</span><br/>
     <span>Transaction History: </span><span>${user.transactionHist}</span><br/>
+    <span>Large Loan Balance: </span><span>${user.largeLoanBalance}</span><br/>
+    <span>Large Loan Installments: </span><span>${user.largeLoanInstallments}</span><br/>
+    <span>Large Loan Logs (cents): </span><span>${user.largeLoanLogs}</span><br/>
     <br/>
     <a href='/deposit'>Deposit</a>
     <a href='/withdraw'>Withdraw</a>
-    <a href='/dispute'>Dispute</a>
+    <a href='/dispute'>Dispute</a> <br/>
+    <a href='/large-loan-request'>Large Loan Request</a> <br/>
+    <a href='/large-loan-repayment'>Large Loan Repayment</a> <br/>
     <a href='/'>Logout</a>
 	</div>
 </body>
