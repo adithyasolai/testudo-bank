@@ -13,8 +13,8 @@ public class TestudoBankRepository {
   }
 
   public static int getCustomerNumberOfReversals(JdbcTemplate jdbcTemplate, String customerID) {
-    String numberOfReversalsSql = String.format("SELECT NumFraudReversals FROM Customers WHERE CustomerID='%s';", customerID);
-    int numOfReversals = jdbcTemplate.queryForObject(numberOfReversalsSql, Integer.class);
+    String getNumberOfReversalsSql = String.format("SELECT NumFraudReversals FROM Customers WHERE CustomerID='%s';", customerID);
+    int numOfReversals = jdbcTemplate.queryForObject(getNumberOfReversalsSql, Integer.class);
     return numOfReversals;
   }
 
@@ -47,6 +47,32 @@ public class TestudoBankRepository {
     List<Map<String,Object>> overdraftLogs = jdbcTemplate.queryForList(getOverDraftLogsSql);
     return overdraftLogs;
   }
+
+  public static void insertRowToTransactionHistoryTable(JdbcTemplate jdbcTemplate, String customerID, String timestamp, String action, int amtInPennies) {
+    String insertRowToTransactionHistorySql = String.format("INSERT INTO TransactionHistory VALUES ('%s', '%s', '%s', %d);",
+                                                              customerID,
+                                                              timestamp,
+                                                              action,
+                                                              amtInPennies);
+    jdbcTemplate.update(insertRowToTransactionHistorySql);
+  }
+
+  public static void insertRowToOverdraftLogsTable(JdbcTemplate jdbcTemplate, String customerID, String timestamp, int depositAmtIntPennies, int oldOverdraftBalanceInPennies, int newOverdraftBalanceInPennies) {
+    String insertRowToOverdraftLogsSql = String.format("INSERT INTO OverdraftLogs VALUES ('%s', '%s', %d, %d, %d);", 
+                                                        customerID,
+                                                        timestamp,
+                                                        depositAmtIntPennies,
+                                                        oldOverdraftBalanceInPennies,
+                                                        newOverdraftBalanceInPennies);
+    jdbcTemplate.update(insertRowToOverdraftLogsSql);
+  }
+
+  public static void setCustomerOverdraftBalance(JdbcTemplate jdbcTemplate, String customerID, int newOverdraftBalanceInPennies) {
+    String overdraftBalanceUpdateSql = String.format("UPDATE Customers SET OverdraftBalance = %d WHERE CustomerID='%s';", newOverdraftBalanceInPennies, customerID);
+    jdbcTemplate.update(overdraftBalanceUpdateSql);
+  }
+
+  
   
 
 
