@@ -179,8 +179,7 @@ public class MvcController {
     String userPasswordAttempt = user.getPassword();
 
     // Retrieve correct password for this customer.
-    String getUserPasswordSql = String.format("SELECT Password FROM Passwords WHERE CustomerID='%s';", userID);
-    String userPassword = jdbcTemplate.queryForObject(getUserPasswordSql, String.class);
+    String userPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, userID);
 
     if (userPasswordAttempt.equals(userPassword)) {
       updateAccountInfo(user);
@@ -209,8 +208,7 @@ public class MvcController {
     String userID = user.getUsername();
     String userPasswordAttempt = user.getPassword();
 
-    String getUserPasswordSql = String.format("SELECT Password FROM Passwords WHERE CustomerID='%s';", userID);
-    String userPassword = jdbcTemplate.queryForObject(getUserPasswordSql, String.class);
+    String userPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, userID);
 
     // unsuccessful login
     if (userPasswordAttempt.equals(userPassword) == false) {
@@ -220,8 +218,8 @@ public class MvcController {
     double userDepositAmt = user.getAmountToDeposit();
     int userDepositAmtInPennies = convertDollarsToPennies(userDepositAmt);
 
-    String numberOfReversalsSql = String.format("SELECT NumFraudReversals FROM Customers WHERE CustomerID='%s';", userID);
-    int numOfReversals = jdbcTemplate.queryForObject(numberOfReversalsSql, Integer.class);
+    int numOfReversals = TestudoBankRepository.getCustomerNumberOfReversals(jdbcTemplate, userID);
+
     //If too many reversals dont do deposit
     if (userDepositAmt < 0 || numOfReversals >= MAX_DISPUTES){
       return "welcome";
@@ -229,7 +227,7 @@ public class MvcController {
     
     String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date());
 
-    //Adds deposit to transaction historu
+    //Adds deposit to transaction history
     String transactionHistorySql = String.format("INSERT INTO TransactionHistory VALUES ('%s', '%s', %s, %d);",
                                                   userID,
                                                   currentTime,
@@ -237,8 +235,7 @@ public class MvcController {
                                                   userDepositAmtInPennies);
     jdbcTemplate.update(transactionHistorySql);
 
-    String getUserOverdraftBalanceSql = String.format("SELECT OverdraftBalance FROM Customers WHERE CustomerID='%s';", userID);
-    int userOverdraftBalanceInPennies = jdbcTemplate.queryForObject(getUserOverdraftBalanceSql, Integer.class);
+    int userOverdraftBalanceInPennies = TestudoBankRepository.getCustomerOverdraftBalanceInPennies(jdbcTemplate, userID);
 
     // if the overdraft balance is positive, subtract the deposit with interest
     if (userOverdraftBalanceInPennies > 0) {
@@ -293,8 +290,7 @@ public class MvcController {
     String userID = user.getUsername();
     String userPasswordAttempt = user.getPassword();
     
-    String getUserPasswordSql = String.format("SELECT Password FROM Passwords WHERE CustomerID='%s';", userID);
-    String userPassword = jdbcTemplate.queryForObject(getUserPasswordSql, String.class);
+    String userPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, userID);
 
     // unsuccessful login
     if (userPasswordAttempt.equals(userPassword) == false) {
@@ -304,15 +300,14 @@ public class MvcController {
     double userWithdrawAmt = user.getAmountToWithdraw();
     int userWithdrawAmtInPennies = convertDollarsToPennies(userWithdrawAmt);
 
-    String numberOfReversalsSql = String.format("SELECT NumFraudReversals FROM Customers WHERE CustomerID='%s';", userID);
-    int numOfReversals = jdbcTemplate.queryForObject(numberOfReversalsSql, Integer.class);
+    int numOfReversals = TestudoBankRepository.getCustomerNumberOfReversals(jdbcTemplate, userID);
+
     //If too many reversals dont do withdraw
     if (userWithdrawAmt < 0 || numOfReversals >= MAX_DISPUTES){
       return "welcome";
     }
 
-    String getUserBalanceSql =  String.format("SELECT Balance FROM Customers WHERE CustomerID='%s';", userID);
-    int userBalanceInPennies = jdbcTemplate.queryForObject(getUserBalanceSql, Integer.class);
+    int userBalanceInPennies = TestudoBankRepository.getCustomerBalanceInPennies(jdbcTemplate, userID);
     
     // if the balance is not positive, withdraw with interest fee
     if (userBalanceInPennies - userWithdrawAmtInPennies < 0) {
@@ -324,8 +319,7 @@ public class MvcController {
       }
 
       // factor in the existing overdraft balance before executing another overdraft
-      String getUserOverdraftBalanceSql = String.format("SELECT OverdraftBalance FROM Customers WHERE CustomerID='%s';", userID);
-      int userOverdraftBalanceInPennies = jdbcTemplate.queryForObject(getUserOverdraftBalanceSql, Integer.class);
+      int userOverdraftBalanceInPennies = TestudoBankRepository.getCustomerOverdraftBalanceInPennies(jdbcTemplate, userID);
       if (newOverdraftAmtInPennies + userOverdraftBalanceInPennies > MAX_OVERDRAFT_IN_PENNIES) {
         return "welcome";
       }
@@ -402,8 +396,7 @@ public class MvcController {
     String userID = user.getUsername();
     String userPasswordAttempt = user.getPassword();
     
-    String getUserPasswordSql = String.format("SELECT Password FROM Passwords WHERE CustomerID='%s';", userID);
-    String userPassword = jdbcTemplate.queryForObject(getUserPasswordSql, String.class);
+    String userPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, userID);
 
     // unsuccessful login
     if (userPasswordAttempt.equals(userPassword) == false) {
@@ -411,8 +404,7 @@ public class MvcController {
     }
 
     // check if customer account is frozen
-    String numberOfReversalsSql = String.format("SELECT NumFraudReversals FROM Customers WHERE CustomerID='%s';", userID);
-    int numOfReversals = jdbcTemplate.queryForObject(numberOfReversalsSql, Integer.class);
+    int numOfReversals = TestudoBankRepository.getCustomerNumberOfReversals(jdbcTemplate, userID);
     if (numOfReversals >= MAX_DISPUTES) {
       return "welcome";
     }
@@ -430,10 +422,8 @@ public class MvcController {
     Map<String, Object> logToReverse = transactionLogs.get(user.getNumTransactionsAgo() - 1);
 
     // Get balance and overdraft balance
-    String getUserBalanceSql =  String.format("SELECT Balance FROM Customers WHERE CustomerID='%s';", userID);
-    int userBalanceInPennies = jdbcTemplate.queryForObject(getUserBalanceSql, Integer.class);
-    String getUserOverdraftBalanceSql = String.format("SELECT OverdraftBalance FROM Customers WHERE CustomerID='%s';", userID);
-    int userOverdraftBalanceInPennies = jdbcTemplate.queryForObject(getUserOverdraftBalanceSql, Integer.class);
+    int userBalanceInPennies = TestudoBankRepository.getCustomerBalanceInPennies(jdbcTemplate, userID);
+    int userOverdraftBalanceInPennies = TestudoBankRepository.getCustomerOverdraftBalanceInPennies(jdbcTemplate, userID);
 
     int reversalAmount = (int) logToReverse.get("Amount");
 
