@@ -147,6 +147,11 @@ public class MvcController {
     user.setTransactionHist(transactionHistoryOutput);
   }
 
+  // Converts dollar amounts in frontend to penny representation in backend MySQL DB
+  private static int convertDollarsToPennies(double dollarAmount) {
+    return (int) (dollarAmount * 100);
+  }
+
   //// HTML POST HANDLERS ////
 
   /**
@@ -213,7 +218,7 @@ public class MvcController {
     }
 
     double userDepositAmt = user.getAmountToDeposit();
-    int userDepositAmtInPennies = (int) (userDepositAmt * 100);
+    int userDepositAmtInPennies = convertDollarsToPennies(userDepositAmt);
 
     String numberOfReversalsSql = String.format("SELECT NumFraudReversals FROM Customers WHERE CustomerID='%s';", userID);
     int numOfReversals = jdbcTemplate.queryForObject(numberOfReversalsSql, Integer.class);
@@ -297,7 +302,7 @@ public class MvcController {
     }
 
     double userWithdrawAmt = user.getAmountToWithdraw();
-    int userWithdrawAmtInPennies = (int) (userWithdrawAmt * 100);
+    int userWithdrawAmtInPennies = convertDollarsToPennies(userWithdrawAmt);
 
     String numberOfReversalsSql = String.format("SELECT NumFraudReversals FROM Customers WHERE CustomerID='%s';", userID);
     int numOfReversals = jdbcTemplate.queryForObject(numberOfReversalsSql, Integer.class);
