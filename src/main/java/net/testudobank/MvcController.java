@@ -119,23 +119,20 @@ public class MvcController {
    * @param user
    */
   private void updateAccountInfo(User user) {
-    String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance FROM Customers WHERE CustomerID='%s';", user.getUsername());
-    List<Map<String,Object>> queryResults = jdbcTemplate.queryForList(getUserNameAndBalanceAndOverDraftBalanceSql);
-    String getOverDraftLogsSql = String.format("SELECT * FROM OverdraftLogs WHERE CustomerID='%s';", user.getUsername());
-    // SQL Query that only fetches the three most recent transaction logs for this customer.
-    String getTransactionHistorySql = String.format("Select * from TransactionHistory WHERE CustomerId='%s' ORDER BY Timestamp DESC LIMIT %d;", user.getUsername(), MAX_NUM_TRANSACTIONS_DISPLAYED);
-    
-    List<Map<String,Object>> queryLogs = jdbcTemplate.queryForList(getOverDraftLogsSql);
+    List<Map<String,Object>> overdraftLogs = TestudoBankRepository.getOverdraftLogs(jdbcTemplate, user.getUsername());
     String logs = HTML_LINE_BREAK;
-    for(Map<String, Object> overdraftLog : queryLogs){
+    for(Map<String, Object> overdraftLog : overdraftLogs){
       logs += overdraftLog + HTML_LINE_BREAK;
     }
-    List<Map<String,Object>> transactionLogs = jdbcTemplate.queryForList(getTransactionHistorySql);
+
+    List<Map<String,Object>> transactionLogs = TestudoBankRepository.getRecentTransactions(jdbcTemplate, user.getUsername(), MAX_NUM_TRANSACTIONS_DISPLAYED);
     String transactionHistoryOutput = HTML_LINE_BREAK;
     for(Map<String, Object> transactionLog : transactionLogs){
       transactionHistoryOutput += transactionLog + HTML_LINE_BREAK;
     }
 
+    String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance FROM Customers WHERE CustomerID='%s';", user.getUsername());
+    List<Map<String,Object>> queryResults = jdbcTemplate.queryForList(getUserNameAndBalanceAndOverDraftBalanceSql);
     Map<String,Object> userData = queryResults.get(0);
 
     user.setFirstName((String)userData.get("FirstName"));
@@ -179,8 +176,7 @@ public class MvcController {
     String userPasswordAttempt = user.getPassword();
 
     // Retrieve correct password for this customer.
-    String getUserPasswordSql = String.format("SELECT Password FROM Passwords WHERE CustomerID='%s';", userID);
-    String userPassword = jdbcTemplate.queryForObject(getUserPasswordSql, String.class);
+    String userPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, userID);
 
     if (userPasswordAttempt.equals(userPassword)) {
       updateAccountInfo(user);
@@ -209,8 +205,7 @@ public class MvcController {
     String userID = user.getUsername();
     String userPasswordAttempt = user.getPassword();
 
-    String getUserPasswordSql = String.format("SELECT Password FROM Passwords WHERE CustomerID='%s';", userID);
-    String userPassword = jdbcTemplate.queryForObject(getUserPasswordSql, String.class);
+    String userPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, userID);
 
     // unsuccessful login
     if (userPasswordAttempt.equals(userPassword) == false) {
@@ -220,8 +215,8 @@ public class MvcController {
     double userDepositAmt = user.getAmountToDeposit();
     int userDepositAmtInPennies = convertDollarsToPennies(userDepositAmt);
 
-    String numberOfReversalsSql = String.format("SELECT NumFraudReversals FROM Customers WHERE CustomerID='%s';", userID);
-    int numOfReversals = jdbcTemplate.queryForObject(numberOfReversalsSql, Integer.class);
+    int numOfReversals = TestudoBankRepository.getCustomerNumberOfReversals(jdbcTemplate, userID);
+
     //If too many reversals dont do deposit
     if (userDepositAmt < 0 || numOfReversals >= MAX_DISPUTES){
       return "welcome";
@@ -229,31 +224,18 @@ public class MvcController {
     
     String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date());
 
-    //Adds deposit to transaction historu
-    String transactionHistorySql = String.format("INSERT INTO TransactionHistory VALUES ('%s', '%s', %s, %d);",
-                                                  userID,
-                                                  currentTime,
-                                                  String.format("'%s'", TRANSACTION_HISTORY_DEPOSIT_ACTION),
-                                                  userDepositAmtInPennies);
-    jdbcTemplate.update(transactionHistorySql);
+    //Adds deposit to transaction history
+    TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_DEPOSIT_ACTION, userDepositAmtInPennies);
 
-    String getUserOverdraftBalanceSql = String.format("SELECT OverdraftBalance FROM Customers WHERE CustomerID='%s';", userID);
-    int userOverdraftBalanceInPennies = jdbcTemplate.queryForObject(getUserOverdraftBalanceSql, Integer.class);
+    int userOverdraftBalanceInPennies = TestudoBankRepository.getCustomerOverdraftBalanceInPennies(jdbcTemplate, userID);
 
     // if the overdraft balance is positive, subtract the deposit with interest
     if (userOverdraftBalanceInPennies > 0) {
       int newOverdraftBalanceInPennies = Math.max(userOverdraftBalanceInPennies - userDepositAmtInPennies, 0);
-      String overdraftLogsInsertSql = String.format("INSERT INTO OverdraftLogs VALUES ('%s', '%s', %d, %d, %d);", 
-                                                    userID,
-                                                    currentTime,
-                                                    userDepositAmtInPennies,
-                                                    userOverdraftBalanceInPennies,
-                                                    newOverdraftBalanceInPennies);
-      jdbcTemplate.update(overdraftLogsInsertSql);
+      TestudoBankRepository.insertRowToOverdraftLogsTable(jdbcTemplate, userID, currentTime, userDepositAmtInPennies, userOverdraftBalanceInPennies, newOverdraftBalanceInPennies);
 
       // updating customers table
-      String overdraftBalanceUpdateSql = String.format("UPDATE Customers SET OverdraftBalance = %d WHERE CustomerID='%s';", newOverdraftBalanceInPennies, userID);
-      jdbcTemplate.update(overdraftBalanceUpdateSql);
+      TestudoBankRepository.setCustomerOverdraftBalance(jdbcTemplate, userID, newOverdraftBalanceInPennies);
       updateAccountInfo(user);
     }
 
@@ -268,9 +250,7 @@ public class MvcController {
       balanceIncreaseAmtInPennies = userDepositAmtInPennies;
     }
 
-    String balanceIncreaseSql = String.format("UPDATE Customers SET Balance = Balance + %d WHERE CustomerID='%s';", balanceIncreaseAmtInPennies, userID);
-    System.out.println(balanceIncreaseSql); // Print executed SQL update for debugging
-    jdbcTemplate.update(balanceIncreaseSql);
+    TestudoBankRepository.increaseCustomerBalance(jdbcTemplate, userID, balanceIncreaseAmtInPennies);
     updateAccountInfo(user);
     return "account_info";
   }
@@ -293,8 +273,7 @@ public class MvcController {
     String userID = user.getUsername();
     String userPasswordAttempt = user.getPassword();
     
-    String getUserPasswordSql = String.format("SELECT Password FROM Passwords WHERE CustomerID='%s';", userID);
-    String userPassword = jdbcTemplate.queryForObject(getUserPasswordSql, String.class);
+    String userPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, userID);
 
     // unsuccessful login
     if (userPasswordAttempt.equals(userPassword) == false) {
@@ -304,15 +283,14 @@ public class MvcController {
     double userWithdrawAmt = user.getAmountToWithdraw();
     int userWithdrawAmtInPennies = convertDollarsToPennies(userWithdrawAmt);
 
-    String numberOfReversalsSql = String.format("SELECT NumFraudReversals FROM Customers WHERE CustomerID='%s';", userID);
-    int numOfReversals = jdbcTemplate.queryForObject(numberOfReversalsSql, Integer.class);
+    int numOfReversals = TestudoBankRepository.getCustomerNumberOfReversals(jdbcTemplate, userID);
+
     //If too many reversals dont do withdraw
     if (userWithdrawAmt < 0 || numOfReversals >= MAX_DISPUTES){
       return "welcome";
     }
 
-    String getUserBalanceSql =  String.format("SELECT Balance FROM Customers WHERE CustomerID='%s';", userID);
-    int userBalanceInPennies = jdbcTemplate.queryForObject(getUserBalanceSql, Integer.class);
+    int userBalanceInPennies = TestudoBankRepository.getCustomerBalanceInPennies(jdbcTemplate, userID);
     
     // if the balance is not positive, withdraw with interest fee
     if (userBalanceInPennies - userWithdrawAmtInPennies < 0) {
@@ -324,8 +302,7 @@ public class MvcController {
       }
 
       // factor in the existing overdraft balance before executing another overdraft
-      String getUserOverdraftBalanceSql = String.format("SELECT OverdraftBalance FROM Customers WHERE CustomerID='%s';", userID);
-      int userOverdraftBalanceInPennies = jdbcTemplate.queryForObject(getUserOverdraftBalanceSql, Integer.class);
+      int userOverdraftBalanceInPennies = TestudoBankRepository.getCustomerOverdraftBalanceInPennies(jdbcTemplate, userID);
       if (newOverdraftAmtInPennies + userOverdraftBalanceInPennies > MAX_OVERDRAFT_IN_PENNIES) {
         return "welcome";
       }
@@ -333,23 +310,15 @@ public class MvcController {
       String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date());
 
       //Adds withdraw to transaction history
-      String transactionHistorySql = String.format("INSERT INTO TransactionHistory VALUES ('%s', '%s', %s, %d);",
-                                                    userID,
-                                                    currentTime,
-                                                    String.format("'%s'", TRANSACTION_HISTORY_WITHDRAW_ACTION),
-                                                    userWithdrawAmtInPennies);
-      jdbcTemplate.update(transactionHistorySql);
+      TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_WITHDRAW_ACTION, userWithdrawAmtInPennies);
 
       // this is a valid overdraft, so we can set Balance column to 0
-      String updateBalanceSql = String.format("UPDATE Customers SET Balance = %d WHERE CustomerID='%s';", 0, userID);
-      jdbcTemplate.update(updateBalanceSql);
+      TestudoBankRepository.setCustomerBalance(jdbcTemplate, userID, 0);
 
       int newOverdraftAmtAfterInterestInPennies = (int)(newOverdraftAmtInPennies * INTEREST_RATE);
       int cumulativeOverdraftInPennies = userOverdraftBalanceInPennies + newOverdraftAmtAfterInterestInPennies;
 
-      String overDraftBalanceUpdateSql = String.format("UPDATE Customers SET OverdraftBalance = %d WHERE CustomerID='%s';", cumulativeOverdraftInPennies, userID);
-      jdbcTemplate.update(overDraftBalanceUpdateSql);
-      System.out.println(overDraftBalanceUpdateSql);
+      TestudoBankRepository.setCustomerOverdraftBalance(jdbcTemplate, userID, cumulativeOverdraftInPennies);
 
       updateAccountInfo(user);
       return "account_info";
@@ -357,20 +326,13 @@ public class MvcController {
     }
 
     // non-overdraft case
-    String balanceDecreaseSql = String.format("UPDATE Customers SET Balance = Balance - %d WHERE CustomerID='%s';", userWithdrawAmtInPennies, userID);
-    System.out.println(balanceDecreaseSql);
-    jdbcTemplate.update(balanceDecreaseSql);
+    TestudoBankRepository.decreaseCustomerBalance(jdbcTemplate, userID, userWithdrawAmtInPennies);
     
 
     String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date());
 
     //Adds withdraw to transaction history
-    String transactionHistorySql = String.format("INSERT INTO TransactionHistory VALUES ('%s', '%s', %s, %d);",
-                                                    userID,
-                                                    currentTime,
-                                                    String.format("'%s'", TRANSACTION_HISTORY_WITHDRAW_ACTION),
-                                                    userWithdrawAmtInPennies);
-    jdbcTemplate.update(transactionHistorySql);
+    TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_WITHDRAW_ACTION, userWithdrawAmtInPennies);
 
     updateAccountInfo(user);
 
@@ -402,8 +364,7 @@ public class MvcController {
     String userID = user.getUsername();
     String userPasswordAttempt = user.getPassword();
     
-    String getUserPasswordSql = String.format("SELECT Password FROM Passwords WHERE CustomerID='%s';", userID);
-    String userPassword = jdbcTemplate.queryForObject(getUserPasswordSql, String.class);
+    String userPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, userID);
 
     // unsuccessful login
     if (userPasswordAttempt.equals(userPassword) == false) {
@@ -411,15 +372,13 @@ public class MvcController {
     }
 
     // check if customer account is frozen
-    String numberOfReversalsSql = String.format("SELECT NumFraudReversals FROM Customers WHERE CustomerID='%s';", userID);
-    int numOfReversals = jdbcTemplate.queryForObject(numberOfReversalsSql, Integer.class);
+    int numOfReversals = TestudoBankRepository.getCustomerNumberOfReversals(jdbcTemplate, userID);
     if (numOfReversals >= MAX_DISPUTES) {
       return "welcome";
     }
     
     // Fetch 3 most recent transactions for this customer
-    String getTransactionHistorySql = String.format("Select * from TransactionHistory WHERE CustomerId='%s' ORDER BY Timestamp DESC LIMIT %d;", user.getUsername(), MAX_NUM_TRANSACTIONS_DISPLAYED);
-    List<Map<String,Object>> transactionLogs = jdbcTemplate.queryForList(getTransactionHistorySql);
+    List<Map<String,Object>> transactionLogs = TestudoBankRepository.getRecentTransactions(jdbcTemplate, userID, MAX_NUM_TRANSACTIONS_DISPLAYED);
     
     // Ensure customer has enough transactions to complete the reversal
     if (user.getNumTransactionsAgo() > transactionLogs.size()) {
@@ -430,107 +389,73 @@ public class MvcController {
     Map<String, Object> logToReverse = transactionLogs.get(user.getNumTransactionsAgo() - 1);
 
     // Get balance and overdraft balance
-    String getUserBalanceSql =  String.format("SELECT Balance FROM Customers WHERE CustomerID='%s';", userID);
-    int userBalanceInPennies = jdbcTemplate.queryForObject(getUserBalanceSql, Integer.class);
-    String getUserOverdraftBalanceSql = String.format("SELECT OverdraftBalance FROM Customers WHERE CustomerID='%s';", userID);
-    int userOverdraftBalanceInPennies = jdbcTemplate.queryForObject(getUserOverdraftBalanceSql, Integer.class);
+    int userBalanceInPennies = TestudoBankRepository.getCustomerBalanceInPennies(jdbcTemplate, userID);
+    int userOverdraftBalanceInPennies = TestudoBankRepository.getCustomerOverdraftBalanceInPennies(jdbcTemplate, userID);
 
-    int reversalAmount = (int) logToReverse.get("Amount");
+    int reversalAmountInPennies = (int) logToReverse.get("Amount");
 
     // If transaction to reverse is a deposit, then withdraw the money out
     if (((String) logToReverse.get("Action")).toLowerCase().equals("deposit")) {
       // if withdraw would exceed max overdraft possible, return welcome
-      if (userOverdraftBalanceInPennies + (reversalAmount - userBalanceInPennies) > MAX_OVERDRAFT_IN_PENNIES) {
+      if (userOverdraftBalanceInPennies + (reversalAmountInPennies - userBalanceInPennies) > MAX_OVERDRAFT_IN_PENNIES) {
         return "welcome";
       }
 
       // if balance is large enough to have reversalAmount taken from it, subtract reversalAmount from balance
-      if (userBalanceInPennies - reversalAmount > 0){
-        String balanceDecreaseSql = String.format("UPDATE Customers SET Balance = Balance - %d WHERE CustomerID='%s';", reversalAmount, userID);
-        jdbcTemplate.update(balanceDecreaseSql);
+      if (userBalanceInPennies - reversalAmountInPennies > 0){
+        TestudoBankRepository.decreaseCustomerBalance(jdbcTemplate, userID, reversalAmountInPennies);
       } else { // Case when reversing deposit causes overdraft or go deeper into overdraft
         // Set main balance to 0 since we are either going into overdraft or already in overdraft
-        String balanceZeroSql = String.format("UPDATE Customers SET Balance = 0 WHERE CustomerID='%s';", userID);
-        jdbcTemplate.update(balanceZeroSql);
+        TestudoBankRepository.setCustomerBalance(jdbcTemplate, userID, 0);
 
-        int difference = reversalAmount - userBalanceInPennies;
+        int differenceInPennies = reversalAmountInPennies - userBalanceInPennies;
 
         //check if deposit helped pay off overdraft balance
-        String getOverDraftLogsSql = String.format("SELECT * FROM OverdraftLogs WHERE CustomerID='%s' AND Timestamp='%s';", userID, logToReverse.get("Timestamp"));
-        List<Map<String,Object>> queryLogs = jdbcTemplate.queryForList(getOverDraftLogsSql);
-        if (queryLogs.size() == 0) { // if deposit did not help pay of overdraft balance, then apply interest rate
-          String overdraftBalanceUpdateSql = String.format("UPDATE Customers SET OverdraftBalance = OverdraftBalance + %d WHERE CustomerID='%s';", ((int) (difference * INTEREST_RATE)), userID);
-          jdbcTemplate.update(overdraftBalanceUpdateSql);
+        List<Map<String,Object>> overdraftLogs = TestudoBankRepository.getOverdraftLogs(jdbcTemplate, userID, (String)logToReverse.get("Timestamp"));
+        if (overdraftLogs.size() == 0) { // if deposit did not help pay of overdraft balance, then apply interest rate
+          TestudoBankRepository.increaseCustomerOverdraftBalance(jdbcTemplate, userID, ((int) (differenceInPennies * INTEREST_RATE)));
         } else { // otherwise don't apply interest and remove from overdraft logs
-          String overdraftBalanceUpdateSql = String.format("UPDATE Customers SET OverdraftBalance = OverdraftBalance + %d WHERE CustomerID='%s';", difference, userID);
-          jdbcTemplate.update(overdraftBalanceUpdateSql);
-          String removeFromOverdraftLogsSql = String.format("DELETE from OverdraftLogs where Timestamp='%s';", logToReverse.get("Timestamp"));
-          jdbcTemplate.update(removeFromOverdraftLogsSql);
+          TestudoBankRepository.increaseCustomerOverdraftBalance(jdbcTemplate, userID, differenceInPennies);
+          TestudoBankRepository.deleteRowFromOverdraftLogsTable(jdbcTemplate, userID, (String)logToReverse.get("Timestamp"));
         }
       }
       
       String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date());
 
       // add transaction to transaction history
-      String transactionHistorySql = String.format("INSERT INTO TransactionHistory VALUES ('%s', '%s', %s, %d);",
-                                                  userID,
-                                                  currentTime,
-                                                  String.format("'%s'", TRANSACTION_HISTORY_WITHDRAW_ACTION),
-                                                  reversalAmount);
-      jdbcTemplate.update(transactionHistorySql);
+      TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_WITHDRAW_ACTION, reversalAmountInPennies);
     } else { // Case when reversing a withdraw, deposit the money instead
       if (userOverdraftBalanceInPennies == 0) {
-        String balanceIncreaseSql = String.format("UPDATE Customers SET Balance = Balance + %d WHERE CustomerID='%s';", reversalAmount, userID);
-        jdbcTemplate.update(balanceIncreaseSql);
+        TestudoBankRepository.increaseCustomerBalance(jdbcTemplate, userID, reversalAmountInPennies);
         
         String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date());
 
-        //adds transaction to transaction hisotry
-        String transactionHistorySql = String.format("INSERT INTO TransactionHistory VALUES ('%s', '%s', %s, %d);",
-                                                  userID,
-                                                  currentTime,
-                                                  String.format("'%s'", TRANSACTION_HISTORY_DEPOSIT_ACTION),
-                                                  reversalAmount);
-        jdbcTemplate.update(transactionHistorySql);
+        //adds transaction to transaction history
+        TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_DEPOSIT_ACTION, reversalAmountInPennies);
       } else { // case when user is in overdraft
         // if amount is greater than overdraft balance, add difference to balance
-        int difference = userOverdraftBalanceInPennies - reversalAmount;
-        if (difference < 0) {
-          String balanceDecreaseSql = String.format("UPDATE Customers SET Balance = Balance + %d WHERE CustomerID='%s';", (difference * -1), userID);
-          System.out.println(balanceDecreaseSql);
-          jdbcTemplate.update(balanceDecreaseSql);
+        int differenceInPennies = userOverdraftBalanceInPennies - reversalAmountInPennies;
+        if (differenceInPennies < 0) {
+          TestudoBankRepository.increaseCustomerBalance(jdbcTemplate, userID, differenceInPennies * -1);
         }
         
         //sets new overdraft balance
-        int newOverdraftBalanceInPennies = Math.max(difference, 0);
-        String overdraftBalanceUpdateSql = String.format("UPDATE Customers SET OverdraftBalance = %d WHERE CustomerID='%s';", newOverdraftBalanceInPennies, userID);
-        jdbcTemplate.update(overdraftBalanceUpdateSql);
+        int newOverdraftBalanceInPennies = Math.max(differenceInPennies, 0);
+        TestudoBankRepository.setCustomerOverdraftBalance(jdbcTemplate, userID, newOverdraftBalanceInPennies);
         
         String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date());
 
         //adds change into overdraft logs
-        String overdraftLogsInsertSql = String.format("INSERT INTO OverdraftLogs VALUES ('%s', '%s', %d, %d, %d);", 
-                                                    userID,
-                                                    currentTime,
-                                                    reversalAmount,
-                                                    userOverdraftBalanceInPennies,
-                                                    newOverdraftBalanceInPennies);
-        jdbcTemplate.update(overdraftLogsInsertSql);
+        TestudoBankRepository.insertRowToOverdraftLogsTable(jdbcTemplate, userID, currentTime, reversalAmountInPennies, userOverdraftBalanceInPennies, newOverdraftBalanceInPennies);
 
         //adds transaction to transaction logs
-        String transactionHistorySql = String.format("INSERT INTO TransactionHistory VALUES ('%s', '%s', %s, %d);",
-                                                    userID,
-                                                    currentTime,
-                                                    String.format("'%s'", TRANSACTION_HISTORY_DEPOSIT_ACTION),
-                                                    reversalAmount);
-        jdbcTemplate.update(transactionHistorySql);
+        TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_DEPOSIT_ACTION, reversalAmountInPennies);
       }
     }
 
     // Adds to number of reversals only after a successful reversal 
     numOfReversals++;
-    String numOfReversalsUpdateSql = String.format("UPDATE Customers SET NumFraudReversals = %d WHERE CustomerID='%s';", numOfReversals, userID);
-    jdbcTemplate.update(numOfReversalsUpdateSql);
+    TestudoBankRepository.setCustomerNumFraudReversals(jdbcTemplate, userID, numOfReversals);
 
     updateAccountInfo(user);
 
