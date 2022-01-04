@@ -8,20 +8,21 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.Map;
-
-
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 
 @Controller
 public class MvcController {
-  /**
-   * A simplified JDBC client that is injected with the login credentials
-   * specified in /src/main/resources/application.properties
-   */
+  
+  // A simplified JDBC client that is injected with the login credentials
+  // specified in /src/main/resources/application.properties
   private JdbcTemplate jdbcTemplate;
+
+  // Formatter for converting Java Dates to SQL-compatible DATETIME Strings
   private static java.text.SimpleDateFormat SQL_DATETIME_FORMATTER = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+
+  //// CONSTANT LITERALS ////
   public final static double INTEREST_RATE = 1.02;
   private final static int MAX_OVERDRAFT_IN_PENNIES = 100000;
   private final static int MAX_DISPUTES = 2;
@@ -34,6 +35,8 @@ public class MvcController {
   public MvcController(@Autowired JdbcTemplate jdbcTemplate) {
     this.jdbcTemplate = jdbcTemplate;
   }
+
+  //// HTML GET HANDLERS ////
 
   /**
    * HTML GET request handler that serves the "welcome" page to the user.
@@ -61,6 +64,53 @@ public class MvcController {
 		
 		return "login_form";
 	}
+
+  /**
+   * HTML GET request handler that serves the "deposit_form" page to the user.
+   * An empty `User` object is also added to the Model as an Attribute to store
+   * the user's deposit form input.
+   * 
+   * @param model
+   * @return "deposit_form" page
+   */
+  @GetMapping("/deposit")
+	public String showDepositForm(Model model) {
+    User user = new User();
+		model.addAttribute("user", user);
+		return "deposit_form";
+	}
+
+  /**
+   * HTML GET request handler that serves the "withdraw_form" page to the user.
+   * An empty `User` object is also added to the Model as an Attribute to store
+   * the user's withdraw form input.
+   * 
+   * @param model
+   * @return "withdraw_form" page
+   */
+  @GetMapping("/withdraw")
+	public String showWithdrawForm(Model model) {
+    User user = new User();
+		model.addAttribute("user", user);
+		return "withdraw_form";
+	}
+
+  /**
+   * HTML GET request handler that serves the "dispute_form" page to the user.
+   * An empty `User` object is also added to the Model as an Attribute to store
+   * the user's dispute form input.
+   * 
+   * @param model
+   * @return "dispute_form" page
+   */
+  @GetMapping("/dispute")
+	public String showDisputeForm(Model model) {
+    User user = new User();
+		model.addAttribute("user", user);
+		return "dispute_form";
+	}
+
+  //// HELPER METHODS ////
 
   /**
    * Helper method that queries the MySQL DB for the customer account info (First Name, Last Name, and Balance)
@@ -97,6 +147,8 @@ public class MvcController {
     user.setTransactionHist(transactionHistoryOutput);
   }
 
+  //// HTML POST HANDLERS ////
+
   /**
    * HTML POST request handler that uses user input from Login Form page to determine 
    * login success or failure.
@@ -132,21 +184,6 @@ public class MvcController {
     } else {
       return "welcome";
     }
-	}
-
-  /**
-   * HTML GET request handler that serves the "deposit_form" page to the user.
-   * An empty `User` object is also added to the Model as an Attribute to store
-   * the user's deposit form input.
-   * 
-   * @param model
-   * @return "deposit_form" page
-   */
-  @GetMapping("/deposit")
-	public String showDepositForm(Model model) {
-    User user = new User();
-		model.addAttribute("user", user);
-		return "deposit_form";
 	}
 
   /**
@@ -233,21 +270,6 @@ public class MvcController {
     return "account_info";
   }
 	
-  /**
-   * HTML GET request handler that serves the "withdraw_form" page to the user.
-   * An empty `User` object is also added to the Model as an Attribute to store
-   * the user's withdraw form input.
-   * 
-   * @param model
-   * @return "withdraw_form" page
-   */
-  @GetMapping("/withdraw")
-	public String showWithdrawForm(Model model) {
-    User user = new User();
-		model.addAttribute("user", user);
-		return "withdraw_form";
-	}
-
   /**
    * HTML POST request handler for the Withdraw Form page.
    * 
@@ -350,21 +372,6 @@ public class MvcController {
     return "account_info";
 
   }
-
-  /**
-   * HTML GET request handler that serves the "dispute_form" page to the user.
-   * An empty `User` object is also added to the Model as an Attribute to store
-   * the user's dispute form input.
-   * 
-   * @param model
-   * @return "dispute_form" page
-   */
-  @GetMapping("/dispute")
-	public String showDisputeForm(Model model) {
-    User user = new User();
-		model.addAttribute("user", user);
-		return "dispute_form";
-	}
 
   /**
    * HTML POST request handler for the Dispute Form page.
