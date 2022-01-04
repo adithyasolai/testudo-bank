@@ -1,10 +1,13 @@
-package net.testudobank;
+package net.testudobank.tests;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.ui.Model;
+
+import net.testudobank.MvcController;
+import net.testudobank.User;
 
 import org.mockito.Mock;
 import org.mockito.Mockito;
