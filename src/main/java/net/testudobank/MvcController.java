@@ -250,9 +250,7 @@ public class MvcController {
       balanceIncreaseAmtInPennies = userDepositAmtInPennies;
     }
 
-    String balanceIncreaseSql = String.format("UPDATE Customers SET Balance = Balance + %d WHERE CustomerID='%s';", balanceIncreaseAmtInPennies, userID);
-    System.out.println(balanceIncreaseSql); // Print executed SQL update for debugging
-    jdbcTemplate.update(balanceIncreaseSql);
+    TestudoBankRepository.increaseCustomerBalance(jdbcTemplate, userID, balanceIncreaseAmtInPennies);
     updateAccountInfo(user);
     return "account_info";
   }
@@ -315,8 +313,7 @@ public class MvcController {
       TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_WITHDRAW_ACTION, userWithdrawAmtInPennies);
 
       // this is a valid overdraft, so we can set Balance column to 0
-      String updateBalanceSql = String.format("UPDATE Customers SET Balance = %d WHERE CustomerID='%s';", 0, userID);
-      jdbcTemplate.update(updateBalanceSql);
+      TestudoBankRepository.setCustomerBalance(jdbcTemplate, userID, 0);
 
       int newOverdraftAmtAfterInterestInPennies = (int)(newOverdraftAmtInPennies * INTEREST_RATE);
       int cumulativeOverdraftInPennies = userOverdraftBalanceInPennies + newOverdraftAmtAfterInterestInPennies;
@@ -329,9 +326,7 @@ public class MvcController {
     }
 
     // non-overdraft case
-    String balanceDecreaseSql = String.format("UPDATE Customers SET Balance = Balance - %d WHERE CustomerID='%s';", userWithdrawAmtInPennies, userID);
-    System.out.println(balanceDecreaseSql);
-    jdbcTemplate.update(balanceDecreaseSql);
+    TestudoBankRepository.decreaseCustomerBalance(jdbcTemplate, userID, userWithdrawAmtInPennies);
     
 
     String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date());
@@ -408,12 +403,10 @@ public class MvcController {
 
       // if balance is large enough to have reversalAmount taken from it, subtract reversalAmount from balance
       if (userBalanceInPennies - reversalAmountInPennies > 0){
-        String balanceDecreaseSql = String.format("UPDATE Customers SET Balance = Balance - %d WHERE CustomerID='%s';", reversalAmountInPennies, userID);
-        jdbcTemplate.update(balanceDecreaseSql);
+        TestudoBankRepository.decreaseCustomerBalance(jdbcTemplate, userID, reversalAmountInPennies);
       } else { // Case when reversing deposit causes overdraft or go deeper into overdraft
         // Set main balance to 0 since we are either going into overdraft or already in overdraft
-        String balanceZeroSql = String.format("UPDATE Customers SET Balance = 0 WHERE CustomerID='%s';", userID);
-        jdbcTemplate.update(balanceZeroSql);
+        TestudoBankRepository.setCustomerBalance(jdbcTemplate, userID, 0);
 
         int difference = reversalAmountInPennies - userBalanceInPennies;
 
@@ -436,8 +429,7 @@ public class MvcController {
       TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_WITHDRAW_ACTION, reversalAmountInPennies);
     } else { // Case when reversing a withdraw, deposit the money instead
       if (userOverdraftBalanceInPennies == 0) {
-        String balanceIncreaseSql = String.format("UPDATE Customers SET Balance = Balance + %d WHERE CustomerID='%s';", reversalAmountInPennies, userID);
-        jdbcTemplate.update(balanceIncreaseSql);
+        TestudoBankRepository.increaseCustomerBalance(jdbcTemplate, userID, reversalAmountInPennies);
         
         String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date());
 
@@ -445,15 +437,13 @@ public class MvcController {
         TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_DEPOSIT_ACTION, reversalAmountInPennies);
       } else { // case when user is in overdraft
         // if amount is greater than overdraft balance, add difference to balance
-        int difference = userOverdraftBalanceInPennies - reversalAmountInPennies;
-        if (difference < 0) {
-          String balanceDecreaseSql = String.format("UPDATE Customers SET Balance = Balance + %d WHERE CustomerID='%s';", (difference * -1), userID);
-          System.out.println(balanceDecreaseSql);
-          jdbcTemplate.update(balanceDecreaseSql);
+        int differenceInPennies = userOverdraftBalanceInPennies - reversalAmountInPennies;
+        if (differenceInPennies < 0) {
+          TestudoBankRepository.increaseCustomerBalance(jdbcTemplate, userID, differenceInPennies * -1);
         }
         
         //sets new overdraft balance
-        int newOverdraftBalanceInPennies = Math.max(difference, 0);
+        int newOverdraftBalanceInPennies = Math.max(differenceInPennies, 0);
         TestudoBankRepository.setCustomerOverdraftBalance(jdbcTemplate, userID, newOverdraftBalanceInPennies);
         
         String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date());

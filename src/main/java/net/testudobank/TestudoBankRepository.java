@@ -72,8 +72,20 @@ public class TestudoBankRepository {
     jdbcTemplate.update(overdraftBalanceUpdateSql);
   }
 
+  public static void setCustomerBalance(JdbcTemplate jdbcTemplate, String customerID, int newBalanceInPennies) {
+    String updateBalanceSql = String.format("UPDATE Customers SET Balance = %d WHERE CustomerID='%s';", newBalanceInPennies, customerID);
+    jdbcTemplate.update(updateBalanceSql);
+  }
+
+  public static void increaseCustomerBalance(JdbcTemplate jdbcTemplate, String customerID, int increaseAmtInPennies) {
+    String balanceIncreaseSql = String.format("UPDATE Customers SET Balance = Balance + %d WHERE CustomerID='%s';", increaseAmtInPennies, customerID);
+    jdbcTemplate.update(balanceIncreaseSql);
+  }
   
-  
+  public static void decreaseCustomerBalance(JdbcTemplate jdbcTemplate, String customerID, int decreaseAmtInPennies) {
+    String balanceDecreaseSql = String.format("UPDATE Customers SET Balance = Balance - %d WHERE CustomerID='%s';", decreaseAmtInPennies, customerID);
+    jdbcTemplate.update(balanceDecreaseSql);
+  }
 
 
 
