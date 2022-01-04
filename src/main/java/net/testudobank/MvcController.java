@@ -408,18 +408,15 @@ public class MvcController {
         // Set main balance to 0 since we are either going into overdraft or already in overdraft
         TestudoBankRepository.setCustomerBalance(jdbcTemplate, userID, 0);
 
-        int difference = reversalAmountInPennies - userBalanceInPennies;
+        int differenceInPennies = reversalAmountInPennies - userBalanceInPennies;
 
         //check if deposit helped pay off overdraft balance
         List<Map<String,Object>> overdraftLogs = TestudoBankRepository.getOverdraftLogs(jdbcTemplate, userID, (String)logToReverse.get("Timestamp"));
         if (overdraftLogs.size() == 0) { // if deposit did not help pay of overdraft balance, then apply interest rate
-          String overdraftBalanceUpdateSql = String.format("UPDATE Customers SET OverdraftBalance = OverdraftBalance + %d WHERE CustomerID='%s';", ((int) (difference * INTEREST_RATE)), userID);
-          jdbcTemplate.update(overdraftBalanceUpdateSql);
+          TestudoBankRepository.increaseCustomerOverdraftBalance(jdbcTemplate, userID, ((int) (differenceInPennies * INTEREST_RATE)));
         } else { // otherwise don't apply interest and remove from overdraft logs
-          String overdraftBalanceUpdateSql = String.format("UPDATE Customers SET OverdraftBalance = OverdraftBalance + %d WHERE CustomerID='%s';", difference, userID);
-          jdbcTemplate.update(overdraftBalanceUpdateSql);
-          String removeFromOverdraftLogsSql = String.format("DELETE from OverdraftLogs where CustomerID='%s' AND Timestamp='%s';", userID, logToReverse.get("Timestamp"));
-          jdbcTemplate.update(removeFromOverdraftLogsSql);
+          TestudoBankRepository.increaseCustomerOverdraftBalance(jdbcTemplate, userID, differenceInPennies);
+          TestudoBankRepository.deleteRowFromOverdraftLogsTable(jdbcTemplate, userID, (String)logToReverse.get("Timestamp"));
         }
       }
       
@@ -458,8 +455,7 @@ public class MvcController {
 
     // Adds to number of reversals only after a successful reversal 
     numOfReversals++;
-    String numOfReversalsUpdateSql = String.format("UPDATE Customers SET NumFraudReversals = %d WHERE CustomerID='%s';", numOfReversals, userID);
-    jdbcTemplate.update(numOfReversalsUpdateSql);
+    TestudoBankRepository.setCustomerNumFraudReversals(jdbcTemplate, userID, numOfReversals);
 
     updateAccountInfo(user);
 
