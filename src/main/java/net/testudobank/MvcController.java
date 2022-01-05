@@ -190,67 +190,64 @@ public class MvcController {
   /**
    * HTML POST request handler for the Deposit Form page.
    * 
-   * The same username+password handling from the login page is used.
+   * If the user is currently not in overdraft, the deposit amount is simply
+   * added to the user's main balance.
    * 
-   * If the password attempt is correct, the balance is incremented by the amount specified
-   * in the Deposit Form. The user is then served the "account_info" with an updated balance.
-   * 
-   * If the password attempt is incorrect, the user is redirected to the "welcome" page.
+   * If the user is in overdraft, the deposit amount first pays off the overdraft balance,
+   * and any excess deposit amount is added to the main balance.
    * 
    * @param user
-   * @return "account_info" page if login successful. Otherwise, redirect to "welcome" page.
+   * @return "account_info" page if valid deposit request. Otherwise, redirect to "welcome" page.
    */
   @PostMapping("/deposit")
   public String submitDeposit(@ModelAttribute("user") User user) {
     String userID = user.getUsername();
     String userPasswordAttempt = user.getPassword();
-
     String userPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, userID);
+
+    //// Invalid Input/State Handling ////
 
     // unsuccessful login
     if (userPasswordAttempt.equals(userPassword) == false) {
       return "welcome";
     }
 
-    double userDepositAmt = user.getAmountToDeposit();
-    int userDepositAmtInPennies = convertDollarsToPennies(userDepositAmt);
-
+    // If customer already has too many reversals, their account is frozen. Don't complete deposit.
     int numOfReversals = TestudoBankRepository.getCustomerNumberOfReversals(jdbcTemplate, userID);
+    if (numOfReversals >= MAX_DISPUTES){
+      return "welcome";
+    }
 
-    //If too many reversals dont do deposit
-    if (userDepositAmt < 0 || numOfReversals >= MAX_DISPUTES){
+    // Negative deposit amount is not allowed
+    double userDepositAmt = user.getAmountToDeposit();
+    if (userDepositAmt < 0) {
       return "welcome";
     }
     
-    String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date());
+    //// Complete Deposit Transaction ////
+    int userDepositAmtInPennies = convertDollarsToPennies(userDepositAmt); // dollar amounts stored as pennies to avoid floating point errors
+    String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date()); // use same timestamp for all logs created by this deposit
+    int userOverdraftBalanceInPennies = TestudoBankRepository.getCustomerOverdraftBalanceInPennies(jdbcTemplate, userID);
+    if (userOverdraftBalanceInPennies > 0) { // deposit will pay off overdraft first
+      // update overdraft balance in Customers table, and log the repayment in OverdraftLogs table.
+      int newOverdraftBalanceInPennies = Math.max(userOverdraftBalanceInPennies - userDepositAmtInPennies, 0);
+      TestudoBankRepository.setCustomerOverdraftBalance(jdbcTemplate, userID, newOverdraftBalanceInPennies);
+      TestudoBankRepository.insertRowToOverdraftLogsTable(jdbcTemplate, userID, currentTime, userDepositAmtInPennies, userOverdraftBalanceInPennies, newOverdraftBalanceInPennies);
+      
+      // add any excess deposit amount to main balance in Customers table
+      if (userDepositAmtInPennies > userOverdraftBalanceInPennies) {
+        int mainBalanceIncreaseAmtInPennies = userDepositAmtInPennies - userOverdraftBalanceInPennies;
+        TestudoBankRepository.increaseCustomerBalance(jdbcTemplate, userID, mainBalanceIncreaseAmtInPennies);
+      }
 
-    //Adds deposit to transaction history
+    } else { // simple deposit case
+      TestudoBankRepository.increaseCustomerBalance(jdbcTemplate, userID, userDepositAmtInPennies);
+    }
+
+    // Adds deposit to transaction history logs
     TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_DEPOSIT_ACTION, userDepositAmtInPennies);
 
-    int userOverdraftBalanceInPennies = TestudoBankRepository.getCustomerOverdraftBalanceInPennies(jdbcTemplate, userID);
-
-    // if the overdraft balance is positive, subtract the deposit with interest
-    if (userOverdraftBalanceInPennies > 0) {
-      int newOverdraftBalanceInPennies = Math.max(userOverdraftBalanceInPennies - userDepositAmtInPennies, 0);
-      TestudoBankRepository.insertRowToOverdraftLogsTable(jdbcTemplate, userID, currentTime, userDepositAmtInPennies, userOverdraftBalanceInPennies, newOverdraftBalanceInPennies);
-
-      // updating customers table
-      TestudoBankRepository.setCustomerOverdraftBalance(jdbcTemplate, userID, newOverdraftBalanceInPennies);
-      updateAccountInfo(user);
-    }
-
-    // if in the overdraft case and there is excess deposit, deposit the excess amount.
-    // otherwise, this is a non-overdraft case, so just use the userDepositAmt.
-    int balanceIncreaseAmtInPennies = 0;
-    if (userOverdraftBalanceInPennies > 0 && userDepositAmtInPennies > userOverdraftBalanceInPennies) {
-      balanceIncreaseAmtInPennies = userDepositAmtInPennies - userOverdraftBalanceInPennies;
-    } else if (userOverdraftBalanceInPennies > 0 && userDepositAmtInPennies <= userOverdraftBalanceInPennies) {
-      balanceIncreaseAmtInPennies = 0; // overdraft case, but no excess deposit. don't increase balance column.
-    } else {
-      balanceIncreaseAmtInPennies = userDepositAmtInPennies;
-    }
-
-    TestudoBankRepository.increaseCustomerBalance(jdbcTemplate, userID, balanceIncreaseAmtInPennies);
+    // update Model so that View can access new main balance, overdraft balance, and logs
     updateAccountInfo(user);
     return "account_info";
   }
@@ -258,84 +255,75 @@ public class MvcController {
   /**
    * HTML POST request handler for the Withdraw Form page.
    * 
-   * The same username+password handling from the login page is used.
+   * If the user is not currently in overdraft and the withdraw amount does not exceed the user's
+   * current main balance, the main balance is decremented by the amount specified
    * 
-   * If the password attempt is correct, the balance is decremented by the amount specified
-   * in the Withdraw Form. The user is then served the "account_info" with an updated balance.
+   * If the withdraw amount exceeds the user's current main balance, the user's main balance is set to
+   * 0 and the user's overdraft balance becomes the excess withdraw amount with interest applied.
    * 
-   * If the password attempt is incorrect, the user is redirected to the "welcome" page.
+   * If the user was already in overdraft, the entire withdraw amount with interest applied is added
+   * to the existing overdraft balance.
    * 
    * @param user
-   * @return "account_info" page if login successful. Otherwise, redirect to "welcome" page.
+   * @return "account_info" page if withdraw request is valid. Otherwise, redirect to "welcome" page.
    */
   @PostMapping("/withdraw")
   public String submitWithdraw(@ModelAttribute("user") User user) {
     String userID = user.getUsername();
     String userPasswordAttempt = user.getPassword();
-    
     String userPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, userID);
+
+    //// Invalid Input/State Handling ////
 
     // unsuccessful login
     if (userPasswordAttempt.equals(userPassword) == false) {
       return "welcome";
     }
 
-    double userWithdrawAmt = user.getAmountToWithdraw();
-    int userWithdrawAmtInPennies = convertDollarsToPennies(userWithdrawAmt);
-
+    // If customer already has too many reversals, their account is frozen. Don't complete deposit.
     int numOfReversals = TestudoBankRepository.getCustomerNumberOfReversals(jdbcTemplate, userID);
-
-    //If too many reversals dont do withdraw
-    if (userWithdrawAmt < 0 || numOfReversals >= MAX_DISPUTES){
+    if (numOfReversals >= MAX_DISPUTES){
       return "welcome";
     }
 
-    int userBalanceInPennies = TestudoBankRepository.getCustomerBalanceInPennies(jdbcTemplate, userID);
-    
-    // if the balance is not positive, withdraw with interest fee
-    if (userBalanceInPennies - userWithdrawAmtInPennies < 0) {
-      // subtracts the remaining balance from withdrawal amount 
-      int newOverdraftAmtInPennies = userWithdrawAmtInPennies - userBalanceInPennies;
-
-      if (newOverdraftAmtInPennies > MAX_OVERDRAFT_IN_PENNIES) {
-        return "welcome";
-      }
-
-      // factor in the existing overdraft balance before executing another overdraft
-      int userOverdraftBalanceInPennies = TestudoBankRepository.getCustomerOverdraftBalanceInPennies(jdbcTemplate, userID);
-      if (newOverdraftAmtInPennies + userOverdraftBalanceInPennies > MAX_OVERDRAFT_IN_PENNIES) {
-        return "welcome";
-      }
-
-      String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date());
-
-      //Adds withdraw to transaction history
-      TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_WITHDRAW_ACTION, userWithdrawAmtInPennies);
-
-      // this is a valid overdraft, so we can set Balance column to 0
-      TestudoBankRepository.setCustomerBalance(jdbcTemplate, userID, 0);
-
-      int newOverdraftAmtAfterInterestInPennies = (int)(newOverdraftAmtInPennies * INTEREST_RATE);
-      int cumulativeOverdraftInPennies = userOverdraftBalanceInPennies + newOverdraftAmtAfterInterestInPennies;
-
-      TestudoBankRepository.setCustomerOverdraftBalance(jdbcTemplate, userID, cumulativeOverdraftInPennies);
-
-      updateAccountInfo(user);
-      return "account_info";
-
+    // Negative deposit amount is not allowed
+    double userWithdrawAmt = user.getAmountToWithdraw();
+    if (userWithdrawAmt < 0) {
+      return "welcome";
     }
 
-    // non-overdraft case
-    TestudoBankRepository.decreaseCustomerBalance(jdbcTemplate, userID, userWithdrawAmtInPennies);
-    
+    //// Complete Withdraw Transaction ////
+    int userWithdrawAmtInPennies = convertDollarsToPennies(userWithdrawAmt); // dollar amounts stored as pennies to avoid floating point errors
+    String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date()); // use same timestamp for all logs created by this deposit
+    int userBalanceInPennies = TestudoBankRepository.getCustomerBalanceInPennies(jdbcTemplate, userID);
+    int userOverdraftBalanceInPennies = TestudoBankRepository.getCustomerOverdraftBalanceInPennies(jdbcTemplate, userID);
+    if (userWithdrawAmtInPennies > userBalanceInPennies) { // if withdraw amount exceeds main balance, withdraw into overdraft with interest fee
+      int excessWithdrawAmtInPennies = userWithdrawAmtInPennies - userBalanceInPennies;
+      int newOverdraftIncreaseAmtAfterInterestInPennies = (int)(excessWithdrawAmtInPennies * INTEREST_RATE);
+      int newOverdraftBalanceInPennies = userOverdraftBalanceInPennies + newOverdraftIncreaseAmtAfterInterestInPennies;
 
-    String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date());
+      // abort withdraw transaction if new overdraft balance exceeds max overdraft limit
+      // IMPORTANT: Compare new overdraft balance to max overdraft limit AFTER applying the interest rate!
+      if (newOverdraftBalanceInPennies > MAX_OVERDRAFT_IN_PENNIES) {
+        return "welcome";
+      }
 
-    //Adds withdraw to transaction history
+      // this is a valid withdraw into overdraft, so we can set Balance column to 0.
+      // OK to do this even if we were already in overdraft since main balance was already 0 anyways
+      TestudoBankRepository.setCustomerBalance(jdbcTemplate, userID, 0);
+
+      // increase overdraft balance by the withdraw amount after interest
+      TestudoBankRepository.setCustomerOverdraftBalance(jdbcTemplate, userID, newOverdraftBalanceInPennies);
+
+    } else { // simple, non-overdraft withdraw case
+      TestudoBankRepository.decreaseCustomerBalance(jdbcTemplate, userID, userWithdrawAmtInPennies);
+    }
+
+    // Adds withdraw to transaction history
     TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_WITHDRAW_ACTION, userWithdrawAmtInPennies);
 
+    // update Model so that View can access new main balance, overdraft balance, and logs
     updateAccountInfo(user);
-
     return "account_info";
 
   }

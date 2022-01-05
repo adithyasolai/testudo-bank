@@ -188,41 +188,6 @@ public class MvcControllerTest {
 		assertEquals("welcome", pageReturned);
 	}
 
-	@Test
-	public void testWithdrawOverDraftBalanceFailure() {
-		User customer1 = new User();
-		customer1.setUsername(CUSTOMER1_USERNAME);
-		customer1.setPassword("password");
-		customer1.setAmountToWithdraw(2000); // try to withdraw $2000 in overdraft, but the max allowed is $1000
-
-		String getCustomer1PasswordSql = String.format("SELECT Password FROM Passwords WHERE CustomerID='%s';", CUSTOMER1_USERNAME);
-		String getCustomer1BalanceSql =  String.format("SELECT Balance FROM Customers WHERE CustomerID='%s';", CUSTOMER1_USERNAME);
-		
-    // stub jdbc calls
-    // successful login
-		when(jdbcTemplate.queryForObject(eq(getCustomer1PasswordSql), eq(String.class))).thenReturn("password");
-    // handles updateAccountInfo() helper method
-    when(jdbcTemplate.queryForList(anyString())).thenReturn(CUSTOMER1_DATA);
-    // not working with live DB
-		when(jdbcTemplate.update(anyString())).thenReturn(1);
-    // handles account not being locked
-    String getNumReversals = String.format("SELECT NumFraudReversals FROM Customers WHERE CustomerID='%s';", customer1.getUsername());
-    when(jdbcTemplate.queryForObject(eq(getNumReversals), eq(Integer.class))).thenReturn(0);
-    // start customer with balance of $0
-		when(jdbcTemplate.queryForObject(eq(getCustomer1BalanceSql), eq(Integer.class))).thenReturn(0);
-
-    // send withdraw request
-    String pageReturned = controller.submitWithdraw(customer1);
-    
-    Mockito.verify(jdbcTemplate, Mockito.times(1)).queryForObject(eq(getCustomer1PasswordSql), eq(String.class));
-    Mockito.verify(jdbcTemplate, Mockito.times(1)).queryForObject(eq(getCustomer1BalanceSql), eq(Integer.class));
-    // no update due to failing on customer.getAmountToWithdraw() > MAX_AMOUNT
-    Mockito.verify(jdbcTemplate, Mockito.times(0)).update(anyString());
-
-    // verify "welcome" page is returned
-		assertEquals("welcome", pageReturned);
-	}
-
   @Test
 	public void testWithdrawLockedAccount() {
 		User customer1 = new User();
