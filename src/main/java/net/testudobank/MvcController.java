@@ -204,53 +204,51 @@ public class MvcController {
   public String submitDeposit(@ModelAttribute("user") User user) {
     String userID = user.getUsername();
     String userPasswordAttempt = user.getPassword();
-
     String userPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, userID);
+
+    //// Invalid Input/State Handling ////
 
     // unsuccessful login
     if (userPasswordAttempt.equals(userPassword) == false) {
       return "welcome";
     }
 
-    double userDepositAmt = user.getAmountToDeposit();
-    int userDepositAmtInPennies = convertDollarsToPennies(userDepositAmt);
-
+    // If customer already has too many reversals, their account is frozen. Don't complete deposit.
     int numOfReversals = TestudoBankRepository.getCustomerNumberOfReversals(jdbcTemplate, userID);
+    if (numOfReversals >= MAX_DISPUTES){
+      return "welcome";
+    }
 
-    //If too many reversals dont do deposit
-    if (userDepositAmt < 0 || numOfReversals >= MAX_DISPUTES){
+    // Negative deposit amount is not allowed
+    double userDepositAmt = user.getAmountToDeposit();
+    if (userDepositAmt < 0) {
       return "welcome";
     }
     
-    String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date());
+    //// Complete Deposit Transaction ////
+    int userDepositAmtInPennies = convertDollarsToPennies(userDepositAmt); // dollar amounts stored as pennies to avoid floating point errors
+    String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date()); // use same timestamp for all logs created by this deposit
+    int userOverdraftBalanceInPennies = TestudoBankRepository.getCustomerOverdraftBalanceInPennies(jdbcTemplate, userID);
+    if (userOverdraftBalanceInPennies > 0) { // deposit will pay off overdraft first
+      // update overdraft balance in Customers table, and log the repayment in OverdraftLogs table.
+      int newOverdraftBalanceInPennies = Math.max(userOverdraftBalanceInPennies - userDepositAmtInPennies, 0);
+      TestudoBankRepository.setCustomerOverdraftBalance(jdbcTemplate, userID, newOverdraftBalanceInPennies);
+      TestudoBankRepository.insertRowToOverdraftLogsTable(jdbcTemplate, userID, currentTime, userDepositAmtInPennies, userOverdraftBalanceInPennies, newOverdraftBalanceInPennies);
+      
+      // add any excess deposit amount to main balance in Customers table
+      if (userDepositAmtInPennies > userOverdraftBalanceInPennies) {
+        int mainBalanceIncreaseAmtInPennies = userDepositAmtInPennies - userOverdraftBalanceInPennies;
+        TestudoBankRepository.increaseCustomerBalance(jdbcTemplate, userID, mainBalanceIncreaseAmtInPennies);
+      }
 
-    //Adds deposit to transaction history
+    } else { // simple deposit case
+      TestudoBankRepository.increaseCustomerBalance(jdbcTemplate, userID, userDepositAmtInPennies);
+    }
+
+    // Adds deposit to transaction history logs
     TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_DEPOSIT_ACTION, userDepositAmtInPennies);
 
-    int userOverdraftBalanceInPennies = TestudoBankRepository.getCustomerOverdraftBalanceInPennies(jdbcTemplate, userID);
-
-    // if the overdraft balance is positive, subtract the deposit with interest
-    if (userOverdraftBalanceInPennies > 0) {
-      int newOverdraftBalanceInPennies = Math.max(userOverdraftBalanceInPennies - userDepositAmtInPennies, 0);
-      TestudoBankRepository.insertRowToOverdraftLogsTable(jdbcTemplate, userID, currentTime, userDepositAmtInPennies, userOverdraftBalanceInPennies, newOverdraftBalanceInPennies);
-
-      // updating customers table
-      TestudoBankRepository.setCustomerOverdraftBalance(jdbcTemplate, userID, newOverdraftBalanceInPennies);
-      updateAccountInfo(user);
-    }
-
-    // if in the overdraft case and there is excess deposit, deposit the excess amount.
-    // otherwise, this is a non-overdraft case, so just use the userDepositAmt.
-    int balanceIncreaseAmtInPennies = 0;
-    if (userOverdraftBalanceInPennies > 0 && userDepositAmtInPennies > userOverdraftBalanceInPennies) {
-      balanceIncreaseAmtInPennies = userDepositAmtInPennies - userOverdraftBalanceInPennies;
-    } else if (userOverdraftBalanceInPennies > 0 && userDepositAmtInPennies <= userOverdraftBalanceInPennies) {
-      balanceIncreaseAmtInPennies = 0; // overdraft case, but no excess deposit. don't increase balance column.
-    } else {
-      balanceIncreaseAmtInPennies = userDepositAmtInPennies;
-    }
-
-    TestudoBankRepository.increaseCustomerBalance(jdbcTemplate, userID, balanceIncreaseAmtInPennies);
+    // update Model so that View can access new main balance, overdraft balance, and logs
     updateAccountInfo(user);
     return "account_info";
   }
