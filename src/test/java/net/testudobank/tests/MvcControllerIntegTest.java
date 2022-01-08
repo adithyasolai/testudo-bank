@@ -244,7 +244,7 @@ public class MvcControllerIntegTest {
    * customer to enter overdraft, and the overdraft balance with interest applied
    * doesn't exceed the overdraft limit.
    * 
-   * The customer will be given an initial balance of $100 and will withdraw $1089.
+   * The customer will be given an initial balance of $100 and will withdraw $1099.
    * This will test the scenario where the overdraft balance itself, which is $100 - $1099 = -$999,
    * is a valid overdraft balance, but once the 2% interest rate is applied, will cross the limit
    * of $1000. 
