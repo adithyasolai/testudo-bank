@@ -241,13 +241,12 @@ public class MvcControllerIntegTest {
   }
 
 /**
-   * 
    * The customer will be given an initial balance of $100 and will withdraw $1099.
-   * This will test the scenario where the overdraft balance itself, which is $100 - $1099 = -$999,
-   * is a valid overdraft balance, but once the 2% interest rate is applied, will cross the limit
+   * This will test the scenario where the withdraw excess amount, which is $100 - $1099 = -$999,
+   * results in a valid overdraft balance, but once the 2% interest rate is applied, will cross the limit
    * of $1000. 
    * 
-   * Checks to make sure that the customer's balance stays the same as before due to a failed 
+   * This test checks to make sure that the customer's balance stays the same as before due to a failed 
    * withdraw request, and checks that the TransactionHistory table is empty.
    * 
    * @throws SQLException
@@ -255,7 +254,7 @@ public class MvcControllerIntegTest {
    */
 
   @Test
-  public void testWithdrawOverdraftOverage() throws SQLException, ScriptException { 
+  public void testWithdrawOverdraftLimitExceeded() throws SQLException, ScriptException { 
 
    //initialize customer1 with a balance of $100. this will be represented as pennies in DB.
    double CUSTOMER1_BALANCE = 100;
@@ -277,13 +276,6 @@ public class MvcControllerIntegTest {
    String responsePage = controller.submitWithdraw(customer1WithdrawFormInputs);
    assertEquals("welcome", responsePage);
    
-   //verify that customer1's Overdraft balance is equal to remaining withdraw amount with interest applied
-   int CUSTOMER1_ORIGINAL_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_BALANCE);
-   int CUSTOMER1_AMOUNT_TO_WITHDRAW_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_AMOUNT_TO_WITHDRAW);
-   int CUSTOMER1_OVERDRAFT_BALANCE_INCREASE_BEFORE_INTEREST_IN_PENNIES = CUSTOMER1_AMOUNT_TO_WITHDRAW_IN_PENNIES - CUSTOMER1_ORIGINAL_BALANCE_IN_PENNIES;
-   int CUSTOMER1_OVERDRAFT_BALANCE_INCREASE_AFTER_INTEREST_IN_PENNIES = (int)(CUSTOMER1_OVERDRAFT_BALANCE_INCREASE_BEFORE_INTEREST_IN_PENNIES * MvcController.INTEREST_RATE);
-   System.out.println("Expected Overdraft Balance in pennies: " + CUSTOMER1_OVERDRAFT_BALANCE_INCREASE_AFTER_INTEREST_IN_PENNIES);
-
    //Fetch customer1's data from DB
    List<Map<String, Object>> customersTableData = jdbcTemplate.queryForList("SELECT * FROM Customers;");
 
@@ -295,7 +287,7 @@ public class MvcControllerIntegTest {
    assertEquals(0, (int)customer1Data.get("OverdraftBalance"));
 
    //check that TransactionHistory table is empty
-   List<Map<String, Object>> transactionHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM TransactionHistory WHERE CustomerID='';");
+   List<Map<String, Object>> transactionHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM TransactionHistory;");
    assertTrue(transactionHistoryTableData.isEmpty());
 
   }
