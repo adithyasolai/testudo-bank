@@ -412,33 +412,11 @@ public class MvcController {
 
       // add transaction to transaction history
       TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_WITHDRAW_ACTION, reversalAmountInPennies);
-    } else { // Case when reversing a withdraw, deposit the money instead
-      if (userOverdraftBalanceInPennies == 0) {
-        TestudoBankRepository.increaseCustomerBalance(jdbcTemplate, userID, reversalAmountInPennies);
-        
-        String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date());
-
-        //adds transaction to transaction history
-        TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_DEPOSIT_ACTION, reversalAmountInPennies);
-      } else { // case when user is in overdraft
-        // if amount is greater than overdraft balance, add difference to balance
-        int differenceInPennies = userOverdraftBalanceInPennies - reversalAmountInPennies;
-        if (differenceInPennies < 0) {
-          TestudoBankRepository.increaseCustomerBalance(jdbcTemplate, userID, differenceInPennies * -1);
-        }
-        
-        //sets new overdraft balance
-        int newOverdraftBalanceInPennies = Math.max(differenceInPennies, 0);
-        TestudoBankRepository.setCustomerOverdraftBalance(jdbcTemplate, userID, newOverdraftBalanceInPennies);
-        
-        String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date());
-
-        //adds change into overdraft logs
-        TestudoBankRepository.insertRowToOverdraftLogsTable(jdbcTemplate, userID, currentTime, reversalAmountInPennies, userOverdraftBalanceInPennies, newOverdraftBalanceInPennies);
-
-        //adds transaction to transaction logs
-        TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_DEPOSIT_ACTION, reversalAmountInPennies);
-      }
+    } 
+    //------------------------------------------------------------------------
+    else { // Case when reversing a withdraw, deposit the money instead
+      user.setAmountToDeposit(reversalAmountInPennies/100);
+      submitDeposit(user);
     }
 
     // Adds to number of reversals only after a successful reversal 
