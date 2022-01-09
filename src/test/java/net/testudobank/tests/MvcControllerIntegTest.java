@@ -1,6 +1,7 @@
 package net.testudobank.tests;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.sql.SQLException;
 import java.time.LocalDateTime;
@@ -240,9 +241,6 @@ public class MvcControllerIntegTest {
   }
 
 /**
-   * Verifies the case where a customer withdraws an amount that causes the
-   * customer to enter overdraft, and the overdraft balance with interest applied
-   * doesn't exceed the overdraft limit.
    * 
    * The customer will be given an initial balance of $100 and will withdraw $1099.
    * This will test the scenario where the overdraft balance itself, which is $100 - $1099 = -$999,
@@ -275,18 +273,16 @@ public class MvcControllerIntegTest {
    LocalDateTime timeWhenWithdrawRequestSent = MvcControllerIntegTestHelpers.fetchCurrentTimeAsLocalDateTimeNoMilliseconds();
    System.out.println("Timestamp when withdraw request sent: " + timeWhenWithdrawRequestSent);
 
-
-   //verify that customer1's Overdraft balance is equal to remaining withdraw amount with interest applied
-   int CUSTOMER1_ORIGINAL_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_BALANCE);
-   int CUSTOMER1_AMOUNT_TO_WITHDRAW_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_AMOUNT_TO_WITHDRAW);
-   int CUSTOMER1_EXPECTED_OVERDRAFT_BALANCE_BEFORE_INTEREST_IN_PENNIES = CUSTOMER1_AMOUNT_TO_WITHDRAW_IN_PENNIES - CUSTOMER1_ORIGINAL_BALANCE_IN_PENNIES;
-   int CUSTOMER1_EXPECTED_OVERDRAFT_BALANCE_AFTER_INTEREST_IN_PENNIES = (int)(CUSTOMER1_EXPECTED_OVERDRAFT_BALANCE_BEFORE_INTEREST_IN_PENNIES * MvcController.INTEREST_RATE);
-   System.out.println("Expected Overdraft Balance in pennies: " + CUSTOMER1_EXPECTED_OVERDRAFT_BALANCE_AFTER_INTEREST_IN_PENNIES);
-
-   
    //Check the response when the withdraw request is submitted. This should return the user back to the home screen due to an invalid request
    String responsePage = controller.submitWithdraw(customer1WithdrawFormInputs);
    assertEquals("welcome", responsePage);
+   
+   //verify that customer1's Overdraft balance is equal to remaining withdraw amount with interest applied
+   int CUSTOMER1_ORIGINAL_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_BALANCE);
+   int CUSTOMER1_AMOUNT_TO_WITHDRAW_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_AMOUNT_TO_WITHDRAW);
+   int CUSTOMER1_OVERDRAFT_BALANCE_INCREASE_BEFORE_INTEREST_IN_PENNIES = CUSTOMER1_AMOUNT_TO_WITHDRAW_IN_PENNIES - CUSTOMER1_ORIGINAL_BALANCE_IN_PENNIES;
+   int CUSTOMER1_OVERDRAFT_BALANCE_INCREASE_AFTER_INTEREST_IN_PENNIES = (int)(CUSTOMER1_OVERDRAFT_BALANCE_INCREASE_BEFORE_INTEREST_IN_PENNIES * MvcController.INTEREST_RATE);
+   System.out.println("Expected Overdraft Balance in pennies: " + CUSTOMER1_OVERDRAFT_BALANCE_INCREASE_AFTER_INTEREST_IN_PENNIES);
 
    //Fetch customer1's data from DB
    List<Map<String, Object>> customersTableData = jdbcTemplate.queryForList("SELECT * FROM Customers;");
@@ -295,9 +291,12 @@ public class MvcControllerIntegTest {
    Map<String, Object> customer1Data = customersTableData.get(0);
    assertEquals(CUSTOMER1_BALANCE_IN_PENNIES, (int)customer1Data.get("Balance"));
 
+   //Checks to make sure that the overdraft balance was not increased
+   assertEquals(0, (int)customer1Data.get("OverdraftBalance"));
+
    //check that TransactionHistory table is empty
-   List<Map<String, Object>> transactionHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM TransactionHistory;");
-   assertEquals(true, transactionHistoryTableData.isEmpty());
+   List<Map<String, Object>> transactionHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM TransactionHistory WHERE CustomerID='';");
+   assertTrue(transactionHistoryTableData.isEmpty());
 
   }
 
