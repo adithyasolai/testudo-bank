@@ -388,34 +388,22 @@ public class MvcController {
       if (userOverdraftBalanceInPennies + (reversalAmountInPennies - userBalanceInPennies) > MAX_OVERDRAFT_IN_PENNIES) {
         return "welcome";
       }
+      int reversalAmount = reversalAmountInPennies / 100;
+      user.setAmountToWithdraw(reversalAmount);
 
-      // if balance is large enough to have reversalAmount taken from it, subtract reversalAmount from balance
-      if (userBalanceInPennies - reversalAmountInPennies > 0){
-        TestudoBankRepository.decreaseCustomerBalance(jdbcTemplate, userID, reversalAmountInPennies);
-      } else { // Case when reversing deposit causes overdraft or go deeper into overdraft
-        // Set main balance to 0 since we are either going into overdraft or already in overdraft
-        TestudoBankRepository.setCustomerBalance(jdbcTemplate, userID, 0);
-
-        int differenceInPennies = reversalAmountInPennies - userBalanceInPennies;
-
+      submitWithdraw(user);
+      if (userBalanceInPennies - reversalAmountInPennies <= 0){
         //check if deposit helped pay off overdraft balance
         List<Map<String,Object>> overdraftLogs = TestudoBankRepository.getOverdraftLogs(jdbcTemplate, userID, (String)logToReverse.get("Timestamp"));
-        if (overdraftLogs.size() == 0) { // if deposit did not help pay of overdraft balance, then apply interest rate
-          TestudoBankRepository.increaseCustomerOverdraftBalance(jdbcTemplate, userID, ((int) (differenceInPennies * INTEREST_RATE)));
-        } else { // otherwise don't apply interest and remove from overdraft logs
-          TestudoBankRepository.increaseCustomerOverdraftBalance(jdbcTemplate, userID, differenceInPennies);
+        if (overdraftLogs.size() != 0) { // if deposit did not help pay of overdraft balance, then apply interest rate
+          // otherwise don't apply interest and remove from overdraft logs
           TestudoBankRepository.deleteRowFromOverdraftLogsTable(jdbcTemplate, userID, (String)logToReverse.get("Timestamp"));
         }
-      }
-      
-      String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date());
+      } 
+    } else { // Case when reversing a withdraw, deposit the money instead
+      int reversalAmount = reversalAmountInPennies / 100;
 
-      // add transaction to transaction history
-      TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_WITHDRAW_ACTION, reversalAmountInPennies);
-    } 
-    //------------------------------------------------------------------------
-    else { // Case when reversing a withdraw, deposit the money instead
-      user.setAmountToDeposit(reversalAmountInPennies/100);
+      user.setAmountToDeposit(reversalAmount);
       submitDeposit(user);
     }
 
