@@ -1,6 +1,7 @@
 package net.testudobank.tests;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.sql.SQLException;
 import java.time.LocalDateTime;
@@ -238,6 +239,59 @@ public class MvcControllerIntegTest {
     Map<String,Object> customer1TransactionLog = transactionHistoryTableData.get(0);
     MvcControllerIntegTestHelpers.checkTransactionLog(customer1TransactionLog, timeWhenWithdrawRequestSent, CUSTOMER1_ID, MvcController.TRANSACTION_HISTORY_WITHDRAW_ACTION, CUSTOMER1_AMOUNT_TO_WITHDRAW_IN_PENNIES);
   }
+
+/**
+   * The customer will be given an initial balance of $100 and will withdraw $1099.
+   * This will test the scenario where the withdraw excess amount, which is $100 - $1099 = -$999,
+   * results in a valid overdraft balance, but once the 2% interest rate is applied, will cross the limit
+   * of $1000. 
+   * 
+   * This test checks to make sure that the customer's balance stays the same as before due to a failed 
+   * withdraw request, and checks that the TransactionHistory table is empty.
+   * 
+   * @throws SQLException
+   * @throws ScriptException
+   */
+
+  @Test
+  public void testWithdrawOverdraftLimitExceeded() throws SQLException, ScriptException { 
+
+   //initialize customer1 with a balance of $100. this will be represented as pennies in DB.
+   double CUSTOMER1_BALANCE = 100;
+   int CUSTOMER1_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_BALANCE);
+   MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER1_ID, CUSTOMER1_PASSWORD, CUSTOMER1_FIRST_NAME, CUSTOMER1_LAST_NAME, CUSTOMER1_BALANCE_IN_PENNIES);
+
+   //Prepare Withdraw Form to withdraw $1099 from this customer's account.
+   double CUSTOMER1_AMOUNT_TO_WITHDRAW = 1099; 
+   User customer1WithdrawFormInputs = new User();
+   customer1WithdrawFormInputs.setUsername(CUSTOMER1_ID);
+   customer1WithdrawFormInputs.setPassword(CUSTOMER1_PASSWORD);
+   customer1WithdrawFormInputs.setAmountToWithdraw(CUSTOMER1_AMOUNT_TO_WITHDRAW);
+
+   //Store the timestamp of the withdraw request to verify it in the TransactionHistory table later
+   LocalDateTime timeWhenWithdrawRequestSent = MvcControllerIntegTestHelpers.fetchCurrentTimeAsLocalDateTimeNoMilliseconds();
+   System.out.println("Timestamp when withdraw request sent: " + timeWhenWithdrawRequestSent);
+
+   //Check the response when the withdraw request is submitted. This should return the user back to the home screen due to an invalid request
+   String responsePage = controller.submitWithdraw(customer1WithdrawFormInputs);
+   assertEquals("welcome", responsePage);
+   
+   //Fetch customer1's data from DB
+   List<Map<String, Object>> customersTableData = jdbcTemplate.queryForList("SELECT * FROM Customers;");
+
+   //Since the request did not go through, the balance is supposed to stay the same.
+   Map<String, Object> customer1Data = customersTableData.get(0);
+   assertEquals(CUSTOMER1_BALANCE_IN_PENNIES, (int)customer1Data.get("Balance"));
+
+   //Checks to make sure that the overdraft balance was not increased
+   assertEquals(0, (int)customer1Data.get("OverdraftBalance"));
+
+   //check that TransactionHistory table is empty
+   List<Map<String, Object>> transactionHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM TransactionHistory;");
+   assertTrue(transactionHistoryTableData.isEmpty());
+
+  }
+
 
   /**
    * Verifies the case where a customer is in overdraft and deposits an amount
