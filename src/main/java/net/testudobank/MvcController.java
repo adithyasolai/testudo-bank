@@ -381,6 +381,7 @@ public class MvcController {
     int userOverdraftBalanceInPennies = TestudoBankRepository.getCustomerOverdraftBalanceInPennies(jdbcTemplate, userID);
 
     int reversalAmountInPennies = (int) logToReverse.get("Amount");
+    int reversalAmount = reversalAmountInPennies / 100;
 
     // If transaction to reverse is a deposit, then withdraw the money out
     if (((String) logToReverse.get("Action")).toLowerCase().equals("deposit")) {
@@ -388,21 +389,18 @@ public class MvcController {
       if (userOverdraftBalanceInPennies + (reversalAmountInPennies - userBalanceInPennies) > MAX_OVERDRAFT_IN_PENNIES) {
         return "welcome";
       }
-      int reversalAmount = reversalAmountInPennies / 100;
       user.setAmountToWithdraw(reversalAmount);
-
       submitWithdraw(user);
+
       if (userBalanceInPennies - reversalAmountInPennies <= 0){
         //check if deposit helped pay off overdraft balance
         List<Map<String,Object>> overdraftLogs = TestudoBankRepository.getOverdraftLogs(jdbcTemplate, userID, (String)logToReverse.get("Timestamp"));
-        if (overdraftLogs.size() != 0) { // if deposit did not help pay of overdraft balance, then apply interest rate
-          // otherwise don't apply interest and remove from overdraft logs
+        if (overdraftLogs.size() != 0) {
+          // remove extra entry from overdraft logs
           TestudoBankRepository.deleteRowFromOverdraftLogsTable(jdbcTemplate, userID, (String)logToReverse.get("Timestamp"));
         }
       } 
     } else { // Case when reversing a withdraw, deposit the money instead
-      int reversalAmount = reversalAmountInPennies / 100;
-
       user.setAmountToDeposit(reversalAmount);
       submitDeposit(user);
     }
