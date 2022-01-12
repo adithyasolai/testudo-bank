@@ -392,7 +392,7 @@ public class MvcController {
       user.setAmountToWithdraw(reversalAmount);
       submitWithdraw(user);
 
-      if (userBalanceInPennies - reversalAmountInPennies <= 0){
+      if (reversalAmountInPennies > userBalanceInPennies){
         //check if deposit helped pay off overdraft balance
         List<Map<String,Object>> overdraftLogs = TestudoBankRepository.getOverdraftLogs(jdbcTemplate, userID, (String)logToReverse.get("Timestamp"));
         if (overdraftLogs.size() != 0) {
