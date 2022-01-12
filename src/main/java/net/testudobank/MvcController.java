@@ -381,7 +381,7 @@ public class MvcController {
     int userOverdraftBalanceInPennies = TestudoBankRepository.getCustomerOverdraftBalanceInPennies(jdbcTemplate, userID);
 
     int reversalAmountInPennies = (int) logToReverse.get("Amount");
-    int reversalAmount = reversalAmountInPennies / 100;
+    double reversalAmount = reversalAmountInPennies / 100.0;
 
     // If transaction to reverse is a deposit, then withdraw the money out
     if (((String) logToReverse.get("Action")).toLowerCase().equals("deposit")) {
