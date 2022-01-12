@@ -392,8 +392,9 @@ public class MvcController {
       user.setAmountToWithdraw(reversalAmount);
       submitWithdraw(user);
 
+      // If reversing a deposit puts customer back in overdraft
       if (reversalAmountInPennies > userBalanceInPennies){
-        //check if deposit helped pay off overdraft balance
+        // check if the reversed deposit helped pay off overdraft balance
         List<Map<String,Object>> overdraftLogs = TestudoBankRepository.getOverdraftLogs(jdbcTemplate, userID, (String)logToReverse.get("Timestamp"));
         if (overdraftLogs.size() != 0) {
           // remove extra entry from overdraft logs
