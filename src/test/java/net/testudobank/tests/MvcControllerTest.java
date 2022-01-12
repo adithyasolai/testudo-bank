@@ -277,7 +277,7 @@ public class MvcControllerTest {
                                                      customer1.getUsername());
     Mockito.verify(jdbcTemplate, Mockito.times(1)).update(eq(balanceZeroSqlCustomer1));
     //makes sure overdraft balance is increased by 10000*1.02 (the tax)
-    String overdraftBalanceUpdateSql = String.format("UPDATE Customers SET OverdraftBalance = OverdraftBalance + 10200 WHERE CustomerID='%s';", customer1.getUsername());
+    String overdraftBalanceUpdateSql = String.format("UPDATE Customers SET OverdraftBalance = 10200 WHERE CustomerID='%s';", customer1.getUsername());
     Mockito.verify(jdbcTemplate, Mockito.times(1)).update(eq(overdraftBalanceUpdateSql));
 
     // verify "account_info" page is returned
