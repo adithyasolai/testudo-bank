@@ -3,9 +3,7 @@ target/
 !.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
-CODEOWNERS
-python-sql-scripts/
-src/main/resources/application.properties
+.jython*
 
 ### STS ###
 .apt_generated

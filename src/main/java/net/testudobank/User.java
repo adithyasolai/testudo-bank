@@ -1,4 +1,4 @@
-package net.codejava;
+package net.testudobank;
 
 import javax.validation.constraints.Positive;
 import javax.validation.constraints.PositiveOrZero;
@@ -27,6 +27,7 @@ public class User {
 
   @Setter @Getter
 	private String logs;
+
   @Setter @Getter
   private String transactionHist;
 
