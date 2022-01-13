@@ -131,18 +131,18 @@ public class MvcController {
       transactionHistoryOutput += transactionLog + HTML_LINE_BREAK;
     }
 
-    String getTransferLogsToSql = String.format("SELECT * FROM TransferHistory WHERE TransferFrom='%s';", user.getUsername());
-    List<Map<String,Object>> transferLogsTo = jdbcTemplate.queryForList(getTransferLogsToSql);
-    String getTransferLogsFromSql = String.format("SELECT * FROM TransferHistory WHERE TransferTo='%s';", user.getUsername());
-    List<Map<String,Object>> transferLogsFrom = jdbcTemplate.queryForList(getTransferLogsFromSql);
-    String transferLogsToOutput = HTML_LINE_BREAK;
-    for(Map<String, Object> transferLogTo : transferLogsTo){
-      transferLogsToOutput += transferLogTo + HTML_LINE_BREAK;
-    }
-    String transferLogsFromOutput = HTML_LINE_BREAK;
-    for(Map<String, Object> transferLogFrom : transferLogsFrom){
-      transferLogsFromOutput += transferLogFrom + HTML_LINE_BREAK;
-    }
+    // String getTransferLogsToSql = String.format("SELECT * FROM TransferHistory WHERE TransferFrom='%s';", user.getUsername());
+    // List<Map<String,Object>> transferLogsTo = jdbcTemplate.queryForList(getTransferLogsToSql);
+    // String getTransferLogsFromSql = String.format("SELECT * FROM TransferHistory WHERE TransferTo='%s';", user.getUsername());
+    // List<Map<String,Object>> transferLogsFrom = jdbcTemplate.queryForList(getTransferLogsFromSql);
+    // String transferLogsToOutput = HTML_LINE_BREAK;
+    // for(Map<String, Object> transferLogTo : transferLogsTo){
+    //   transferLogsToOutput += transferLogTo + HTML_LINE_BREAK;
+    // }
+    // String transferLogsFromOutput = HTML_LINE_BREAK;
+    // for(Map<String, Object> transferLogFrom : transferLogsFrom){
+    //   transferLogsFromOutput += transferLogFrom + HTML_LINE_BREAK;
+    // }
 
     String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance FROM Customers WHERE CustomerID='%s';", user.getUsername());
     List<Map<String,Object>> queryResults = jdbcTemplate.queryForList(getUserNameAndBalanceAndOverDraftBalanceSql);
@@ -155,7 +155,7 @@ public class MvcController {
     user.setOverDraftBalance(overDraftBalance/100);
     user.setLogs(logs);
     user.setTransactionHist(transactionHistoryOutput);
-    user.setTransferLogs(transferLogsToOutput + transferLogsFromOutput);
+    //user.setTransferLogs(transferLogsToOutput + transferLogsFromOutput);
   }
 
   // Converts dollar amounts in frontend to penny representation in backend MySQL DB
