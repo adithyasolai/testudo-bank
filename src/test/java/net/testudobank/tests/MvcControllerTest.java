@@ -33,6 +33,7 @@ public class MvcControllerTest {
   private MvcController controller;
 
   private static String CUSTOMER1_USERNAME;
+  private static String CUSTOMER2_USERNAME;
   private static List<Map<String, Object>> CUSTOMER1_DATA;
   private static List<Map<String, Object>> TRANSACTION_HIST;
   private static List<Map<String, Object>> TRANSACTION_HIST_WITHDRAW;
@@ -41,6 +42,7 @@ public class MvcControllerTest {
   @BeforeAll
   public static void init() {
     CUSTOMER1_USERNAME = "123456789";
+    CUSTOMER2_USERNAME = "987654321";
 
     // prepare what the updateAccountInfo() helper method should return when stubbed
     CUSTOMER1_DATA = new ArrayList<>();
@@ -277,7 +279,7 @@ public class MvcControllerTest {
                                                      customer1.getUsername());
     Mockito.verify(jdbcTemplate, Mockito.times(1)).update(eq(balanceZeroSqlCustomer1));
     //makes sure overdraft balance is increased by 10000*1.02 (the tax)
-    String overdraftBalanceUpdateSql = String.format("UPDATE Customers SET OverdraftBalance = OverdraftBalance + 10200 WHERE CustomerID='%s';", customer1.getUsername());
+    String overdraftBalanceUpdateSql = String.format("UPDATE Customers SET OverdraftBalance = 10200 WHERE CustomerID='%s';", customer1.getUsername());
     Mockito.verify(jdbcTemplate, Mockito.times(1)).update(eq(overdraftBalanceUpdateSql));
 
     // verify "account_info" page is returned
