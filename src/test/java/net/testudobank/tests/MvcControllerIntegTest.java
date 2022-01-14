@@ -475,7 +475,7 @@ public class MvcControllerIntegTest {
     LocalDateTime timeWhenReversalRequestSent = MvcControllerIntegTestHelpers.fetchCurrentTimeAsLocalDateTimeNoMilliseconds();
     System.out.println("Timestamp when Reversal Request is sent: " + timeWhenReversalRequestSent);
 
-    // send request to the Deposit Form's POST handler in MvcController
+    // send Dispute request
     controller.submitDispute(customer1ReversalFormInputs);
 
     // re-fetch updated customer data from the DB
@@ -562,7 +562,7 @@ public class MvcControllerIntegTest {
     LocalDateTime timeWhenReversalRequestSent = MvcControllerIntegTestHelpers.fetchCurrentTimeAsLocalDateTimeNoMilliseconds();
     System.out.println("Timestamp when Reversal Request is sent: " + timeWhenReversalRequestSent);
 
-    // send request to the Deposit Form's POST handler in MvcController
+    // send Dispute request
     controller.submitDispute(customer1ReversalFormInputs);
 
     // re-fetch updated customer data from the DB
@@ -589,6 +589,119 @@ public class MvcControllerIntegTest {
     // verify that the Reversal is accurately logged in the TransactionHistory table as a Deposit
     int CUSTOMER1_AMOUNT_TO_DEPOSIT_IN_PENNIES = CUSTOMER1_AMOUNT_TO_WITHDRAW_IN_PENNIES;
     MvcControllerIntegTestHelpers.checkTransactionLog(customer1ReversalTransactionLog, timeWhenReversalRequestSent, CUSTOMER1_ID, MvcController.TRANSACTION_HISTORY_DEPOSIT_ACTION, CUSTOMER1_AMOUNT_TO_DEPOSIT_IN_PENNIES);
+  }
+
+  /**
+   * Verifies that a customer's account is "frozen" if they
+   * have reached the maximum allowed disputes/reversals.
+   * 
+   * "Frozen" means that any further deposit, withdraw,
+   * and dispute requests are ignored and the customer is 
+   * simply redirected to the "welcome" page.
+   * 
+   * The customer should still be able to view their account
+   * via the login form.
+   * 
+   * @throws SQLException
+   * @throws ScriptException
+   * @throws InterruptedException
+   */
+  @Test
+  public void testFrozenAccount() throws SQLException, ScriptException, InterruptedException {
+    // initialize a customer in the DB that can only do 1 more dispute/reversal.
+    int CUSTOMER1_NUM_FRAUD_REVERSALS = MvcController.MAX_DISPUTES - 1;
+    // initialize with $100 main balance and $0 overdraft balance for simplicity
+    double CUSTOMER1_MAIN_BALANCE = 100;
+    int CUSTOMER1_MAIN_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_MAIN_BALANCE);
+    int CUSTOMER1_OVERDRAFT_BALANCE_IN_PENNIES = 0;
+    MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, 
+                                                  CUSTOMER1_ID, 
+                                                  CUSTOMER1_PASSWORD, 
+                                                  CUSTOMER1_FIRST_NAME, 
+                                                  CUSTOMER1_LAST_NAME, 
+                                                  CUSTOMER1_MAIN_BALANCE_IN_PENNIES, 
+                                                  CUSTOMER1_OVERDRAFT_BALANCE_IN_PENNIES,
+                                                  CUSTOMER1_NUM_FRAUD_REVERSALS);
+
+    // Deposit $50, and then immediately dispute/reverse that deposit.
+    // this will bring the customer to the MAX_DISPUTES limit, and also have a few
+    // transactions in the TransactionHistory table that we can attempt to dispute/reverse
+    // later (which we will expect to fail due to MAX_DISPUTES limit, and not due to a lack
+    // of transactions to reverse for the customer).
+    // The asserts for this deposit & dispute are not very rigorous as they are covered
+    // in the testReversalOfSimpleDeposit() test case.
+    double CUSTOMER1_AMOUNT_TO_DEPOSIT = 50;
+    User customer1DepositFormInputs = new User();
+    customer1DepositFormInputs.setUsername(CUSTOMER1_ID);
+    customer1DepositFormInputs.setPassword(CUSTOMER1_PASSWORD);
+    customer1DepositFormInputs.setAmountToDeposit(CUSTOMER1_AMOUNT_TO_DEPOSIT);
+
+    // send Deposit request to the Deposit Form's POST handler in MvcController
+    controller.submitDeposit(customer1DepositFormInputs);
+
+    // verify customer1's balance after the deposit
+    List<Map<String,Object>> customersTableData = jdbcTemplate.queryForList("SELECT * FROM Customers;");
+    Map<String,Object> customer1Data = customersTableData.get(0);
+    double CUSTOMER1_EXPECTED_BALANCE_AFTER_DEPOSIT = CUSTOMER1_MAIN_BALANCE + CUSTOMER1_AMOUNT_TO_DEPOSIT; 
+    int CUSTOMER1_EXPECTED_BALANCE_AFTER_DEPOSIT_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_EXPECTED_BALANCE_AFTER_DEPOSIT);
+    assertEquals(CUSTOMER1_EXPECTED_BALANCE_AFTER_DEPOSIT_IN_PENNIES, (int)customer1Data.get("Balance"));
+
+    // Prepare Reversal Form to reverse the Deposit
+    User customer1ReversalFormInputs = customer1DepositFormInputs;
+    customer1ReversalFormInputs.setNumTransactionsAgo(1); // reverse the most recent transaction
+
+    // send Dispute request
+    controller.submitDispute(customer1ReversalFormInputs);
+
+    // re-fetch updated customer data from the DB
+    customersTableData = jdbcTemplate.queryForList("SELECT * FROM Customers;");
+    customer1Data = customersTableData.get(0);
+
+    // verify that customer1's balance is back to the original value
+    int CUSTOMER1_EXPECTED_BALANCE_AFTER_REVERSAL_IN_PENNIES = CUSTOMER1_MAIN_BALANCE_IN_PENNIES;
+    assertEquals(CUSTOMER1_EXPECTED_BALANCE_AFTER_REVERSAL_IN_PENNIES, (int)customer1Data.get("Balance"));
+
+    // verify that customer1's numFraudReversals counter is now MAX_DISPUTES
+    assertEquals(MvcController.MAX_DISPUTES, (int)customer1Data.get("NumFraudReversals"));
+
+    // verify that there are two transactions in the TransactionHistory table
+    // (one for the deposit, one for the reversal of that deposit)
+    List<Map<String,Object>> transactionHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM TransactionHistory;");
+    assertEquals(2, transactionHistoryTableData.size());
+
+    //// Begin Frozen Account Checks ////
+    User customer1FrozenFormInputs = new User();
+
+    // customer should still be able to view account info with the Login Form
+    customer1FrozenFormInputs.setUsername(CUSTOMER1_ID);
+    customer1FrozenFormInputs.setPassword(CUSTOMER1_PASSWORD);
+    String responsePage = controller.submitLoginForm(customer1FrozenFormInputs);
+    assertEquals("account_info", responsePage);
+
+    // customer should not be able to Deposit
+    customer1FrozenFormInputs.setAmountToDeposit(MvcControllerIntegTestHelpers.convertDollarsToPennies(50));
+    responsePage = controller.submitDeposit(customer1FrozenFormInputs);
+    assertEquals("welcome", responsePage);
+
+    // customer should not be able to Withdraw
+    customer1FrozenFormInputs.setAmountToWithdraw(MvcControllerIntegTestHelpers.convertDollarsToPennies(50));
+    responsePage = controller.submitWithdraw(customer1FrozenFormInputs);
+    assertEquals("welcome", responsePage);
+
+    // customer should not be able to Dispute/Reverse a Transaction
+    customer1FrozenFormInputs.setNumTransactionsAgo(1);
+    responsePage = controller.submitDispute(customer1FrozenFormInputs);
+    assertEquals("welcome", responsePage);
+
+    // verify customer's data and # of transactions is unchanged
+    // re-fetch updated customer data from the DB
+    customersTableData = jdbcTemplate.queryForList("SELECT * FROM Customers;");
+    customer1Data = customersTableData.get(0);
+    assertEquals(CUSTOMER1_EXPECTED_BALANCE_AFTER_REVERSAL_IN_PENNIES, (int)customer1Data.get("Balance"));
+    assertEquals(MvcController.MAX_DISPUTES, (int)customer1Data.get("NumFraudReversals"));
+
+    transactionHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM TransactionHistory;");
+    assertEquals(2, transactionHistoryTableData.size());
   }
 
 }
