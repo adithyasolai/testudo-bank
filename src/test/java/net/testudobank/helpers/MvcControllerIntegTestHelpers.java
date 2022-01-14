@@ -17,6 +17,8 @@ import com.mysql.cj.jdbc.MysqlDataSource;
 import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.delegate.DatabaseDelegate;
 import org.testcontainers.ext.ScriptUtils;
+
+import net.testudobank.MvcController;
 import net.testudobank.tests.MvcControllerIntegTest;
 
 public class MvcControllerIntegTestHelpers {
@@ -71,6 +73,11 @@ public class MvcControllerIntegTestHelpers {
   // Converts dollar amounts in frontend to penny representation in backend MySQL DB
   public static int convertDollarsToPennies(double dollarAmount) {
     return (int) (dollarAmount * 100);
+  }
+
+  // Applies overdraft interest rate to a dollar amount in pennies, and returns an int penny result
+  public static int applyOverdraftInterest(int dollarAmountInPennies) {
+    return (int) (dollarAmountInPennies * MvcController.INTEREST_RATE);
   }
 
   // Fetches current local time with no milliseconds because the MySQL DB has granularity only up to seconds (does not use milliseconds)
