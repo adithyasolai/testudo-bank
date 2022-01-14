@@ -25,7 +25,7 @@ public class MvcController {
   //// CONSTANT LITERALS ////
   public final static double INTEREST_RATE = 1.02;
   private final static int MAX_OVERDRAFT_IN_PENNIES = 100000;
-  private final static int MAX_DISPUTES = 2;
+  public final static int MAX_DISPUTES = 2;
   private final static int MAX_NUM_TRANSACTIONS_DISPLAYED = 3;
   private final static int MAX_REVERSABLE_TRANSACTIONS_AGO = 3;
   private final static String HTML_LINE_BREAK = "<br/>";
@@ -381,7 +381,7 @@ public class MvcController {
     int userOverdraftBalanceInPennies = TestudoBankRepository.getCustomerOverdraftBalanceInPennies(jdbcTemplate, userID);
 
     int reversalAmountInPennies = (int) logToReverse.get("Amount");
-    int reversalAmount = reversalAmountInPennies / 100;
+    double reversalAmount = reversalAmountInPennies / 100.0;
 
     // If transaction to reverse is a deposit, then withdraw the money out
     if (((String) logToReverse.get("Action")).toLowerCase().equals("deposit")) {
@@ -392,8 +392,9 @@ public class MvcController {
       user.setAmountToWithdraw(reversalAmount);
       submitWithdraw(user);
 
-      if (userBalanceInPennies - reversalAmountInPennies <= 0){
-        //check if deposit helped pay off overdraft balance
+      // If reversing a deposit puts customer back in overdraft
+      if (reversalAmountInPennies > userBalanceInPennies){
+        // check if the reversed deposit helped pay off overdraft balance
         List<Map<String,Object>> overdraftLogs = TestudoBankRepository.getOverdraftLogs(jdbcTemplate, userID, (String)logToReverse.get("Timestamp"));
         if (overdraftLogs.size() != 0) {
           // remove extra entry from overdraft logs
