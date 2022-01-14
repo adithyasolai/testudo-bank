@@ -376,7 +376,7 @@ public class MvcController {
     String userID = user.getUsername();
     String userPasswordAttempt = user.getPassword();
     
-    String getUserPasswordSql = String.format("SELECT Password FROM passwords WHERE CustomerID='%s';", userID);
+    String getUserPasswordSql = String.format("SELECT Password FROM Passwords WHERE CustomerID='%s';", userID);
     String userPassword = jdbcTemplate.queryForObject(getUserPasswordSql, String.class);
 
     // unsuccessful login
@@ -388,7 +388,7 @@ public class MvcController {
       return "welcome";
     }
 
-    String numberOfReversalsSql = String.format("SELECT NumFraudReversals FROM customers WHERE CustomerID='%s';", userID);
+    String numberOfReversalsSql = String.format("SELECT NumFraudReversals FROM Customers WHERE CustomerID='%s';", userID);
     int numOfReversals = jdbcTemplate.queryForObject(numberOfReversalsSql, Integer.class);
     //If there are too many disputes or you are trying to send money to yourself return 
     //to welcome page
@@ -397,7 +397,7 @@ public class MvcController {
     }
 
     //checks to see the customer you are transfering to exists
-    String getCustomerIDSql =  String.format("SELECT CustomerID FROM customers WHERE CustomerID='%s';", user.getWhoToTransfer());
+    String getCustomerIDSql =  String.format("SELECT CustomerID FROM Customers WHERE CustomerID='%s';", user.getWhoToTransfer());
     try {
       String whoToSendID = jdbcTemplate.queryForObject(getCustomerIDSql, String.class);
     }
@@ -407,11 +407,11 @@ public class MvcController {
     double userWithdrawAmt = user.getAmountToTransfer();
     int userWithdrawAmtInPennies = (int) (userWithdrawAmt * 100);
 
-    String getUserBalanceSql =  String.format("SELECT Balance FROM customers WHERE CustomerID='%s';", userID);
+    String getUserBalanceSql =  String.format("SELECT Balance FROM Customers WHERE CustomerID='%s';", userID);
     int userBalanceInPennies = jdbcTemplate.queryForObject(getUserBalanceSql, Integer.class);
     // if the balance is not positive, withdraw with interest fee
     if (userBalanceInPennies - userWithdrawAmtInPennies < 0) {
-      String getUserOverdraftBalanceSql = String.format("SELECT OverdraftBalance FROM customers WHERE CustomerID='%s';", userID);
+      String getUserOverdraftBalanceSql = String.format("SELECT OverdraftBalance FROM Customers WHERE CustomerID='%s';", userID);
       int userOverdraftBalanceInPennies = jdbcTemplate.queryForObject(getUserOverdraftBalanceSql, Integer.class);
       // subtracts the remaining balance from withdrawal amount 
       int newOverdraftAmtInPennies = userWithdrawAmtInPennies - userBalanceInPennies;
@@ -448,7 +448,7 @@ public class MvcController {
     double userDepositAmt = user.getAmountToTransfer();
     int userDepositAmtInPennies = (int) (userDepositAmt * 100);
 
-    String getUserOverdraftBalanceSql = String.format("SELECT OverdraftBalance FROM customers WHERE CustomerID='%s';", user.getWhoToTransfer());
+    String getUserOverdraftBalanceSql = String.format("SELECT OverdraftBalance FROM Customers WHERE CustomerID='%s';", user.getWhoToTransfer());
     int userOverdraftBalanceInPennies = jdbcTemplate.queryForObject(getUserOverdraftBalanceSql, Integer.class);
 
     // if the overdraft balance is positive, subtract the deposit with interest
