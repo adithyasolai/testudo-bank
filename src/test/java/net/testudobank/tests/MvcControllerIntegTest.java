@@ -1,11 +1,7 @@
 package net.testudobank.tests;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-<<<<<<< HEAD
-import static org.mockito.ArgumentMatchers.nullable;
-=======
 import static org.junit.jupiter.api.Assertions.assertTrue;
->>>>>>> befbee14c98553397342c86e642b5cc0204ed368
 
 import java.sql.SQLException;
 import java.time.LocalDateTime;
@@ -545,7 +541,7 @@ public class MvcControllerIntegTest {
     LocalDateTime timeWhenWithdrawRequestSent = MvcControllerIntegTestHelpers.fetchCurrentTimeAsLocalDateTimeNoMilliseconds();
     System.out.println("Timestamp when Withdraw Request is sent: " + timeWhenWithdrawRequestSent);
 
-    // send request to the Deposit Form's POST handler in MvcController
+    // send request to the Withdraw Form's POST handler in MvcController
     controller.submitWithdraw(customer1WithdrawFormInputs);
 
     // verify customer1's balance after the withdraw
@@ -555,10 +551,10 @@ public class MvcControllerIntegTest {
     int CUSTOMER1_EXPECTED_BALANCE_AFTER_WITHDRAW_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_EXPECTED_BALANCE_AFTER_WITHDRAW);
     assertEquals(CUSTOMER1_EXPECTED_BALANCE_AFTER_WITHDRAW_IN_PENNIES, (int)customer1Data.get("Balance"));
 
-    // sleep for 1 second to ensure the timestamps of Deposit and Reversal are different (and sortable) in TransactionHistory table
+    // sleep for 1 second to ensure the timestamps of Withdraw and Reversal are different (and sortable) in TransactionHistory table
     Thread.sleep(1000);
 
-    // Prepare Reversal Form to reverse the Deposit
+    // Prepare Reversal Form to reverse the Withdraw
     User customer1ReversalFormInputs = customer1WithdrawFormInputs;
     customer1ReversalFormInputs.setNumTransactionsAgo(1); // reverse the most recent transaction
 
@@ -706,6 +702,86 @@ public class MvcControllerIntegTest {
 
     transactionHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM TransactionHistory;");
     assertEquals(2, transactionHistoryTableData.size());
+  }
+
+  /**
+   * Verifies the transaction dispute feature on a reversal of a deposit that 
+   * causes a customer to above the overdraft limit
+   * 
+   * The initial Deposit and Withdraw should be recorded in the TransactionHistory table.
+   * 
+   * Trying to reverse a deposit that causes the customer to go over the overdraft limit
+   * should result in the customer being directed to the welcome screen and not process 
+   * the reversal.
+   * 
+   * @throws SQLException
+   * @throws ScriptException
+   * @throws InterruptedException
+   */
+  @Test
+  public void testReverseDepositExceed() throws SQLException, ScriptException, InterruptedException {
+    // initialize customer1 with a balance of $0 represented as pennies in the DB.
+    // No overdraft or numFraudReversals.
+    double CUSTOMER1_BALANCE = 0;
+    int CUSTOMER1_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_BALANCE);
+    MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER1_ID, CUSTOMER1_PASSWORD, CUSTOMER1_FIRST_NAME, CUSTOMER1_LAST_NAME, CUSTOMER1_BALANCE_IN_PENNIES);
+
+    // Prepare Deposit Form to Deposit $100 to customer 1's account.
+    double CUSTOMER1_AMOUNT_TO_DEPOSIT = 100; // user input is in dollar amount, not pennies.
+    User customer1DepositFormInputs = new User();
+    customer1DepositFormInputs.setUsername(CUSTOMER1_ID);
+    customer1DepositFormInputs.setPassword(CUSTOMER1_PASSWORD);
+    customer1DepositFormInputs.setAmountToDeposit(CUSTOMER1_AMOUNT_TO_DEPOSIT);
+
+    // store timestamp of when Deposit request is sent to verify timestamps in the TransactionHistory table later
+    LocalDateTime timeWhenDepositRequestSent = MvcControllerIntegTestHelpers.fetchCurrentTimeAsLocalDateTimeNoMilliseconds();
+    System.out.println("Timestamp when Deposit Request is sent: " + timeWhenDepositRequestSent);
+
+    // send request to the Deposit Form's POST handler in MvcController
+    controller.submitDeposit(customer1DepositFormInputs);
+ 
+     // sleep for 1 second to ensure the timestamps of Deposit, Withdraw, and Reversal are different (and sortable) in TransactionHistory table
+     Thread.sleep(1000);
+
+    // Prepare Withdraw Form to Withdraw $1050 from customer 1's account.
+    double CUSTOMER1_AMOUNT_TO_WITHDRAW = 1050; // user input is in dollar amount, not pennies.
+    User customer1WithdrawFormInputs = new User();
+    customer1WithdrawFormInputs.setUsername(CUSTOMER1_ID);
+    customer1WithdrawFormInputs.setPassword(CUSTOMER1_PASSWORD);
+    customer1WithdrawFormInputs.setAmountToWithdraw(CUSTOMER1_AMOUNT_TO_WITHDRAW);
+
+    // store timestamp of when Withdraw request is sent to verify timestamps in the TransactionHistory table later
+    LocalDateTime timeWhenWithdrawRequestSent = MvcControllerIntegTestHelpers.fetchCurrentTimeAsLocalDateTimeNoMilliseconds();
+    System.out.println("Timestamp when Withdraw Request is sent: " + timeWhenWithdrawRequestSent);
+
+    // send request to the Withdraw Form's POST handler in MvcController
+    controller.submitWithdraw(customer1WithdrawFormInputs);
+
+    // sleep for 1 second to ensure the timestamps of Deposit, Withdraw, and Reversal are different (and sortable) in TransactionHistory table
+    Thread.sleep(1000);
+
+    // Prepare Reversal Form to reverse the Deposit
+    User customer1ReversalFormInputs = customer1DepositFormInputs;
+    customer1ReversalFormInputs.setNumTransactionsAgo(0); // reverse the first transaction
+
+    // send Dispute request
+    String responsePage = controller.submitDispute(customer1ReversalFormInputs);
+    assertEquals("welcome", responsePage);
+
+
+    // fetch transaction data from the DB in chronological order
+    // the more recent transaction should be the Withdraw, and the older transaction should be the Deposit
+    List<Map<String,Object>> transactionHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM TransactionHistory ORDER BY Timestamp ASC;");
+    Map<String,Object> customer1DepositTransactionLog = transactionHistoryTableData.get(0);
+    Map<String,Object> customer1WithdrawTransactionLog = transactionHistoryTableData.get(1);
+
+    // verify that the Deposit's details are accurately logged in the TransactionHistory table
+    int CUSTOMER1_AMOUNT_TO_DEPOSIT_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_AMOUNT_TO_DEPOSIT);
+    MvcControllerIntegTestHelpers.checkTransactionLog(customer1DepositTransactionLog, timeWhenDepositRequestSent, CUSTOMER1_ID, MvcController.TRANSACTION_HISTORY_DEPOSIT_ACTION, CUSTOMER1_AMOUNT_TO_DEPOSIT_IN_PENNIES);
+
+    // verify that the Withdraw's details are accurately logged in the TransactionHistory table
+    int CUSTOMER1_AMOUNT_TO_WITHDRAW_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_AMOUNT_TO_WITHDRAW);
+    MvcControllerIntegTestHelpers.checkTransactionLog(customer1WithdrawTransactionLog, timeWhenWithdrawRequestSent, CUSTOMER1_ID, MvcController.TRANSACTION_HISTORY_WITHDRAW_ACTION, CUSTOMER1_AMOUNT_TO_WITHDRAW_IN_PENNIES);
   }
 
 }
