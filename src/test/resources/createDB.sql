@@ -26,3 +26,9 @@ CREATE TABLE TransactionHistory (
   Action varchar(255) CHECK (Action IN ('Deposit', 'Withdraw')),
   Amount int
 );
+
+CREATE TABLE TransferHistory (
+  TransferFrom varchar(255),
+  TransferTo varchar(255),
+  Amount int
+);
