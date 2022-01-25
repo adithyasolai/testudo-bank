@@ -406,9 +406,16 @@ public class MvcController {
         // check if the reversed deposit helped pay off overdraft balance
         String dateTime = SQL_DATETIME_FORMATTER.format(convertLocalDateTime((LocalDateTime)logToReverse.get("Timestamp")));
         List<Map<String,Object>> overdraftLogs = TestudoBankRepository.getOverdraftLogs(jdbcTemplate, userID, dateTime);
+
+        // fetch updated overdraft balance and correct interest rate
+        double updatedOverdraftBalanceInPennies = TestudoBankRepository.getCustomerOverdraftBalanceInPennies(jdbcTemplate, userID);
+        double newOverdraftBalanceInPennies = updatedOverdraftBalanceInPennies / 1.02;
+        int newOverdraftBalance = (int)newOverdraftBalanceInPennies;
+
         if (overdraftLogs.size() != 0) {
           // remove extra entry from overdraft logs
           TestudoBankRepository.deleteRowFromOverdraftLogsTable(jdbcTemplate, userID, dateTime);
+          TestudoBankRepository.setCustomerOverdraftBalance(jdbcTemplate, userID, newOverdraftBalance);
         }
       } 
     } else { // Case when reversing a withdraw, deposit the money instead
