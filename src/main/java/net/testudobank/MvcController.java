@@ -375,97 +375,82 @@ public class MvcController {
   public String submitTransfer(@ModelAttribute("user") User user) {
     String userID = user.getUsername();
     String userPasswordAttempt = user.getPassword();
+    String userPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, userID);
     
-    String getUserPasswordSql = String.format("SELECT Password FROM Passwords WHERE CustomerID='%s';", userID);
-    String userPassword = jdbcTemplate.queryForObject(getUserPasswordSql, String.class);
+    /// Invalid Input/State Handling ///
 
     // unsuccessful login
     if (userPasswordAttempt.equals(userPassword) == false) {
       return "welcome";
     }
-    // transfer amount must be positive
-    if (user.getAmountToTransfer() < 0){
-      return "welcome";
-    }
 
-    String numberOfReversalsSql = String.format("SELECT NumFraudReversals FROM Customers WHERE CustomerID='%s';", userID);
-    int numOfReversals = jdbcTemplate.queryForObject(numberOfReversalsSql, Integer.class);
-    //If there are too many disputes or you are trying to send money to yourself return 
-    //to welcome page
+    //If a customer already has too many reversals, or they try to send money to themselves, transfer fails.
+    int numOfReversals = TestudoBankRepository.getCustomerNumberOfReversals(jdbcTemplate, userID);
     if (numOfReversals >= MAX_DISPUTES || user.getWhoToTransfer().equals(userID)) {
       return "welcome";
     }
 
-    //checks to see the customer you are transfering to exists
-    String getCustomerIDSql =  String.format("SELECT CustomerID FROM Customers WHERE CustomerID='%s';", user.getWhoToTransfer());
-    try {
-      String whoToSendID = jdbcTemplate.queryForObject(getCustomerIDSql, String.class);
-    }
-    catch(Exception e) {
+    // Negative transfer amount is not allowed
+    double userDepositAmt = user.getAmountToTransfer();
+    if (userDepositAmt < 0) {
       return "welcome";
     }
+
+    //checks to see the customer you are transfering to exists
+    TestudoBankRepository.doesCustomerExist(jdbcTemplate, user.getWhoToTransfer());
+    
     double userWithdrawAmt = user.getAmountToTransfer();
-    int userWithdrawAmtInPennies = (int) (userWithdrawAmt * 100);
+    int userWithdrawAmtInPennies = convertDollarsToPennies(userWithdrawAmt);
 
-    String getUserBalanceSql =  String.format("SELECT Balance FROM Customers WHERE CustomerID='%s';", userID);
-    int userBalanceInPennies = jdbcTemplate.queryForObject(getUserBalanceSql, Integer.class);
+    //Get the sender's balance in pennies.
+    int userBalanceInPennies = TestudoBankRepository.getCustomerBalanceInPennies(jdbcTemplate, userID);
+    
     // if the balance is not positive, withdraw with interest fee
-    if (userBalanceInPennies - userWithdrawAmtInPennies < 0) {
-      String getUserOverdraftBalanceSql = String.format("SELECT OverdraftBalance FROM Customers WHERE CustomerID='%s';", userID);
-      int userOverdraftBalanceInPennies = jdbcTemplate.queryForObject(getUserOverdraftBalanceSql, Integer.class);
-      // subtracts the remaining balance from withdrawal amount 
-      int newOverdraftAmtInPennies = userWithdrawAmtInPennies - userBalanceInPennies;
+    if (userWithdrawAmtInPennies > userBalanceInPennies) {
+      int userOverdraftBalanceInPennies = TestudoBankRepository.getCustomerOverdraftBalanceInPennies(jdbcTemplate, userID);
 
-      if (newOverdraftAmtInPennies > MAX_OVERDRAFT_IN_PENNIES) {
+      // subtracts the remaining balance from withdrawal amount 
+      int excessWithdrawAmtInPennies = userWithdrawAmtInPennies - userBalanceInPennies;
+      int newOverdraftIncreaseAmtAfterInterestInPennies = (int) (excessWithdrawAmtInPennies * INTEREST_RATE);
+      if (newOverdraftIncreaseAmtAfterInterestInPennies > MAX_OVERDRAFT_IN_PENNIES) {
         return "welcome";
       }
 
       // factor in the existing overdraft balance before executing another overdraft
-      
-      if (newOverdraftAmtInPennies + userOverdraftBalanceInPennies > MAX_OVERDRAFT_IN_PENNIES) {
+      if (newOverdraftIncreaseAmtAfterInterestInPennies + userOverdraftBalanceInPennies > MAX_OVERDRAFT_IN_PENNIES) {
         return "welcome";
       }
 
       // this is a valid overdraft, so we can set Balance column to 0
-      String updateBalanceSql = String.format("UPDATE Customers SET Balance = %d WHERE CustomerID='%s';", 0, userID);
-      jdbcTemplate.update(updateBalanceSql);
+      TestudoBankRepository.setCustomerBalance(jdbcTemplate, userID, 0);
 
-      int newOverdraftAmtAfterInterestInPennies = (int)(newOverdraftAmtInPennies * INTEREST_RATE);
-      int cumulativeOverdraftInPennies = userOverdraftBalanceInPennies + newOverdraftAmtAfterInterestInPennies;
+      //Set the overdraft balance to the previous overdraft + new overdraft
+      int cumulativeOverdraftInPennies = userOverdraftBalanceInPennies + newOverdraftIncreaseAmtAfterInterestInPennies;
 
-      String overDraftBalanceUpdateSql = String.format("UPDATE Customers SET OverdraftBalance = %d WHERE CustomerID='%s';", cumulativeOverdraftInPennies, userID);
-      jdbcTemplate.update(overDraftBalanceUpdateSql);
-      System.out.println(overDraftBalanceUpdateSql);
+      // increase overdraft balance by the withdraw amount after interest
+      TestudoBankRepository.setCustomerOverdraftBalance(jdbcTemplate, userID, cumulativeOverdraftInPennies);
+
 
     }
-    // non-overdraft case
-    else{
-      String balanceDecreaseSql = String.format("UPDATE Customers SET Balance = Balance - %d WHERE CustomerID='%s';", userWithdrawAmtInPennies, userID);
-      System.out.println(balanceDecreaseSql);
-      jdbcTemplate.update(balanceDecreaseSql);
+    else { // simple, non-overdraft withdraw case
+      TestudoBankRepository.decreaseCustomerBalance(jdbcTemplate, userID, userWithdrawAmtInPennies);
     }
 
-    double userDepositAmt = user.getAmountToTransfer();
-    int userDepositAmtInPennies = (int) (userDepositAmt * 100);
+    int userDepositAmtInPennies = convertDollarsToPennies(userDepositAmt);
 
-    String getUserOverdraftBalanceSql = String.format("SELECT OverdraftBalance FROM Customers WHERE CustomerID='%s';", user.getWhoToTransfer());
-    int userOverdraftBalanceInPennies = jdbcTemplate.queryForObject(getUserOverdraftBalanceSql, Integer.class);
+    int userOverdraftBalanceInPennies = TestudoBankRepository.getCustomerOverdraftBalanceInPennies(jdbcTemplate, user.getWhoToTransfer());
 
     // if the overdraft balance is positive, subtract the deposit with interest
     if (userOverdraftBalanceInPennies > 0) {
       int newOverdraftBalanceInPennies = Math.max(userOverdraftBalanceInPennies - userDepositAmtInPennies, 0);
       String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date());
-      String overdraftLogsInsertSql = String.format("INSERT INTO OverdraftLogs VALUES ('%s', '%s', %d, %d, %d);", 
-                                                    user.getWhoToTransfer(),
-                                                    currentTime,
-                                                    userDepositAmtInPennies,
-                                                    userOverdraftBalanceInPennies,
-                                                    newOverdraftBalanceInPennies);
-      jdbcTemplate.update(overdraftLogsInsertSql);
+      // Adds withdraw to transaction history
+      TestudoBankRepository.insertRowToOverdraftLogsTable(jdbcTemplate, user.getWhoToTransfer(), currentTime, userDepositAmtInPennies, userOverdraftBalanceInPennies, newOverdraftBalanceInPennies);
 
       // updating customers table
-      String overdraftBalanceUpdateSql = String.format("UPDATE Customers SET OverdraftBalance = %d WHERE CustomerID='%s';", newOverdraftBalanceInPennies, user.getWhoToTransfer());
-      jdbcTemplate.update(overdraftBalanceUpdateSql);
+      TestudoBankRepository.setCustomerOverdraftBalance(jdbcTemplate, user.getWhoToTransfer(), newOverdraftBalanceInPennies);
+      
+      // update Model so that View can access new main balance, overdraft balance, and logs
       updateAccountInfo(user);
     }
 
@@ -480,22 +465,15 @@ public class MvcController {
       balanceIncreaseAmtInPennies = userDepositAmtInPennies;
     }
 
-    String balanceIncreaseSql = String.format("UPDATE Customers SET Balance = Balance + %d WHERE CustomerID='%s';", balanceIncreaseAmtInPennies, user.getWhoToTransfer());
-    System.out.println(balanceIncreaseSql); // Print executed SQL update for debugging
-    jdbcTemplate.update(balanceIncreaseSql);
-
+    //Increase the recipient's balance.
+    TestudoBankRepository.increaseCustomerBalance(jdbcTemplate, user.getWhoToTransfer(), balanceIncreaseAmtInPennies);
+    
     // Inserting transfer into transfer history for both customers
-    String transferHistoryToSql = String.format("INSERT INTO TransferHistory VALUES ('%s', '%s', %d);",
-                                                    userID,
-                                                    user.getWhoToTransfer(),
-                                                    user.getAmountToTransfer() * 100);
-    jdbcTemplate.update(transferHistoryToSql);
+    TestudoBankRepository.insertRowToTransferLogsTable(jdbcTemplate, userID, user.getWhoToTransfer(), user.getAmountToTransfer());
     updateAccountInfo(user);
 
     return "account_info";
   }
-
-
 
 
   /**
