@@ -131,18 +131,18 @@ public class MvcController {
       transactionHistoryOutput += transactionLog + HTML_LINE_BREAK;
     }
 
-    // String getTransferLogsToSql = String.format("SELECT * FROM TransferHistory WHERE TransferFrom='%s';", user.getUsername());
-    // List<Map<String,Object>> transferLogsTo = jdbcTemplate.queryForList(getTransferLogsToSql);
-    // String getTransferLogsFromSql = String.format("SELECT * FROM TransferHistory WHERE TransferTo='%s';", user.getUsername());
-    // List<Map<String,Object>> transferLogsFrom = jdbcTemplate.queryForList(getTransferLogsFromSql);
-    // String transferLogsToOutput = HTML_LINE_BREAK;
-    // for(Map<String, Object> transferLogTo : transferLogsTo){
-    //   transferLogsToOutput += transferLogTo + HTML_LINE_BREAK;
-    // }
-    // String transferLogsFromOutput = HTML_LINE_BREAK;
-    // for(Map<String, Object> transferLogFrom : transferLogsFrom){
-    //   transferLogsFromOutput += transferLogFrom + HTML_LINE_BREAK;
-    // }
+    String getTransferLogsToSql = String.format("SELECT * FROM TransferHistory WHERE TransferFrom='%s';", user.getUsername());
+    List<Map<String,Object>> transferLogsTo = jdbcTemplate.queryForList(getTransferLogsToSql);
+    String getTransferLogsFromSql = String.format("SELECT * FROM TransferHistory WHERE TransferTo='%s';", user.getUsername());
+    List<Map<String,Object>> transferLogsFrom = jdbcTemplate.queryForList(getTransferLogsFromSql);
+    String transferLogsToOutput = HTML_LINE_BREAK;
+    for(Map<String, Object> transferLogTo : transferLogsTo){
+      transferLogsToOutput += transferLogTo + HTML_LINE_BREAK;
+    }
+    String transferLogsFromOutput = HTML_LINE_BREAK;
+    for(Map<String, Object> transferLogFrom : transferLogsFrom){
+      transferLogsFromOutput += transferLogFrom + HTML_LINE_BREAK;
+    }
 
     String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance FROM Customers WHERE CustomerID='%s';", user.getUsername());
     List<Map<String,Object>> queryResults = jdbcTemplate.queryForList(getUserNameAndBalanceAndOverDraftBalanceSql);
@@ -155,7 +155,7 @@ public class MvcController {
     user.setOverDraftBalance(overDraftBalance/100);
     user.setLogs(logs);
     user.setTransactionHist(transactionHistoryOutput);
-    //user.setTransferLogs(transferLogsToOutput + transferLogsFromOutput);
+    user.setTransferLogs(transferLogsToOutput + transferLogsFromOutput);
   }
 
   // Converts dollar amounts in frontend to penny representation in backend MySQL DB
@@ -348,7 +348,7 @@ public class MvcController {
    * the user's transfer form input.
    * 
    * @param model
-   * @return "dispute_form" page
+   * @return "transfer_form" page
    */
   @GetMapping("/transfer")
 	public String showTransferForm(Model model) {
@@ -368,7 +368,7 @@ public class MvcController {
    * If the password attempt is incorrect, the user is redirected to the "welcome" page.
    * 
    * @param user
-   * @return "account_info" page if login successful. Otherwise, redirect to "welcome" page.
+   * @return "account_info" page if the transfer takes place successfully.
    */
 
   @PostMapping("/transfer")
@@ -391,26 +391,31 @@ public class MvcController {
     }
 
     // Negative transfer amount is not allowed
-    double userDepositAmt = user.getAmountToTransfer();
-    if (userDepositAmt < 0) {
+    double transferAmt = user.getAmountToTransfer();
+    if (transferAmt < 0) {
       return "welcome";
     }
 
     //checks to see the customer you are transfering to exists
-    TestudoBankRepository.doesCustomerExist(jdbcTemplate, user.getWhoToTransfer());
-    
-    double userWithdrawAmt = user.getAmountToTransfer();
-    int userWithdrawAmtInPennies = convertDollarsToPennies(userWithdrawAmt);
+    String getCustomerIDSql =  String.format("SELECT CustomerID FROM Customers WHERE CustomerID='%s';", user.getWhoToTransfer());
+    try {
+      jdbcTemplate.queryForObject(getCustomerIDSql, String.class);
+    }
+    catch(Exception e) {
+      return "welcome";
+    }    
+    double senderWithdrawAmt = user.getAmountToTransfer();
+    int senderWithdrawAmtInPennies = convertDollarsToPennies(senderWithdrawAmt);
 
     //Get the sender's balance in pennies.
     int userBalanceInPennies = TestudoBankRepository.getCustomerBalanceInPennies(jdbcTemplate, userID);
     
     // if the balance is not positive, withdraw with interest fee
-    if (userWithdrawAmtInPennies > userBalanceInPennies) {
+    if (senderWithdrawAmtInPennies > userBalanceInPennies) {
       int userOverdraftBalanceInPennies = TestudoBankRepository.getCustomerOverdraftBalanceInPennies(jdbcTemplate, userID);
 
       // subtracts the remaining balance from withdrawal amount 
-      int excessWithdrawAmtInPennies = userWithdrawAmtInPennies - userBalanceInPennies;
+      int excessWithdrawAmtInPennies = senderWithdrawAmtInPennies - userBalanceInPennies;
       int newOverdraftIncreaseAmtAfterInterestInPennies = (int) (excessWithdrawAmtInPennies * INTEREST_RATE);
       if (newOverdraftIncreaseAmtAfterInterestInPennies > MAX_OVERDRAFT_IN_PENNIES) {
         return "welcome";
@@ -433,19 +438,19 @@ public class MvcController {
 
     }
     else { // simple, non-overdraft withdraw case
-      TestudoBankRepository.decreaseCustomerBalance(jdbcTemplate, userID, userWithdrawAmtInPennies);
+      TestudoBankRepository.decreaseCustomerBalance(jdbcTemplate, userID, senderWithdrawAmtInPennies);
     }
 
-    int userDepositAmtInPennies = convertDollarsToPennies(userDepositAmt);
+    int transferAmtInPennies = convertDollarsToPennies(transferAmt);
 
     int userOverdraftBalanceInPennies = TestudoBankRepository.getCustomerOverdraftBalanceInPennies(jdbcTemplate, user.getWhoToTransfer());
 
     // if the overdraft balance is positive, subtract the deposit with interest
     if (userOverdraftBalanceInPennies > 0) {
-      int newOverdraftBalanceInPennies = Math.max(userOverdraftBalanceInPennies - userDepositAmtInPennies, 0);
+      int newOverdraftBalanceInPennies = Math.max(userOverdraftBalanceInPennies - transferAmtInPennies, 0);
       String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date());
       // Adds withdraw to transaction history
-      TestudoBankRepository.insertRowToOverdraftLogsTable(jdbcTemplate, user.getWhoToTransfer(), currentTime, userDepositAmtInPennies, userOverdraftBalanceInPennies, newOverdraftBalanceInPennies);
+      TestudoBankRepository.insertRowToOverdraftLogsTable(jdbcTemplate, user.getWhoToTransfer(), currentTime, transferAmtInPennies, userOverdraftBalanceInPennies, newOverdraftBalanceInPennies);
 
       // updating customers table
       TestudoBankRepository.setCustomerOverdraftBalance(jdbcTemplate, user.getWhoToTransfer(), newOverdraftBalanceInPennies);
@@ -457,12 +462,12 @@ public class MvcController {
     // if in the overdraft case and there is excess deposit, deposit the excess amount.
     // otherwise, this is a non-overdraft case, so just use the userDepositAmt.
     int balanceIncreaseAmtInPennies = 0;
-    if (userOverdraftBalanceInPennies > 0 && userDepositAmtInPennies > userOverdraftBalanceInPennies) {
-      balanceIncreaseAmtInPennies = userDepositAmtInPennies - userOverdraftBalanceInPennies;
-    } else if (userOverdraftBalanceInPennies > 0 && userDepositAmtInPennies <= userOverdraftBalanceInPennies) {
+    if (userOverdraftBalanceInPennies > 0 && transferAmtInPennies > userOverdraftBalanceInPennies) {
+      balanceIncreaseAmtInPennies = transferAmtInPennies - userOverdraftBalanceInPennies;
+    } else if (userOverdraftBalanceInPennies > 0 && transferAmtInPennies <= userOverdraftBalanceInPennies) {
       balanceIncreaseAmtInPennies = 0; // overdraft case, but no excess deposit. don't increase balance column.
     } else {
-      balanceIncreaseAmtInPennies = userDepositAmtInPennies;
+      balanceIncreaseAmtInPennies = transferAmtInPennies;
     }
 
     //Increase the recipient's balance.

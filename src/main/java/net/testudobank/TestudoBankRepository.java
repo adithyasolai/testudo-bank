@@ -48,15 +48,6 @@ public class TestudoBankRepository {
     return overdraftLogs;
   }
 
-  public static String doesCustomerExist(JdbcTemplate jdbcTemplate, String customerID) { 
-    String getCustomerIDSql =  String.format("SELECT CustomerID FROM Customers WHERE CustomerID='%s';", customerID);
-    try {
-      return jdbcTemplate.queryForObject(getCustomerIDSql, String.class);
-    }
-    catch(Exception e) {
-      return "welcome";
-    }
-  }
 
   public static void insertRowToTransactionHistoryTable(JdbcTemplate jdbcTemplate, String customerID, String timestamp, String action, int amtInPennies) {
     String insertRowToTransactionHistorySql = String.format("INSERT INTO TransactionHistory VALUES ('%s', '%s', '%s', %d);",
