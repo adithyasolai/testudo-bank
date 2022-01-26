@@ -898,10 +898,6 @@ public class MvcControllerIntegTest {
     customer1DepositFormInputs.setPassword(CUSTOMER1_PASSWORD);
     customer1DepositFormInputs.setAmountToDeposit(CUSTOMER1_AMOUNT_TO_DEPOSIT);
 
-    // store timestamp of when Deposit request is sent to verify timestamps in the TransactionHistory table later
-    LocalDateTime timeWhenDepositRequestSent = MvcControllerIntegTestHelpers.fetchCurrentTimeAsLocalDateTimeNoMilliseconds();
-    System.out.println("Timestamp when Deposit Request is sent: " + timeWhenDepositRequestSent);
-
     // send request to the Deposit Form's POST handler in MvcController
     controller.submitDeposit(customer1DepositFormInputs);
  
