@@ -411,13 +411,12 @@ public class MvcController {
         // fetch updated overdraft balance with extra interest rate applied
         double updatedOverdraftBalanceInPennies = TestudoBankRepository.getCustomerOverdraftBalanceInPennies(jdbcTemplate, userID);
         // reverse extra application of interest rate since customer was already in overdraft
-        double newOverdraftBalanceInPennies = updatedOverdraftBalanceInPennies / 1.02;
-        int newOverdraftBalance = (int)newOverdraftBalanceInPennies;
+        int newOverdraftBalanceInPennies = (int) (updatedOverdraftBalanceInPennies / 1.02);
 
         if (overdraftLogs.size() != 0) {
           // remove extra entry from overdraft logs
           TestudoBankRepository.deleteRowFromOverdraftLogsTable(jdbcTemplate, userID, datetimeOfReversedDeposit);
-          TestudoBankRepository.setCustomerOverdraftBalance(jdbcTemplate, userID, newOverdraftBalance);
+          TestudoBankRepository.setCustomerOverdraftBalance(jdbcTemplate, userID, newOverdraftBalanceInPennies);
         }
       } 
     } else { // Case when reversing a withdraw, deposit the money instead
