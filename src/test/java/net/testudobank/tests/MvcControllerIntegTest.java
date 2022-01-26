@@ -706,7 +706,7 @@ public class MvcControllerIntegTest {
 
   /**
    * Verifies the transaction dispute feature on a reversal of a deposit that 
-   * causes a customer to above the overdraft limit.
+   * causes a customer to exceed the overdraft limit.
    * 
    * The initial Deposit and Withdraw should be recorded in the TransactionHistory table.
    * 
