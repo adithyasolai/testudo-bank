@@ -8,6 +8,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.Map;
+import java.util.Date;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -149,7 +152,13 @@ public class MvcController {
     return (int) (dollarAmount * 100);
   }
 
-  //// HTML POST HANDLERS ////
+  // Converts LocalDateTime to Date variable
+  private static Date convertLocalDateTimeToDate(LocalDateTime ldt){
+    Date dateTime = Date.from(ldt.atZone(ZoneId.systemDefault()).toInstant());
+    return dateTime;
+  }
+
+  // HTML POST HANDLERS ////
 
   /**
    * HTML POST request handler that uses user input from Login Form page to determine 
@@ -395,10 +404,19 @@ public class MvcController {
       // If reversing a deposit puts customer back in overdraft
       if (reversalAmountInPennies > userBalanceInPennies){
         // check if the reversed deposit helped pay off overdraft balance
-        List<Map<String,Object>> overdraftLogs = TestudoBankRepository.getOverdraftLogs(jdbcTemplate, userID, (String)logToReverse.get("Timestamp"));
+        // if it did, do not re-apply the interest rate after the reversal of the deposit since the customer was already in overdraft
+        String datetimeOfReversedDeposit = SQL_DATETIME_FORMATTER.format(convertLocalDateTimeToDate((LocalDateTime)logToReverse.get("Timestamp")));
+        List<Map<String,Object>> overdraftLogs = TestudoBankRepository.getOverdraftLogs(jdbcTemplate, userID, datetimeOfReversedDeposit);
+
+        // fetch updated overdraft balance with extra interest rate applied
+        double updatedOverdraftBalanceInPennies = TestudoBankRepository.getCustomerOverdraftBalanceInPennies(jdbcTemplate, userID);
+        // reverse extra application of interest rate since customer was already in overdraft
+        int newOverdraftBalanceInPennies = (int) (updatedOverdraftBalanceInPennies / 1.02);
+
         if (overdraftLogs.size() != 0) {
           // remove extra entry from overdraft logs
-          TestudoBankRepository.deleteRowFromOverdraftLogsTable(jdbcTemplate, userID, (String)logToReverse.get("Timestamp"));
+          TestudoBankRepository.deleteRowFromOverdraftLogsTable(jdbcTemplate, userID, datetimeOfReversedDeposit);
+          TestudoBankRepository.setCustomerOverdraftBalance(jdbcTemplate, userID, newOverdraftBalanceInPennies);
         }
       } 
     } else { // Case when reversing a withdraw, deposit the money instead
