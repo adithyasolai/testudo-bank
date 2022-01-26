@@ -760,6 +760,12 @@ public class MvcControllerIntegTest {
     // sleep for 1 second to ensure the timestamps of Deposit, Withdraw, and Reversal are different (and sortable) in TransactionHistory table
     Thread.sleep(1000);
 
+    // fetch transaction data from the DB in chronological order
+    List<Map<String,Object>> transactionHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM TransactionHistory ORDER BY Timestamp ASC;");
+
+    // verify that the Deposit & Withdraw are the only logs in TransactionHistory table
+    assertEquals(2, transactionHistoryTableData.size());
+
     // Prepare Reversal Form to reverse the Deposit
     User customer1ReversalFormInputs = customer1DepositFormInputs;
     customer1ReversalFormInputs.setNumTransactionsAgo(2); // reverse the first transaction
@@ -768,11 +774,11 @@ public class MvcControllerIntegTest {
     String responsePage = controller.submitDispute(customer1ReversalFormInputs);
     assertEquals("welcome", responsePage);
 
-    // fetch transaction data from the DB in chronological order
+    // re-fetch transaction data from the DB in chronological order
     // the more recent transaction should be the Withdraw, and the older transaction should be the Deposit
-    List<Map<String,Object>> transactionHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM TransactionHistory ORDER BY Timestamp ASC;");
+    transactionHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM TransactionHistory ORDER BY Timestamp ASC;");
 
-    // verify that the Deposit is the only log in TransactionHistory table
+    // verify that the original Deposit & Withdraw are still the only logs in TransactionHistory table
     assertEquals(2, transactionHistoryTableData.size());
 
     Map<String,Object> customer1DepositTransactionLog = transactionHistoryTableData.get(0);
