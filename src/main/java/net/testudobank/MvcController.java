@@ -408,9 +408,9 @@ public class MvcController {
         String datetimeOfReversedDeposit = SQL_DATETIME_FORMATTER.format(convertLocalDateTimeToDate((LocalDateTime)logToReverse.get("Timestamp")));
         List<Map<String,Object>> overdraftLogs = TestudoBankRepository.getOverdraftLogs(jdbcTemplate, userID, datetimeOfReversedDeposit);
 
-        // reverse extra application of interest rate since customer was already in overdraft
         // fetch updated overdraft balance with extra interest rate applied
         double updatedOverdraftBalanceInPennies = TestudoBankRepository.getCustomerOverdraftBalanceInPennies(jdbcTemplate, userID);
+        // reverse extra application of interest rate since customer was already in overdraft
         double newOverdraftBalanceInPennies = updatedOverdraftBalanceInPennies / 1.02;
         int newOverdraftBalance = (int)newOverdraftBalanceInPennies;
 
