@@ -404,10 +404,12 @@ public class MvcController {
       // If reversing a deposit puts customer back in overdraft
       if (reversalAmountInPennies > userBalanceInPennies){
         // check if the reversed deposit helped pay off overdraft balance
+        // if it did, do not re-apply the interest rate after the reversal of the deposit since the customer was already in overdraft
         String datetimeOfReversedDeposit = SQL_DATETIME_FORMATTER.format(convertLocalDateTimeToDate((LocalDateTime)logToReverse.get("Timestamp")));
         List<Map<String,Object>> overdraftLogs = TestudoBankRepository.getOverdraftLogs(jdbcTemplate, userID, datetimeOfReversedDeposit);
 
-        // fetch updated overdraft balance and correct interest rate
+        // reverse extra application of interest rate since customer was already in overdraft
+        // fetch updated overdraft balance with extra interest rate applied
         double updatedOverdraftBalanceInPennies = TestudoBankRepository.getCustomerOverdraftBalanceInPennies(jdbcTemplate, userID);
         double newOverdraftBalanceInPennies = updatedOverdraftBalanceInPennies / 1.02;
         int newOverdraftBalance = (int)newOverdraftBalanceInPennies;
