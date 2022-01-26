@@ -798,7 +798,7 @@ public class MvcControllerIntegTest {
    * @throws InterruptedException
    */
   @Test
-  public void testReverseDepositOverdraft() throws SQLException, ScriptException, InterruptedException {
+  public void testReverseDepositCausesOverdraft() throws SQLException, ScriptException, InterruptedException {
     // initialize customer1 with a balance of $0 represented as pennies in the DB.
     // No overdraft or numFraudReversals.
     double CUSTOMER1_BALANCE = 0;
