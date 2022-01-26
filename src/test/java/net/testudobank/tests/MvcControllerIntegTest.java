@@ -768,10 +768,13 @@ public class MvcControllerIntegTest {
     String responsePage = controller.submitDispute(customer1ReversalFormInputs);
     assertEquals("welcome", responsePage);
 
-
     // fetch transaction data from the DB in chronological order
     // the more recent transaction should be the Withdraw, and the older transaction should be the Deposit
     List<Map<String,Object>> transactionHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM TransactionHistory ORDER BY Timestamp ASC;");
+
+    // verify that the Deposit is the only log in TransactionHistory table
+    assertEquals(2, transactionHistoryTableData.size());
+
     Map<String,Object> customer1DepositTransactionLog = transactionHistoryTableData.get(0);
     Map<String,Object> customer1WithdrawTransactionLog = transactionHistoryTableData.get(1);
 
