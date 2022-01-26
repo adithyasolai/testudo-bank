@@ -153,7 +153,7 @@ public class MvcController {
   }
 
   // Converts LocalDateTime to Date variable
-  private static Date convertLocalDateTime(LocalDateTime ldt){
+  private static Date convertLocalDateTimeToDate(LocalDateTime ldt){
     Date dateTime = Date.from(ldt.atZone(ZoneId.systemDefault()).toInstant());
     return dateTime;
   }
@@ -404,7 +404,7 @@ public class MvcController {
       // If reversing a deposit puts customer back in overdraft
       if (reversalAmountInPennies > userBalanceInPennies){
         // check if the reversed deposit helped pay off overdraft balance
-        String dateTime = SQL_DATETIME_FORMATTER.format(convertLocalDateTime((LocalDateTime)logToReverse.get("Timestamp")));
+        String dateTime = SQL_DATETIME_FORMATTER.format(convertLocalDateTimeToDate((LocalDateTime)logToReverse.get("Timestamp")));
         List<Map<String,Object>> overdraftLogs = TestudoBankRepository.getOverdraftLogs(jdbcTemplate, userID, dateTime);
 
         // fetch updated overdraft balance and correct interest rate
