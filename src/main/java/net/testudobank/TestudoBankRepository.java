@@ -48,6 +48,7 @@ public class TestudoBankRepository {
     return overdraftLogs;
   }
 
+
   public static void insertRowToTransactionHistoryTable(JdbcTemplate jdbcTemplate, String customerID, String timestamp, String action, int amtInPennies) {
     String insertRowToTransactionHistorySql = String.format("INSERT INTO TransactionHistory VALUES ('%s', '%s', '%s', %d);",
                                                               customerID,
@@ -100,6 +101,14 @@ public class TestudoBankRepository {
   public static void deleteRowFromOverdraftLogsTable(JdbcTemplate jdbcTemplate, String customerID, String timestamp) {
     String deleteRowFromOverdraftLogsSql = String.format("DELETE from OverdraftLogs where CustomerID='%s' AND Timestamp='%s';", customerID, timestamp);
     jdbcTemplate.update(deleteRowFromOverdraftLogsSql);
+  }
+
+  public static void insertRowToTransferLogsTable(JdbcTemplate jdbcTemplate, String customerID, String recipientID, int transferAmount) { 
+    String transferHistoryToSql = String.format("INSERT INTO TransferHistory VALUES ('%s', '%s', %d);",
+                                                    customerID,
+                                                    recipientID,
+                                                    transferAmount * 100);
+    jdbcTemplate.update(transferHistoryToSql);
   }
 
 
