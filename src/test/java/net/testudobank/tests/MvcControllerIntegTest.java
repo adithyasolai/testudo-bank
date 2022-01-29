@@ -38,7 +38,7 @@ public class MvcControllerIntegTest {
 
   // Spins up small MySQL DB in local Docker container
   @Container
-  public static MySQLContainer db = new MySQLContainer<>("mysql:5.5")
+  public static MySQLContainer db = new MySQLContainer<>("mysql:5.7.37")
     .withUsername("root")
     .withPassword("db_password")
     .withDatabaseName("testudo_bank");
