@@ -571,8 +571,8 @@ public class MvcController {
     // TestudoBankRepository.increaseCustomerBalance(jdbcTemplate, user.getWhoToTransfer(), balanceIncreaseAmtInPennies);
     
     // Inserting transfer into transfer history for both customers
-    TestudoBankRepository.insertRowToTransferLogsTable(jdbcTemplate, userID, user.getWhoToTransfer(), user.getAmountToTransfer());
-    updateAccountInfo(user);
+    TestudoBankRepository.insertRowToTransferLogsTable(jdbcTemplate, sendUserID, sendUser.getWhoToTransfer(), sendUser.getAmountToTransfer());
+    updateAccountInfo(sendUser);
 
     return "account_info";
   }
