@@ -34,7 +34,8 @@ public class MvcController {
   private final static String HTML_LINE_BREAK = "<br/>";
   public static String TRANSACTION_HISTORY_DEPOSIT_ACTION = "Deposit";
   public static String TRANSACTION_HISTORY_WITHDRAW_ACTION = "Withdraw";
-  public static String TRANSACTION_HISTORY_TRANSFER_ACTION = "Transfer";
+  public static String TRANSACTION_HISTORY_TRANSFER_SEND_ACTION = "TransferSend";
+  public static String TRANSACTION_HISTORY_TRANSFER_RECIEVE_ACTION = "TransferRecieve";
 
   public MvcController(@Autowired JdbcTemplate jdbcTemplate) {
     this.jdbcTemplate = jdbcTemplate;
@@ -473,6 +474,8 @@ public class MvcController {
     String sendUserID = sendUser.getUsername();
     String sendUserPasswordAttempt = sendUser.getPassword();
     String sendUserPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, sendUserID);
+
+    String recieveUserID = recieveUser.getUsername();
     
     /// Invalid Input/State Handling ///
 
@@ -494,6 +497,7 @@ public class MvcController {
 
     // negative transfer amount is not allowed
     double userDepositAmt = sendUser.getAmountToTransfer();
+    int userDepositAmtInPennies = convertDollarsToPennies(userDepositAmt);
     if (userDepositAmt < 0) {
       return "welcome";
     }
@@ -502,6 +506,7 @@ public class MvcController {
     TestudoBankRepository.doesCustomerExist(jdbcTemplate, sendUser.getWhoToTransfer());
     
     double userWithdrawAmt = sendUser.getAmountToTransfer();
+    int userWithdrawAmtInPennies = convertDollarsToPennies(userWithdrawAmt);
     String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date()); // use same timestamp for all logs created by this deposit
 
     sendUser.setAmountToWithdraw(userWithdrawAmt);
@@ -511,7 +516,8 @@ public class MvcController {
     submitDeposit(recieveUser);
 
     // Inserting transfer into transaction log history
-    TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, sendUserID, currentTime, TRANSACTION_HISTORY_DEPOSIT_ACTION, sendUser.getAmountToTransfer());
+    TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, sendUserID, currentTime, TRANSACTION_HISTORY_TRANSFER_SEND_ACTION, userWithdrawAmtInPennies);
+    TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, recieveUserID, currentTime, TRANSACTION_HISTORY_TRANSFER_RECIEVE_ACTION, userDepositAmtInPennies);
 
     // Inserting transfer into transfer history for both customers
     TestudoBankRepository.insertRowToTransferLogsTable(jdbcTemplate, sendUserID, sendUser.getWhoToTransfer(), currentTime, sendUser.getAmountToTransfer());
