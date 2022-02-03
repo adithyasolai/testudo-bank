@@ -61,6 +61,7 @@ create_transferhistory_table_sql = '''
 CREATE TABLE TransferHistory (
   TransferFrom varchar(255),
   TransferTo varchar(255),
+  Timestamp DATETIME,
   Amount int
 );
 '''
