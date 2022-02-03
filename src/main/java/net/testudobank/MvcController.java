@@ -514,7 +514,7 @@ public class MvcController {
     TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, sendUserID, currentTime, TRANSACTION_HISTORY_DEPOSIT_ACTION, sendUser.getAmountToTransfer());
 
     // Inserting transfer into transfer history for both customers
-    TestudoBankRepository.insertRowToTransferLogsTable(jdbcTemplate, sendUserID, sendUser.getWhoToTransfer(), sendUser.getAmountToTransfer());
+    TestudoBankRepository.insertRowToTransferLogsTable(jdbcTemplate, sendUserID, sendUser.getWhoToTransfer(), currentTime, sendUser.getAmountToTransfer());
     updateAccountInfo(sendUser);
 
     return "account_info";
