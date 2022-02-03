@@ -102,6 +102,23 @@ public class TestudoBankRepository {
     jdbcTemplate.update(deleteRowFromOverdraftLogsSql);
   }
 
-
+  public static void insertRowToTransferLogsTable(JdbcTemplate jdbcTemplate, String customerID, String recipientID,String timestamp, int transferAmount) { 
+    String transferHistoryToSql = String.format("INSERT INTO TransferHistory VALUES ('%s', '%s', %d);",
+                                                    customerID,
+                                                    recipientID,
+                                                    timestamp,
+                                                    transferAmount * 100);
+    jdbcTemplate.update(transferHistoryToSql);
+  }
+  
+  public static String doesCustomerExist(JdbcTemplate jdbcTemplate, String customerID) { 
+    String getCustomerIDSql =  String.format("SELECT CustomerID FROM Customers WHERE CustomerID='%s';", customerID);
+    try {
+      return jdbcTemplate.queryForObject(getCustomerIDSql, String.class);
+    }
+    catch(Exception e) {
+      return "welcome";
+    }
+  }
 
 }
