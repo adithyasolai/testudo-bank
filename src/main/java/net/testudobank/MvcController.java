@@ -113,6 +113,21 @@ public class MvcController {
 		return "dispute_form";
 	}
 
+  /**
+   * HTML GET request handler that serves the "transfer_form" page to the user.
+   * An empty `User` object is also added to the Model as an Attribute to store
+   * the user's transfer form input.
+   * 
+   * @param model
+   * @return "dispute_form" page
+   */
+  @GetMapping("/transfer")
+	public String showTransferForm(Model model) {
+    User user = new User();
+		model.addAttribute("user", user);
+		return "transfer_form";
+	}
+
   //// HELPER METHODS ////
 
   /**
@@ -145,6 +160,7 @@ public class MvcController {
     user.setOverDraftBalance(overDraftBalance/100);
     user.setLogs(logs);
     user.setTransactionHist(transactionHistoryOutput);
+    user.setTransfer(false);
   }
 
   // Converts dollar amounts in frontend to penny representation in backend MySQL DB
@@ -350,7 +366,6 @@ public class MvcController {
    * @param user
    * @return "account_info" page if login successful. Otherwise, redirect to "welcome" page.
    */
-
   @PostMapping("/dispute")
   public String submitDispute(@ModelAttribute("user") User user) {
     // Ensure that requested transaction to reverse is within acceptable range
@@ -428,6 +443,135 @@ public class MvcController {
     numOfReversals++;
     TestudoBankRepository.setCustomerNumFraudReversals(jdbcTemplate, userID, numOfReversals);
 
+    updateAccountInfo(user);
+
+    return "account_info";
+  }
+
+  /**
+   * HTML POST request handler for the Transfer Form page.
+   * 
+   * The same username+password handling from the login page is used.
+   * 
+   * If the password attempt is correct, the users transfer successfully goes through
+   * if it is a valid transfer. Both customers balances are properly updated.
+   * 
+   * If the password attempt is incorrect, the user is redirected to the "welcome" page.
+   * 
+   * @param user
+   * @return "account_info" page if login successful. Otherwise, redirect to "welcome" page.
+   */
+  @PostMapping("/transfer")
+  public String submitTransfer(@ModelAttribute("user") User sendUser, @ModelAttribute("user") User recieveUser) {
+    String sendUserID = sendUser.getUsername();
+    String sendUserPasswordAttempt = sendUser.getPassword();
+    String sendUserPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, sendUserID);
+    
+    /// Invalid Input/State Handling ///
+
+    // unsuccessful login
+    if (sendUserPasswordAttempt.equals(sendUserPassword) == false) {
+      return "welcome";
+    }
+
+    // case where customer already has too many reversals
+    int numOfReversals = TestudoBankRepository.getCustomerNumberOfReversals(jdbcTemplate, sendUserID);
+    if (numOfReversals >= MAX_DISPUTES) {
+      return "welcome";
+    }
+
+    // case where customer tries to send money to themselves
+    if (sendUser.getWhoToTransfer().equals(sendUserID)){
+      return "welcome";
+    }
+
+    // negative transfer amount is not allowed
+    double userDepositAmt = sendUser.getAmountToTransfer();
+    if (userDepositAmt < 0) {
+      return "welcome";
+    }
+
+    // checks to see the customer you are transfering to exists
+    TestudoBankRepository.doesCustomerExist(jdbcTemplate, sendUser.getWhoToTransfer());
+    
+    double userWithdrawAmt = sendUser.getAmountToTransfer();
+    int userWithdrawAmtInPennies = convertDollarsToPennies(userWithdrawAmt);
+
+    //Get the sender's balance in pennies.
+    int userBalanceInPennies = TestudoBankRepository.getCustomerBalanceInPennies(jdbcTemplate, sendUserID);
+
+    sendUser.setAmountToWithdraw(userWithdrawAmt);
+    submitWithdraw(sendUser);
+
+    recieveUser.setAmountToDeposit(userDepositAmt);
+    submitDeposit(recieveUser);
+
+    
+    // // if the balance is not positive, withdraw with interest fee
+    // if (userWithdrawAmtInPennies > userBalanceInPennies) {
+    //   int userOverdraftBalanceInPennies = TestudoBankRepository.getCustomerOverdraftBalanceInPennies(jdbcTemplate, userID);
+
+    //   // subtracts the remaining balance from withdrawal amount 
+    //   int excessWithdrawAmtInPennies = userWithdrawAmtInPennies - userBalanceInPennies;
+    //   int newOverdraftIncreaseAmtAfterInterestInPennies = (int) (excessWithdrawAmtInPennies * INTEREST_RATE);
+    //   if (newOverdraftIncreaseAmtAfterInterestInPennies > MAX_OVERDRAFT_IN_PENNIES) {
+    //     return "welcome";
+    //   }
+
+    //   // factor in the existing overdraft balance before executing another overdraft
+    //   if (newOverdraftIncreaseAmtAfterInterestInPennies + userOverdraftBalanceInPennies > MAX_OVERDRAFT_IN_PENNIES) {
+    //     return "welcome";
+    //   }
+
+    //   // this is a valid overdraft, so we can set Balance column to 0
+    //   TestudoBankRepository.setCustomerBalance(jdbcTemplate, userID, 0);
+
+    //   //Set the overdraft balance to the previous overdraft + new overdraft
+    //   int cumulativeOverdraftInPennies = userOverdraftBalanceInPennies + newOverdraftIncreaseAmtAfterInterestInPennies;
+
+    //   // increase overdraft balance by the withdraw amount after interest
+    //   TestudoBankRepository.setCustomerOverdraftBalance(jdbcTemplate, userID, cumulativeOverdraftInPennies);
+
+
+    // }
+    // else { // simple, non-overdraft withdraw case
+    //   TestudoBankRepository.decreaseCustomerBalance(jdbcTemplate, userID, userWithdrawAmtInPennies);
+    // }
+
+    // int userDepositAmtInPennies = convertDollarsToPennies(userDepositAmt);
+
+    // int userOverdraftBalanceInPennies = TestudoBankRepository.getCustomerOverdraftBalanceInPennies(jdbcTemplate, user.getWhoToTransfer());
+
+    // // if the overdraft balance is positive, subtract the deposit with interest
+    // if (userOverdraftBalanceInPennies > 0) {
+    //   int newOverdraftBalanceInPennies = Math.max(userOverdraftBalanceInPennies - userDepositAmtInPennies, 0);
+    //   String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date());
+    //   // Adds withdraw to transaction history
+    //   TestudoBankRepository.insertRowToOverdraftLogsTable(jdbcTemplate, user.getWhoToTransfer(), currentTime, userDepositAmtInPennies, userOverdraftBalanceInPennies, newOverdraftBalanceInPennies);
+
+    //   // updating customers table
+    //   TestudoBankRepository.setCustomerOverdraftBalance(jdbcTemplate, user.getWhoToTransfer(), newOverdraftBalanceInPennies);
+      
+    //   // update Model so that View can access new main balance, overdraft balance, and logs
+    //   updateAccountInfo(user);
+    // }
+
+    // // if in the overdraft case and there is excess deposit, deposit the excess amount.
+    // // otherwise, this is a non-overdraft case, so just use the userDepositAmt.
+    // int balanceIncreaseAmtInPennies = 0;
+    // if (userOverdraftBalanceInPennies > 0 && userDepositAmtInPennies > userOverdraftBalanceInPennies) {
+    //   balanceIncreaseAmtInPennies = userDepositAmtInPennies - userOverdraftBalanceInPennies;
+    // } else if (userOverdraftBalanceInPennies > 0 && userDepositAmtInPennies <= userOverdraftBalanceInPennies) {
+    //   balanceIncreaseAmtInPennies = 0; // overdraft case, but no excess deposit. don't increase balance column.
+    // } else {
+    //   balanceIncreaseAmtInPennies = userDepositAmtInPennies;
+    // }
+
+    // //Increase the recipient's balance.
+    // TestudoBankRepository.increaseCustomerBalance(jdbcTemplate, user.getWhoToTransfer(), balanceIncreaseAmtInPennies);
+    
+    // Inserting transfer into transfer history for both customers
+    TestudoBankRepository.insertRowToTransferLogsTable(jdbcTemplate, userID, user.getWhoToTransfer(), user.getAmountToTransfer());
     updateAccountInfo(user);
 
     return "account_info";
