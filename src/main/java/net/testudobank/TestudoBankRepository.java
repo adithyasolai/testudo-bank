@@ -103,11 +103,11 @@ public class TestudoBankRepository {
   }
 
   public static void insertRowToTransferLogsTable(JdbcTemplate jdbcTemplate, String customerID, String recipientID, String timestamp, int transferAmount) { 
-    String transferHistoryToSql = String.format("INSERT INTO TransferHistory VALUES ('%s', '%s', '%s' %d);",
+    String transferHistoryToSql = String.format("INSERT INTO TransferHistory VALUES ('%s', '%s', '%s', %d);",
                                                     customerID,
                                                     recipientID,
                                                     timestamp,
-                                                    transferAmount * 100);
+                                                    transferAmount);
     jdbcTemplate.update(transferHistoryToSql);
   }
   
