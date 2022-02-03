@@ -41,7 +41,7 @@ public class User {
   private int numTransactionsAgo;
 
   @Setter @Getter
-  private int amountToTransfer;
+  private double amountToTransfer;
 
   @Setter @Getter
   private String whoToTransfer;
