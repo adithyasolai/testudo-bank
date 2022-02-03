@@ -34,6 +34,7 @@ public class MvcController {
   private final static String HTML_LINE_BREAK = "<br/>";
   public static String TRANSACTION_HISTORY_DEPOSIT_ACTION = "Deposit";
   public static String TRANSACTION_HISTORY_WITHDRAW_ACTION = "Withdraw";
+  public static String TRANSACTION_HISTORY_TRANSFER_ACTION = "Transfer";
 
   public MvcController(@Autowired JdbcTemplate jdbcTemplate) {
     this.jdbcTemplate = jdbcTemplate;
@@ -501,10 +502,7 @@ public class MvcController {
     TestudoBankRepository.doesCustomerExist(jdbcTemplate, sendUser.getWhoToTransfer());
     
     double userWithdrawAmt = sendUser.getAmountToTransfer();
-    int userWithdrawAmtInPennies = convertDollarsToPennies(userWithdrawAmt);
-
-    //Get the sender's balance in pennies.
-    int userBalanceInPennies = TestudoBankRepository.getCustomerBalanceInPennies(jdbcTemplate, sendUserID);
+    String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date()); // use same timestamp for all logs created by this deposit
 
     sendUser.setAmountToWithdraw(userWithdrawAmt);
     submitWithdraw(sendUser);
@@ -512,70 +510,9 @@ public class MvcController {
     recieveUser.setAmountToDeposit(userDepositAmt);
     submitDeposit(recieveUser);
 
-    
-    // // if the balance is not positive, withdraw with interest fee
-    // if (userWithdrawAmtInPennies > userBalanceInPennies) {
-    //   int userOverdraftBalanceInPennies = TestudoBankRepository.getCustomerOverdraftBalanceInPennies(jdbcTemplate, userID);
+    // Inserting transfer into transaction log history
+    TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, sendUserID, currentTime, TRANSACTION_HISTORY_DEPOSIT_ACTION, sendUser.getAmountToTransfer());
 
-    //   // subtracts the remaining balance from withdrawal amount 
-    //   int excessWithdrawAmtInPennies = userWithdrawAmtInPennies - userBalanceInPennies;
-    //   int newOverdraftIncreaseAmtAfterInterestInPennies = (int) (excessWithdrawAmtInPennies * INTEREST_RATE);
-    //   if (newOverdraftIncreaseAmtAfterInterestInPennies > MAX_OVERDRAFT_IN_PENNIES) {
-    //     return "welcome";
-    //   }
-
-    //   // factor in the existing overdraft balance before executing another overdraft
-    //   if (newOverdraftIncreaseAmtAfterInterestInPennies + userOverdraftBalanceInPennies > MAX_OVERDRAFT_IN_PENNIES) {
-    //     return "welcome";
-    //   }
-
-    //   // this is a valid overdraft, so we can set Balance column to 0
-    //   TestudoBankRepository.setCustomerBalance(jdbcTemplate, userID, 0);
-
-    //   //Set the overdraft balance to the previous overdraft + new overdraft
-    //   int cumulativeOverdraftInPennies = userOverdraftBalanceInPennies + newOverdraftIncreaseAmtAfterInterestInPennies;
-
-    //   // increase overdraft balance by the withdraw amount after interest
-    //   TestudoBankRepository.setCustomerOverdraftBalance(jdbcTemplate, userID, cumulativeOverdraftInPennies);
-
-
-    // }
-    // else { // simple, non-overdraft withdraw case
-    //   TestudoBankRepository.decreaseCustomerBalance(jdbcTemplate, userID, userWithdrawAmtInPennies);
-    // }
-
-    // int userDepositAmtInPennies = convertDollarsToPennies(userDepositAmt);
-
-    // int userOverdraftBalanceInPennies = TestudoBankRepository.getCustomerOverdraftBalanceInPennies(jdbcTemplate, user.getWhoToTransfer());
-
-    // // if the overdraft balance is positive, subtract the deposit with interest
-    // if (userOverdraftBalanceInPennies > 0) {
-    //   int newOverdraftBalanceInPennies = Math.max(userOverdraftBalanceInPennies - userDepositAmtInPennies, 0);
-    //   String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date());
-    //   // Adds withdraw to transaction history
-    //   TestudoBankRepository.insertRowToOverdraftLogsTable(jdbcTemplate, user.getWhoToTransfer(), currentTime, userDepositAmtInPennies, userOverdraftBalanceInPennies, newOverdraftBalanceInPennies);
-
-    //   // updating customers table
-    //   TestudoBankRepository.setCustomerOverdraftBalance(jdbcTemplate, user.getWhoToTransfer(), newOverdraftBalanceInPennies);
-      
-    //   // update Model so that View can access new main balance, overdraft balance, and logs
-    //   updateAccountInfo(user);
-    // }
-
-    // // if in the overdraft case and there is excess deposit, deposit the excess amount.
-    // // otherwise, this is a non-overdraft case, so just use the userDepositAmt.
-    // int balanceIncreaseAmtInPennies = 0;
-    // if (userOverdraftBalanceInPennies > 0 && userDepositAmtInPennies > userOverdraftBalanceInPennies) {
-    //   balanceIncreaseAmtInPennies = userDepositAmtInPennies - userOverdraftBalanceInPennies;
-    // } else if (userOverdraftBalanceInPennies > 0 && userDepositAmtInPennies <= userOverdraftBalanceInPennies) {
-    //   balanceIncreaseAmtInPennies = 0; // overdraft case, but no excess deposit. don't increase balance column.
-    // } else {
-    //   balanceIncreaseAmtInPennies = userDepositAmtInPennies;
-    // }
-
-    // //Increase the recipient's balance.
-    // TestudoBankRepository.increaseCustomerBalance(jdbcTemplate, user.getWhoToTransfer(), balanceIncreaseAmtInPennies);
-    
     // Inserting transfer into transfer history for both customers
     TestudoBankRepository.insertRowToTransferLogsTable(jdbcTemplate, sendUserID, sendUser.getWhoToTransfer(), sendUser.getAmountToTransfer());
     updateAccountInfo(sendUser);
