@@ -269,8 +269,11 @@ public class MvcController {
       TestudoBankRepository.increaseCustomerBalance(jdbcTemplate, userID, userDepositAmtInPennies);
     }
 
-    // Adds deposit to transaction history logs
-    TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_DEPOSIT_ACTION, userDepositAmtInPennies);
+    // only adds deposit to transaction history if is not transfer
+    if (!user.isTransfer()){
+      // Adds deposit to transaction history logs
+      TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_DEPOSIT_ACTION, userDepositAmtInPennies);
+    }
 
     // update Model so that View can access new main balance, overdraft balance, and logs
     updateAccountInfo(user);
@@ -344,9 +347,12 @@ public class MvcController {
       TestudoBankRepository.decreaseCustomerBalance(jdbcTemplate, userID, userWithdrawAmtInPennies);
     }
 
-    // Adds withdraw to transaction history
-    TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_WITHDRAW_ACTION, userWithdrawAmtInPennies);
-
+    // only adds withdraw to transaction history if is not transfer
+    if (!user.isTransfer()){
+      // Adds withdraw to transaction history
+      TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_WITHDRAW_ACTION, userWithdrawAmtInPennies);
+    }
+  
     // update Model so that View can access new main balance, overdraft balance, and logs
     updateAccountInfo(user);
     return "account_info";
