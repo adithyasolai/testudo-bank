@@ -520,8 +520,9 @@ public class MvcController {
     TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, recieveUserID, currentTime, TRANSACTION_HISTORY_TRANSFER_RECIEVE_ACTION, userDepositAmtInPennies);
 
     // Inserting transfer into transfer history for both customers
-    TestudoBankRepository.insertRowToTransferLogsTable(jdbcTemplate, sendUserID, sendUser.getWhoToTransfer(), currentTime, sendUser.getAmountToTransfer());
+    TestudoBankRepository.insertRowToTransferLogsTable(jdbcTemplate, sendUserID, recieveUserID, currentTime, userWithdrawAmtInPennies);
     updateAccountInfo(sendUser);
+    updateAccountInfo(recieveUser);
 
     return "account_info";
   }
