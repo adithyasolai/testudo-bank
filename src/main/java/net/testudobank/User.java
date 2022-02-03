@@ -40,6 +40,15 @@ public class User {
   @Setter @Getter
   private int numTransactionsAgo;
 
+  @Setter @Getter
+  private int amountToTransfer;
+
+  @Setter @Getter
+  private String whoToTransfer;
+
+  @Setter @Getter
+  private boolean isTransfer;
+  
 	@Override
 	public String toString() {
 		return "User [username=" + username + ", password=" + password + ", balance=" + balance + "]";
