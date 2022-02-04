@@ -475,12 +475,17 @@ public class MvcController {
     String senderPasswordAttempt = sender.getPassword();
     String senderPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, senderUserID);
 
+    // creates new user for recipient
     User recipient = new User();
     String recipientUserID = sender.getWhoToTransfer();
     String recipientPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, recipientUserID);
     recipient.setUsername(recipientUserID);
     recipient.setPassword(recipientPassword);
-    
+
+    // sets isTransfer to true for sender and recipient
+    sender.setTransfer(true);
+    recipient.setTransfer(true);
+
     /// Invalid Input/State Handling ///
 
     // unsuccessful login
