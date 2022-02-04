@@ -470,59 +470,63 @@ public class MvcController {
    * @return "account_info" page if login successful. Otherwise, redirect to "welcome" page.
    */
   @PostMapping("/transfer")
-  public String submitTransfer(@ModelAttribute("user") User sendUser, @ModelAttribute("user") User recieveUser) {
-    String sendUserID = sendUser.getUsername();
-    String sendUserPasswordAttempt = sendUser.getPassword();
-    String sendUserPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, sendUserID);
+  public String submitTransfer(@ModelAttribute("user") User sender) {
+    String senderUserID = sender.getUsername();
+    String senderPasswordAttempt = sender.getPassword();
+    String senderPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, senderUserID);
 
-    String recieveUserID = recieveUser.getUsername();
+    User recipient = new User();
+    String recipientUserID = sender.getWhoToTransfer();
+    String recipientPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, recipientUserID);
+    recipient.setUsername(recipientUserID);
+    recipient.setPassword(recipientPassword);
     
     /// Invalid Input/State Handling ///
 
     // unsuccessful login
-    if (sendUserPasswordAttempt.equals(sendUserPassword) == false) {
+    if (senderPasswordAttempt.equals(senderPassword) == false) {
       return "welcome";
     }
 
     // case where customer already has too many reversals
-    int numOfReversals = TestudoBankRepository.getCustomerNumberOfReversals(jdbcTemplate, sendUserID);
+    int numOfReversals = TestudoBankRepository.getCustomerNumberOfReversals(jdbcTemplate, senderUserID);
     if (numOfReversals >= MAX_DISPUTES) {
       return "welcome";
     }
 
     // case where customer tries to send money to themselves
-    if (sendUser.getWhoToTransfer().equals(sendUserID)){
+    if (sender.getWhoToTransfer().equals(senderUserID)){
       return "welcome";
     }
 
     // negative transfer amount is not allowed
-    double userDepositAmt = sendUser.getAmountToTransfer();
+    double userDepositAmt = sender.getAmountToTransfer();
     int userDepositAmtInPennies = convertDollarsToPennies(userDepositAmt);
     if (userDepositAmt < 0) {
       return "welcome";
     }
 
     // checks to see the customer you are transfering to exists
-    TestudoBankRepository.doesCustomerExist(jdbcTemplate, sendUser.getWhoToTransfer());
+    TestudoBankRepository.doesCustomerExist(jdbcTemplate, sender.getWhoToTransfer());
     
-    double userWithdrawAmt = sendUser.getAmountToTransfer();
+    double userWithdrawAmt = sender.getAmountToTransfer();
     int userWithdrawAmtInPennies = convertDollarsToPennies(userWithdrawAmt);
     String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date()); // use same timestamp for all logs created by this deposit
 
-    sendUser.setAmountToWithdraw(userWithdrawAmt);
-    submitWithdraw(sendUser);
+    sender.setAmountToWithdraw(userWithdrawAmt);
+    submitWithdraw(sender);
 
-    recieveUser.setAmountToDeposit(userDepositAmt);
-    submitDeposit(recieveUser);
+    recipient.setAmountToDeposit(userDepositAmt);
+    submitDeposit(recipient);
 
     // Inserting transfer into transaction log history
-    TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, sendUserID, currentTime, TRANSACTION_HISTORY_TRANSFER_SEND_ACTION, userWithdrawAmtInPennies);
-    TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, recieveUserID, currentTime, TRANSACTION_HISTORY_TRANSFER_RECIEVE_ACTION, userDepositAmtInPennies);
+    TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, senderUserID, currentTime, TRANSACTION_HISTORY_TRANSFER_SEND_ACTION, userWithdrawAmtInPennies);
+    TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, recipientUserID, currentTime, TRANSACTION_HISTORY_TRANSFER_RECIEVE_ACTION, userDepositAmtInPennies);
 
     // Inserting transfer into transfer history for both customers
-    TestudoBankRepository.insertRowToTransferLogsTable(jdbcTemplate, sendUserID, recieveUserID, currentTime, userWithdrawAmtInPennies);
-    updateAccountInfo(sendUser);
-    updateAccountInfo(recieveUser);
+    TestudoBankRepository.insertRowToTransferLogsTable(jdbcTemplate, senderUserID, recipientUserID, currentTime, userWithdrawAmtInPennies);
+    updateAccountInfo(sender);
+    updateAccountInfo(recipient);
 
     return "account_info";
   }
