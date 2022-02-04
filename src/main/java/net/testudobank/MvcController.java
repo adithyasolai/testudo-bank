@@ -35,7 +35,7 @@ public class MvcController {
   public static String TRANSACTION_HISTORY_DEPOSIT_ACTION = "Deposit";
   public static String TRANSACTION_HISTORY_WITHDRAW_ACTION = "Withdraw";
   public static String TRANSACTION_HISTORY_TRANSFER_SEND_ACTION = "TransferSend";
-  public static String TRANSACTION_HISTORY_TRANSFER_RECIEVE_ACTION = "TransferRecieve";
+  public static String TRANSACTION_HISTORY_TRANSFER_RECEIVE_ACTION = "TransferReceive";
 
   public MvcController(@Autowired JdbcTemplate jdbcTemplate) {
     this.jdbcTemplate = jdbcTemplate;
@@ -526,7 +526,7 @@ public class MvcController {
 
     // Inserting transfer into transaction log history
     TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, senderUserID, currentTime, TRANSACTION_HISTORY_TRANSFER_SEND_ACTION, userWithdrawAmtInPennies);
-    TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, recipientUserID, currentTime, TRANSACTION_HISTORY_TRANSFER_RECIEVE_ACTION, userDepositAmtInPennies);
+    TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, recipientUserID, currentTime, TRANSACTION_HISTORY_TRANSFER_RECEIVE_ACTION, userDepositAmtInPennies);
 
     // Inserting transfer into transfer history for both customers
     TestudoBankRepository.insertRowToTransferLogsTable(jdbcTemplate, senderUserID, recipientUserID, currentTime, userWithdrawAmtInPennies);
