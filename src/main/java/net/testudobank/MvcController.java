@@ -17,7 +17,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 @Controller
 public class MvcController {
-  
+  //my comment
+
   // A simplified JDBC client that is injected with the login credentials
   // specified in /src/main/resources/application.properties
   private JdbcTemplate jdbcTemplate;
