@@ -17,7 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 @Controller
 public class MvcController {
-  
+
   // A simplified JDBC client that is injected with the login credentials
   // specified in /src/main/resources/application.properties
   private JdbcTemplate jdbcTemplate;
@@ -276,7 +276,7 @@ public class MvcController {
    * @param user
    * @return "account_info" page if withdraw request is valid. Otherwise, redirect to "welcome" page.
    */
-  @PostMapping("/withdraw")
+  @PostMapping("/withdraw") 
   public String submitWithdraw(@ModelAttribute("user") User user) {
     String userID = user.getUsername();
     String userPasswordAttempt = user.getPassword();
@@ -308,7 +308,8 @@ public class MvcController {
     int userOverdraftBalanceInPennies = TestudoBankRepository.getCustomerOverdraftBalanceInPennies(jdbcTemplate, userID);
     if (userWithdrawAmtInPennies > userBalanceInPennies) { // if withdraw amount exceeds main balance, withdraw into overdraft with interest fee
       int excessWithdrawAmtInPennies = userWithdrawAmtInPennies - userBalanceInPennies;
-      int newOverdraftIncreaseAmtAfterInterestInPennies = (int)(excessWithdrawAmtInPennies * INTEREST_RATE);
+    
+      int newOverdraftIncreaseAmtAfterInterestInPennies = applyInterestRateToPennyAmount(excessWithdrawAmtInPennies);
       int newOverdraftBalanceInPennies = userOverdraftBalanceInPennies + newOverdraftIncreaseAmtAfterInterestInPennies;
 
       // abort withdraw transaction if new overdraft balance exceeds max overdraft limit
@@ -433,4 +434,8 @@ public class MvcController {
     return "account_info";
   }
 
+  public int applyInterestRateToPennyAmount(int pennyAmount) {
+    return (int)(pennyAmount * INTEREST_RATE);
+  }
 }
+
