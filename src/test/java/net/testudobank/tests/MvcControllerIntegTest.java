@@ -965,10 +965,6 @@ public class MvcControllerIntegTest {
     CUSTOMER1.setPassword(CUSTOMER1_PASSWORD);
     CUSTOMER1.setWhoToTransfer(CUSTOMER2_ID);
     CUSTOMER1.setAmountToTransfer(TRANSFER_AMOUNT);
-
-    User CUSTOMER2 = new User();
-    CUSTOMER2.setUsername(CUSTOMER2_ID);
-    CUSTOMER2.setPassword(CUSTOMER2_PASSWORD);
     
     //Send the transfer request.
     String returnedPage = controller.submitTransfer(CUSTOMER1);
