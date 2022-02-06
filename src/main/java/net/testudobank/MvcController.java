@@ -518,6 +518,7 @@ public class MvcController {
     int userDepositAmtInPennies = convertDollarsToPennies(userDepositAmt);
     double userWithdrawAmt = sender.getAmountToTransfer();
     int userWithdrawAmtInPennies = convertDollarsToPennies(userWithdrawAmt);
+  
     String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date()); // use same timestamp for all logs created by this deposit
 
     sender.setAmountToWithdraw(userWithdrawAmt);
@@ -533,7 +534,6 @@ public class MvcController {
     // Inserting transfer into transfer history for both customers
     TestudoBankRepository.insertRowToTransferLogsTable(jdbcTemplate, senderUserID, recipientUserID, currentTime, userWithdrawAmtInPennies);
     updateAccountInfo(sender);
-    updateAccountInfo(recipient);
 
     return "account_info";
   }
