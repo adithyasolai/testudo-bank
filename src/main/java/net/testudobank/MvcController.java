@@ -482,7 +482,7 @@ public class MvcController {
   public String submitTransfer(@ModelAttribute("user") User sender) {
 
     // checks to see the customer you are transfering to exists
-    if (!TestudoBankRepository.doesCustomerExist(jdbcTemplate, sender.getWhoToTransfer())){
+    if (!TestudoBankRepository.doesCustomerExist(jdbcTemplate, sender.getTransferRecipientID())){
       return "welcome";
     }
 
@@ -492,7 +492,7 @@ public class MvcController {
 
     // creates new user for recipient
     User recipient = new User();
-    String recipientUserID = sender.getWhoToTransfer();
+    String recipientUserID = sender.getTransferRecipientID();
     String recipientPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, recipientUserID);
     recipient.setUsername(recipientUserID);
     recipient.setPassword(recipientPassword);
@@ -515,7 +515,7 @@ public class MvcController {
     }
 
     // case where customer tries to send money to themselves
-    if (sender.getWhoToTransfer().equals(senderUserID)){
+    if (sender.getTransferRecipientID().equals(senderUserID)){
       return "welcome";
     }
 
