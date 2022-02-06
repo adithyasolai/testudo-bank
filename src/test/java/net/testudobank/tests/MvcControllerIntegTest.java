@@ -1011,7 +1011,7 @@ public class MvcControllerIntegTest {
     MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER2_ID, CUSTOMER2_PASSWORD, CUSTOMER2_FIRST_NAME, CUSTOMER2_LAST_NAME, CUSTOMER2_BALANCE_IN_PENNIES, CUSTOMER2_OVERDRAFT_BALANCE_IN_PENNIES, CUSTOMER2_NUM_FRAUD_REVERSALS);
 
     //Amount to transfer
-    int TRANSFER_AMOUNT = 100;
+    double TRANSFER_AMOUNT = 100;
     int TRANSFER_AMOUNT_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(TRANSFER_AMOUNT);
 
     //Initializing users for the transfer
@@ -1069,7 +1069,7 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
     MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER2_ID, CUSTOMER2_PASSWORD, CUSTOMER2_FIRST_NAME, CUSTOMER2_LAST_NAME, CUSTOMER2_BALANCE_IN_PENNIES, CUSTOMER2_OVERDRAFT_BALANCE_IN_PENNIES, CUSTOMER2_NUM_FRAUD_REVERSALS);
 
     //Transfer $150 from sender's account to recipient's account.
-    int TRANSFER_AMOUNT = 150;
+    double TRANSFER_AMOUNT = 150;
     int TRANSFER_AMOUNT_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(TRANSFER_AMOUNT);
 
     //Initializing users for the transfer
