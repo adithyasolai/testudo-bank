@@ -504,15 +504,18 @@ public class MvcController {
     }
 
     // negative transfer amount is not allowed
-    double userDepositAmt = sender.getAmountToTransfer();
-    int userDepositAmtInPennies = convertDollarsToPennies(userDepositAmt);
-    if (userDepositAmt < 0) {
+    double transferAmount = sender.getAmountToTransfer();
+   
+    if (transferAmount < 0) {
       return "welcome";
     }
 
     // checks to see the customer you are transfering to exists
     TestudoBankRepository.doesCustomerExist(jdbcTemplate, sender.getWhoToTransfer());
     
+    // initialize amount to deposit and withdraw from respecitive users
+    double userDepositAmt = sender.getAmountToTransfer();
+    int userDepositAmtInPennies = convertDollarsToPennies(userDepositAmt);
     double userWithdrawAmt = sender.getAmountToTransfer();
     int userWithdrawAmtInPennies = convertDollarsToPennies(userWithdrawAmt);
     String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date()); // use same timestamp for all logs created by this deposit
