@@ -162,7 +162,6 @@ public class MvcController {
     user.setOverDraftBalance(overDraftBalance/100);
     user.setLogs(logs);
     user.setTransactionHist(transactionHistoryOutput);
-    user.setTransfer(false);
   }
 
   // Converts dollar amounts in frontend to penny representation in backend MySQL DB
