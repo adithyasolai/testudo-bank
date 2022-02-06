@@ -956,7 +956,7 @@ public class MvcControllerIntegTest {
     MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER2_ID, CUSTOMER2_PASSWORD, CUSTOMER2_FIRST_NAME, CUSTOMER2_LAST_NAME, CUSTOMER2_BALANCE_IN_PENNIES);
 
     //Amount to transfer
-    int TRANSFER_AMOUNT = 100;
+    double TRANSFER_AMOUNT = 100;
     int TRANSFER_AMOUNT_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(TRANSFER_AMOUNT);
 
     //Initializing users for the transfer
