@@ -969,7 +969,7 @@ public class MvcControllerIntegTest {
     //Send the transfer request.
     String returnedPage = controller.submitTransfer(CUSTOMER1);
     
-    //Fetch customer1's data from DB
+    //Fetch customer1 & customer2's data from DB
     List<Map<String, Object>> customer1SqlResult = jdbcTemplate.queryForList(String.format("SELECT * FROM Customers WHERE CustomerID='%s';", CUSTOMER1_ID));
     Map<String, Object> customer1Data = customer1SqlResult.get(0);
 
@@ -1025,7 +1025,7 @@ public class MvcControllerIntegTest {
     //Send the transfer request.
     String returnedPage = controller.submitTransfer(CUSTOMER1);
 
-    //fetch customers table data from DB
+    //fetch customer1 & customer2's data from DB
     List<Map<String,Object>> customer1SqlResult = jdbcTemplate.queryForList(String.format("SELECT * FROM Customers WHERE CustomerID='%s';", CUSTOMER1_ID));
     Map<String, Object> customer1Data = customer1SqlResult.get(0);
 
@@ -1083,7 +1083,7 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
     //Send the transfer request.
     String returnedPage = controller.submitTransfer(CUSTOMER1);
 
-    //fetch customers table data from DB
+    //fetch customer1 & customer2's data from DB
     List<Map<String,Object>> customer1SqlResult = jdbcTemplate.queryForList(String.format("SELECT * FROM Customers WHERE CustomerID='%s';", CUSTOMER1_ID));
     Map<String, Object> customer1Data = customer1SqlResult.get(0);
 
