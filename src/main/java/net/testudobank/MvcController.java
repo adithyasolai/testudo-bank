@@ -472,6 +472,9 @@ public class MvcController {
    * 
    * If the password attempt is incorrect, the user is redirected to the "welcome" page.
    * 
+   * Transfer function is implemented by re-using deposit and withdraw handlers to 
+   * facilitate a transfer between 2 users.
+   * 
    * @param user
    * @return "account_info" page if login successful. Otherwise, redirect to "welcome" page.
    */
@@ -482,7 +485,7 @@ public class MvcController {
     if (!TestudoBankRepository.doesCustomerExist(jdbcTemplate, sender.getWhoToTransfer())){
       return "welcome";
     }
-    
+
     String senderUserID = sender.getUsername();
     String senderPasswordAttempt = sender.getPassword();
     String senderPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, senderUserID);
@@ -516,24 +519,22 @@ public class MvcController {
       return "welcome";
     }
 
-    // negative transfer amount is not allowed
+    // initialize variables for transfer amount
     double transferAmount = sender.getAmountToTransfer();
-   
+    int transferAmountInPennies = convertDollarsToPennies(transferAmount);
+
+    // negative transfer amount is not allowed
     if (transferAmount < 0) {
       return "welcome";
-    }
-    
-    // initialize amount to deposit and withdraw from respecitive users
-    double userDepositAmt = sender.getAmountToTransfer();
-    double userWithdrawAmt = sender.getAmountToTransfer();
-    int transferAmountInPennies = convertDollarsToPennies(userWithdrawAmt);
+    } 
   
     String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date()); // use same timestamp for all logs created by this deposit
 
-    sender.setAmountToWithdraw(userWithdrawAmt);
+    // withdraw transfer amount from sender and deposit into recipient's account
+    sender.setAmountToWithdraw(transferAmount);
     submitWithdraw(sender);
 
-    recipient.setAmountToDeposit(userDepositAmt);
+    recipient.setAmountToDeposit(transferAmount);
     submitDeposit(recipient);
 
     // Inserting transfer into transfer history for both customers
