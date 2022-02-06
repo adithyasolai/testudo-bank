@@ -1002,10 +1002,13 @@ public class MvcControllerIntegTest {
     int CUSTOMER1_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_BALANCE);
     MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER1_ID, CUSTOMER1_PASSWORD, CUSTOMER1_FIRST_NAME, CUSTOMER1_LAST_NAME, CUSTOMER1_BALANCE_IN_PENNIES);
 
-    //Initialize customer2 with a balance of $100. Balance will be represented as pennies in DB. 
-    double CUSTOMER2_BALANCE = 100;
+    //Initialize customer2 with a balance of $0 and Overdraft balance of $101. Balance will be represented as pennies in DB. 
+    double CUSTOMER2_BALANCE = 0;
     int CUSTOMER2_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER2_BALANCE);
-    MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER2_ID, CUSTOMER2_PASSWORD, CUSTOMER2_FIRST_NAME, CUSTOMER2_LAST_NAME, CUSTOMER2_BALANCE_IN_PENNIES);
+    double CUSTOMER2_OVERDRAFT_BALANCE = 101.0;
+    int CUSTOMER2_OVERDRAFT_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER2_OVERDRAFT_BALANCE);
+    int CUSTOMER2_NUM_FRAUD_REVERSALS = 0;
+    MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER2_ID, CUSTOMER2_PASSWORD, CUSTOMER2_FIRST_NAME, CUSTOMER2_LAST_NAME, CUSTOMER2_BALANCE_IN_PENNIES, CUSTOMER2_OVERDRAFT_BALANCE_IN_PENNIES, CUSTOMER2_NUM_FRAUD_REVERSALS);
 
     //Amount to transfer
     int TRANSFER_AMOUNT = 100;
@@ -1013,22 +1016,11 @@ public class MvcControllerIntegTest {
 
     //Initializing users for the transfer
     User CUSTOMER1 = new User();
-    User CUSTOMER2 = new User();
     CUSTOMER1.setUsername(CUSTOMER1_ID);
     CUSTOMER1.setPassword(CUSTOMER1_PASSWORD);
 
-    double CUSTOMER2_AMOUNT_TO_WITHDRAW = 201;
-    int CUSTOMER2_AMOUNT_TO_WITHDRAW_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER2_AMOUNT_TO_WITHDRAW);
-    int CUSTOMER2_EXPECTED_OVERDRAFT_BALANCE = MvcControllerIntegTestHelpers.applyOverdraftInterest(CUSTOMER2_BALANCE_IN_PENNIES - CUSTOMER2_AMOUNT_TO_WITHDRAW_IN_PENNIES) * -1;
-    CUSTOMER2.setUsername(CUSTOMER2_ID);
-    CUSTOMER2.setPassword(CUSTOMER2_PASSWORD);
-    CUSTOMER2.setAmountToWithdraw(CUSTOMER2_AMOUNT_TO_WITHDRAW);
-
     CUSTOMER1.setTransferRecipientID(CUSTOMER2_ID);
     CUSTOMER1.setAmountToTransfer(TRANSFER_AMOUNT);
-
-    //Withdraw $201 from Customer2's account to cause an overdraft of $101.
-    controller.submitWithdraw(CUSTOMER2);
 
     //Send the transfer request.
     String returnedPage = controller.submitTransfer(CUSTOMER1);
@@ -1044,7 +1036,7 @@ public class MvcControllerIntegTest {
     assertEquals((CUSTOMER1_BALANCE_IN_PENNIES - TRANSFER_AMOUNT_IN_PENNIES), (int)customer1Data.get("Balance"));
 
     //Verify that customer2's overdraft balance decreased by $100.
-    assertEquals((CUSTOMER2_EXPECTED_OVERDRAFT_BALANCE - TRANSFER_AMOUNT_IN_PENNIES), (int)customer2Data.get("OverdraftBalance"));
+    assertEquals((CUSTOMER2_OVERDRAFT_BALANCE_IN_PENNIES - TRANSFER_AMOUNT_IN_PENNIES), (int)customer2Data.get("OverdraftBalance"));
 
     //Check that transfer request goes through.
     assertEquals("account_info", returnedPage);
@@ -1069,10 +1061,12 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
     int CUSTOMER1_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_BALANCE);
     MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER1_ID, CUSTOMER1_PASSWORD, CUSTOMER1_FIRST_NAME, CUSTOMER1_LAST_NAME, CUSTOMER1_BALANCE_IN_PENNIES);
 
-    //Initialize customer2 with a balance of $100. Balance will be represented as pennies in DB. 
-    double CUSTOMER2_BALANCE = 100;
+    double CUSTOMER2_BALANCE = 0;
     int CUSTOMER2_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER2_BALANCE);
-    MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER2_ID, CUSTOMER2_PASSWORD, CUSTOMER2_FIRST_NAME, CUSTOMER2_LAST_NAME, CUSTOMER2_BALANCE_IN_PENNIES);
+    double CUSTOMER2_OVERDRAFT_BALANCE = 100.0;
+    int CUSTOMER2_OVERDRAFT_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER2_OVERDRAFT_BALANCE);
+    int CUSTOMER2_NUM_FRAUD_REVERSALS = 0;
+    MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER2_ID, CUSTOMER2_PASSWORD, CUSTOMER2_FIRST_NAME, CUSTOMER2_LAST_NAME, CUSTOMER2_BALANCE_IN_PENNIES, CUSTOMER2_OVERDRAFT_BALANCE_IN_PENNIES, CUSTOMER2_NUM_FRAUD_REVERSALS);
 
     //Transfer $150 from sender's account to recipient's account.
     int TRANSFER_AMOUNT = 150;
@@ -1080,22 +1074,11 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
 
     //Initializing users for the transfer
     User CUSTOMER1 = new User();
-    User CUSTOMER2 = new User();
     CUSTOMER1.setUsername(CUSTOMER1_ID);
     CUSTOMER1.setPassword(CUSTOMER1_PASSWORD);
 
-    double CUSTOMER2_AMOUNT_TO_WITHDRAW = 200;
-    int CUSTOMER2_AMOUNT_TO_WITHDRAW_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER2_AMOUNT_TO_WITHDRAW);
-    int CUSTOMER2_EXPECTED_OVERDRAFT_BALANCE = MvcControllerIntegTestHelpers.applyOverdraftInterest(CUSTOMER2_BALANCE_IN_PENNIES - CUSTOMER2_AMOUNT_TO_WITHDRAW_IN_PENNIES) * -1;
-    CUSTOMER2.setUsername(CUSTOMER2_ID);
-    CUSTOMER2.setPassword(CUSTOMER2_PASSWORD);
-    CUSTOMER2.setAmountToWithdraw(CUSTOMER2_AMOUNT_TO_WITHDRAW);
-
     CUSTOMER1.setTransferRecipientID(CUSTOMER2_ID);
     CUSTOMER1.setAmountToTransfer(TRANSFER_AMOUNT);
-
-    //Withdraw $200 from Customer2's account to cause an overdraft of $100.
-    controller.submitWithdraw(CUSTOMER2);
 
     //Send the transfer request.
     String returnedPage = controller.submitTransfer(CUSTOMER1);
@@ -1114,7 +1097,7 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
     assertEquals(0, (int)customer2Data.get("OverdraftBalance"));
 
     //Verify that customer2's balance reflects a positive amount due to a remainder being leftover after the transfer amount - overdraft balance.
-    int CUSTOMER2_EXPECTED_BALANCE_IN_PENNIES = TRANSFER_AMOUNT_IN_PENNIES - CUSTOMER2_EXPECTED_OVERDRAFT_BALANCE;
+    int CUSTOMER2_EXPECTED_BALANCE_IN_PENNIES = TRANSFER_AMOUNT_IN_PENNIES - CUSTOMER2_OVERDRAFT_BALANCE_IN_PENNIES;
     assertEquals(CUSTOMER2_EXPECTED_BALANCE_IN_PENNIES, (int)customer2Data.get("Balance"));
 
     //Check that transfer request goes through.
