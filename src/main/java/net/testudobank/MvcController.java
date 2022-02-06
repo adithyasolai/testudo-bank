@@ -477,6 +477,12 @@ public class MvcController {
    */
   @PostMapping("/transfer")
   public String submitTransfer(@ModelAttribute("user") User sender) {
+
+    // checks to see the customer you are transfering to exists
+    if (!TestudoBankRepository.doesCustomerExist(jdbcTemplate, sender.getWhoToTransfer())){
+      return "welcome";
+    }
+    
     String senderUserID = sender.getUsername();
     String senderPasswordAttempt = sender.getPassword();
     String senderPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, senderUserID);
@@ -516,9 +522,6 @@ public class MvcController {
     if (transferAmount < 0) {
       return "welcome";
     }
-
-    // checks to see the customer you are transfering to exists
-    TestudoBankRepository.doesCustomerExist(jdbcTemplate, sender.getWhoToTransfer());
     
     // initialize amount to deposit and withdraw from respecitive users
     double userDepositAmt = sender.getAmountToTransfer();
