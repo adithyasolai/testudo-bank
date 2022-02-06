@@ -44,7 +44,7 @@ public class User {
   private double amountToTransfer;
 
   @Setter @Getter
-  private String whoToTransfer;
+  private String transferRecipientID;
 
   @Setter @Getter
   private boolean isTransfer;
