@@ -963,7 +963,7 @@ public class MvcControllerIntegTest {
     User CUSTOMER1 = new User();
     CUSTOMER1.setUsername(CUSTOMER1_ID);
     CUSTOMER1.setPassword(CUSTOMER1_PASSWORD);
-    CUSTOMER1.setWhoToTransfer(CUSTOMER2_ID);
+    CUSTOMER1.setTransferRecipientID(CUSTOMER2_ID);
     CUSTOMER1.setAmountToTransfer(TRANSFER_AMOUNT);
     
     //Send the transfer request.
@@ -1024,7 +1024,7 @@ public class MvcControllerIntegTest {
     CUSTOMER2.setPassword(CUSTOMER2_PASSWORD);
     CUSTOMER2.setAmountToWithdraw(CUSTOMER2_AMOUNT_TO_WITHDRAW);
 
-    CUSTOMER1.setWhoToTransfer(CUSTOMER2_ID);
+    CUSTOMER1.setTransferRecipientID(CUSTOMER2_ID);
     CUSTOMER1.setAmountToTransfer(TRANSFER_AMOUNT);
 
     //Withdraw $201 from Customer2's account to cause an overdraft of $101.
@@ -1091,7 +1091,7 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
     CUSTOMER2.setPassword(CUSTOMER2_PASSWORD);
     CUSTOMER2.setAmountToWithdraw(CUSTOMER2_AMOUNT_TO_WITHDRAW);
 
-    CUSTOMER1.setWhoToTransfer(CUSTOMER2_ID);
+    CUSTOMER1.setTransferRecipientID(CUSTOMER2_ID);
     CUSTOMER1.setAmountToTransfer(TRANSFER_AMOUNT);
 
     //Withdraw $200 from Customer2's account to cause an overdraft of $100.
