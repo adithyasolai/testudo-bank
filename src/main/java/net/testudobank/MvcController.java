@@ -271,8 +271,11 @@ public class MvcController {
     }
 
     // only adds deposit to transaction history if is not transfer
-    if (!user.isTransfer()){
-      // Adds deposit to transaction history logs
+    if (user.isTransfer()){
+      // Adds transaction recieve to transaction history
+      TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_TRANSFER_RECEIVE_ACTION, userDepositAmtInPennies);
+    } else {
+      // Adds deposit to transaction history
       TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_DEPOSIT_ACTION, userDepositAmtInPennies);
     }
 
@@ -349,10 +352,14 @@ public class MvcController {
     }
 
     // only adds withdraw to transaction history if is not transfer
-    if (!user.isTransfer()){
+    if (user.isTransfer()){
+      // Adds transfer send to transaction history
+      TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_TRANSFER_SEND_ACTION, userWithdrawAmtInPennies);
+    } else{
       // Adds withdraw to transaction history
       TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_WITHDRAW_ACTION, userWithdrawAmtInPennies);
     }
+
   
     // update Model so that View can access new main balance, overdraft balance, and logs
     updateAccountInfo(user);
@@ -515,9 +522,8 @@ public class MvcController {
     
     // initialize amount to deposit and withdraw from respecitive users
     double userDepositAmt = sender.getAmountToTransfer();
-    int userDepositAmtInPennies = convertDollarsToPennies(userDepositAmt);
     double userWithdrawAmt = sender.getAmountToTransfer();
-    int userWithdrawAmtInPennies = convertDollarsToPennies(userWithdrawAmt);
+    int transferAmountInPennies = convertDollarsToPennies(userWithdrawAmt);
   
     String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date()); // use same timestamp for all logs created by this deposit
 
@@ -527,12 +533,8 @@ public class MvcController {
     recipient.setAmountToDeposit(userDepositAmt);
     submitDeposit(recipient);
 
-    // Inserting transfer into transaction log history
-    TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, senderUserID, currentTime, TRANSACTION_HISTORY_TRANSFER_SEND_ACTION, userWithdrawAmtInPennies);
-    TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, recipientUserID, currentTime, TRANSACTION_HISTORY_TRANSFER_RECEIVE_ACTION, userDepositAmtInPennies);
-
     // Inserting transfer into transfer history for both customers
-    TestudoBankRepository.insertRowToTransferLogsTable(jdbcTemplate, senderUserID, recipientUserID, currentTime, userWithdrawAmtInPennies);
+    TestudoBankRepository.insertRowToTransferLogsTable(jdbcTemplate, senderUserID, recipientUserID, currentTime, transferAmountInPennies);
     updateAccountInfo(sender);
 
     return "account_info";
