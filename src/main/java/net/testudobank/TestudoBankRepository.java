@@ -111,14 +111,12 @@ public class TestudoBankRepository {
     jdbcTemplate.update(transferHistoryToSql);
   }
   
-  public static String doesCustomerExist(JdbcTemplate jdbcTemplate, String customerID) { 
+  public static boolean doesCustomerExist(JdbcTemplate jdbcTemplate, String customerID) { 
     String getCustomerIDSql =  String.format("SELECT CustomerID FROM Customers WHERE CustomerID='%s';", customerID);
-    try {
-      return jdbcTemplate.queryForObject(getCustomerIDSql, String.class);
-    }
-    catch(Exception e) {
-      return "welcome";
+    if (jdbcTemplate.queryForObject(getCustomerIDSql, String.class) != null) {
+     return true;
+    } else {
+      return false;
     }
   }
-
 }
