@@ -528,7 +528,7 @@ public class MvcController {
       return "welcome";
     } 
   
-    String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date()); // use same timestamp for all logs created by this deposit
+    String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date()); // use same timestamp for all logs created by this transfer
 
     // withdraw transfer amount from sender and deposit into recipient's account
     sender.setAmountToWithdraw(transferAmount);
