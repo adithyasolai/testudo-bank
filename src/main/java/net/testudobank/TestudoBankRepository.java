@@ -36,6 +36,12 @@ public class TestudoBankRepository {
     return transactionLogs;
   }
 
+  public static List<Map<String,Object>> getTransferLogs(JdbcTemplate jdbcTemplate, String customerID, int numTransfersToFetch) {
+    String getTransferHistorySql = String.format("Select * from TransferHistory WHERE TransferFrom='%s' OR TransferTo='%s' ORDER BY Timestamp DESC LIMIT %d;", customerID, customerID, numTransfersToFetch);
+    List<Map<String,Object>> transferLogs = jdbcTemplate.queryForList(getTransferHistorySql);
+    return transferLogs;
+  }
+
   public static List<Map<String,Object>> getOverdraftLogs(JdbcTemplate jdbcTemplate, String customerID){
     String getOverDraftLogsSql = String.format("SELECT * FROM OverdraftLogs WHERE CustomerID='%s';", customerID);
     List<Map<String,Object>> overdraftLogs = jdbcTemplate.queryForList(getOverDraftLogsSql);
@@ -102,6 +108,21 @@ public class TestudoBankRepository {
     jdbcTemplate.update(deleteRowFromOverdraftLogsSql);
   }
 
-
-
+  public static void insertRowToTransferLogsTable(JdbcTemplate jdbcTemplate, String customerID, String recipientID, String timestamp, int transferAmount) { 
+    String transferHistoryToSql = String.format("INSERT INTO TransferHistory VALUES ('%s', '%s', '%s', %d);",
+                                                    customerID,
+                                                    recipientID,
+                                                    timestamp,
+                                                    transferAmount);
+    jdbcTemplate.update(transferHistoryToSql);
+  }
+  
+  public static boolean doesCustomerExist(JdbcTemplate jdbcTemplate, String customerID) { 
+    String getCustomerIDSql =  String.format("SELECT CustomerID FROM Customers WHERE CustomerID='%s';", customerID);
+    if (jdbcTemplate.queryForObject(getCustomerIDSql, String.class) != null) {
+     return true;
+    } else {
+      return false;
+    }
+  }
 }

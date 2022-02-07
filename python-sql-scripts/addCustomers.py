@@ -50,11 +50,22 @@ create_transactionhistory_table_sql = '''
 CREATE TABLE TransactionHistory (
   CustomerID varchar(255),
   Timestamp DATETIME,
-  Action varchar(255) CHECK (Action IN ('Deposit', 'Withdraw')),
+  Action varchar(255) CHECK (Action IN ('Deposit', 'Withdraw', 'TransferSend', 'TransferReceive')),
   Amount int
 );
 '''
 cursor.execute(create_transactionhistory_table_sql)
+
+# Make empty Transfer table
+create_transferhistory_table_sql = '''
+CREATE TABLE TransferHistory (
+  TransferFrom varchar(255),
+  TransferTo varchar(255),
+  Timestamp DATETIME,
+  Amount int
+);
+'''
+cursor.execute(create_transferhistory_table_sql)
 
 # The two sets created below are used to ensure that this
 # automated, randomized process does not accidentally 

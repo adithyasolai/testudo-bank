@@ -23,6 +23,13 @@ CREATE TABLE OverdraftLogs (
 CREATE TABLE TransactionHistory (
   CustomerID varchar(255),
   Timestamp DATETIME,
-  Action varchar(255) CHECK (Action IN ('Deposit', 'Withdraw')),
+  Action varchar(255) CHECK (Action IN ('Deposit', 'Withdraw', 'TransferSend', 'TransferRecieve')),
+  Amount int
+);
+
+CREATE TABLE TransferHistory (
+  TransferFrom varchar(255),
+  TransferTo varchar(255),
+  Timestamp DATETIME,
   Amount int
 );
