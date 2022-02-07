@@ -48,6 +48,9 @@ public class User {
 
   @Setter @Getter
   private boolean isTransfer;
+
+  @Setter @Getter
+  private String transferHist;
   
 	@Override
 	public String toString() {

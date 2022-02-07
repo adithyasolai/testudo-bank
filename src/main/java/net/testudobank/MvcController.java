@@ -30,6 +30,7 @@ public class MvcController {
   private final static int MAX_OVERDRAFT_IN_PENNIES = 100000;
   public final static int MAX_DISPUTES = 2;
   private final static int MAX_NUM_TRANSACTIONS_DISPLAYED = 3;
+  private final static int MAX_NUM_TRANSFERS_DISPLAYED = 10;
   private final static int MAX_REVERSABLE_TRANSACTIONS_AGO = 3;
   private final static String HTML_LINE_BREAK = "<br/>";
   public static String TRANSACTION_HISTORY_DEPOSIT_ACTION = "Deposit";
@@ -151,6 +152,12 @@ public class MvcController {
       transactionHistoryOutput += transactionLog + HTML_LINE_BREAK;
     }
 
+    List<Map<String,Object>> transferLogs = TestudoBankRepository.getTransferLogs(jdbcTemplate, user.getUsername(), MAX_NUM_TRANSFERS_DISPLAYED);
+    String transferHistoryOutput = HTML_LINE_BREAK;
+    for(Map<String, Object> transferLog : transferLogs){
+      transferHistoryOutput += transferLog + HTML_LINE_BREAK;
+    }
+
     String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance FROM Customers WHERE CustomerID='%s';", user.getUsername());
     List<Map<String,Object>> queryResults = jdbcTemplate.queryForList(getUserNameAndBalanceAndOverDraftBalanceSql);
     Map<String,Object> userData = queryResults.get(0);
@@ -162,6 +169,7 @@ public class MvcController {
     user.setOverDraftBalance(overDraftBalance/100);
     user.setLogs(logs);
     user.setTransactionHist(transactionHistoryOutput);
+    user.setTransferHist(transferHistoryOutput);
   }
 
   // Converts dollar amounts in frontend to penny representation in backend MySQL DB
