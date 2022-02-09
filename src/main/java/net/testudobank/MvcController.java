@@ -176,6 +176,10 @@ public class MvcController {
   private static int convertDollarsToPennies(double dollarAmount) {
     return (int) (dollarAmount * 100);
   }
+  // Applies interest to penny amount in frontend
+  private static int applyInterestRateToPennyAmount(int pennyAmount){
+    return (int) (pennyAmount * INTEREST_RATE);
+  }
 
   // Converts LocalDateTime to Date variable
   private static Date convertLocalDateTimeToDate(LocalDateTime ldt){
@@ -339,7 +343,7 @@ public class MvcController {
     int userOverdraftBalanceInPennies = TestudoBankRepository.getCustomerOverdraftBalanceInPennies(jdbcTemplate, userID);
     if (userWithdrawAmtInPennies > userBalanceInPennies) { // if withdraw amount exceeds main balance, withdraw into overdraft with interest fee
       int excessWithdrawAmtInPennies = userWithdrawAmtInPennies - userBalanceInPennies;
-      int newOverdraftIncreaseAmtAfterInterestInPennies = (int)(excessWithdrawAmtInPennies * INTEREST_RATE);
+      int newOverdraftIncreaseAmtAfterInterestInPennies = applyInterestRateToPennyAmount(excessWithdrawAmtInPennies);
       int newOverdraftBalanceInPennies = userOverdraftBalanceInPennies + newOverdraftIncreaseAmtAfterInterestInPennies;
 
       // abort withdraw transaction if new overdraft balance exceeds max overdraft limit
