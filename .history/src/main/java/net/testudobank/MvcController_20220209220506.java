@@ -158,7 +158,7 @@ public class MvcController {
     return dateTime;
   }
 
-  // Applies the interest rate to the penny amount (the parameter)
+  // Applies the interest rate to the 
   public int applyInterestRateToPennyAmount(int pennyAmount) {
     int res = (int)(pennyAmount * INTEREST_RATE);
     return res;
