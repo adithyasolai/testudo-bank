@@ -102,6 +102,11 @@ public class TestudoBankRepository {
     jdbcTemplate.update(deleteRowFromOverdraftLogsSql);
   }
 
+  public static int applyInterestRateToPennyAmount(int pennyAmount, final double INTEREST_RATE) {
+    int transformation =  (int) (pennyAmount * INTEREST_RATE);
+    return transformation;
+  }
+
 
 
 }
