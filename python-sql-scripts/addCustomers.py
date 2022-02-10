@@ -67,6 +67,32 @@ CREATE TABLE TransferHistory (
 '''
 cursor.execute(create_transferhistory_table_sql)
 
+
+# Make empty CryptoHoldings table
+create_cryptoholdings_table_sql = '''
+CREATE TABLE CryptoHoldings (
+  CustomerID varchar(255),
+  CryptoName varchar(255),
+  CryptoAmount float
+);
+'''
+cursor.execute(create_cryptoholdings_table_sql)
+
+
+# Make empty CryptoHoldings table
+create_cryptohistory_table_sql = '''
+CREATE TABLE CryptoHistory (
+  CustomerID varchar(255),
+  Timestamp DATETIME,
+  Action varchar(255) CHECK (Action IN ('Buy', 'Sell')),
+  CryptoName varchar(255),
+  CryptoAmount float
+);
+'''
+cursor.execute(create_cryptohistory_table_sql)
+
+
+
 # The two sets created below are used to ensure that this
 # automated, randomized process does not accidentally 
 # generate and use a customer ID that already is in use
