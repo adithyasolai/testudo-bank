@@ -13,6 +13,11 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
 
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import java.io.IOException;
+
 import org.springframework.beans.factory.annotation.Autowired;
 
 @Controller
@@ -131,6 +136,36 @@ public class MvcController {
 		return "transfer_form";
 	}
 
+  /**
+   * HTML GET request handler that serves the "buycrypto_form" page to the user.
+   * An empty `User` object is also added to the Model as an Attribute to store
+   * the user's input for buying cryptocurrency.
+   * 
+   * @param model
+   * @return "buycrypto_form" page
+   */
+  @GetMapping("/buycrypto")
+	public String showBuyCryptoForm(Model model) {
+    User user = new User();
+		model.addAttribute("user", user);
+		return "buycrypto_form";
+	}
+
+  /**
+   * HTML GET request handler that serves the "sellcrypto_form" page to the user.
+   * An empty `User` object is also added to the Model as an Attribute to store
+   * the user's input for selling cryptocurrency.
+   * 
+   * @param model
+   * @return "sellcrypto_form" page
+   */
+  @GetMapping("/sellcrypto")
+	public String showSellCryptoForm(Model model) {
+    User user = new User();
+		model.addAttribute("user", user);
+		return "sellcrypto_form";
+	}
+
   //// HELPER METHODS ////
 
   /**
@@ -181,6 +216,37 @@ public class MvcController {
   private static Date convertLocalDateTimeToDate(LocalDateTime ldt){
     Date dateTime = Date.from(ldt.atZone(ZoneId.systemDefault()).toInstant());
     return dateTime;
+  }
+
+  /**
+   * Private method which is used to return the current value of Ethereum
+   * in USD. This method uses JSoup to scrape the website "https://ethereumprice.org"
+   * and retrieve the current USD value of 1 ETH.
+   * 
+   * NOTE: If the web scraper fails, a value of -1 is returned
+   * 
+   * @return the current value of 1 ETH in USD
+   */
+  private double getCurrentEthValue() {
+    try {
+      // fetch the document over HTTP
+      Document doc = Jsoup.connect("https://ethereumprice.org").userAgent("Mozilla").get();
+
+      Element value = doc.getElementById("coin-price");
+      String valueStr = value.text();
+
+      // Replacing the '$'' and ',' characters from the string
+      valueStr = valueStr.replaceAll("\\$", "").replaceAll("\\,", "");
+      double ethValue = Double.parseDouble(valueStr);
+
+      return ethValue;
+    } catch (IOException e) {
+      // Print stack trace for debugging
+      e.printStackTrace();
+
+      // Return -1 if there was an error during web scraping
+      return -1;
+    }
   }
 
   // HTML POST HANDLERS ////
@@ -550,6 +616,26 @@ public class MvcController {
     updateAccountInfo(sender);
 
     return "account_info";
+  }
+
+  /**
+   * 
+   * @param user
+   * @return "account_info" page if buy successful. Otherwise, redirect to "welcome" page.
+   */
+  @PostMapping("/buycrypto")
+  public String buyCrypto(@ModelAttribute("user") User user) {
+    return "welcome";
+  }
+
+  /**
+   * 
+   * @param user
+   * @return "account_info" page if sell successful. Otherwise, redirect to "welcome" page.
+   */
+  @PostMapping("/sellcrypto")
+  public String sellCrypto(@ModelAttribute("user") User user) {
+    return "welcome";
   }
 
 }
