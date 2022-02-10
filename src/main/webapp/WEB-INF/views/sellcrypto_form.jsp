@@ -6,7 +6,7 @@
 <head>
   <link rel="icon" href="https://fanapeel.com/wp-content/uploads/logo_-university-of-maryland-terrapins-testudo-turtle-hold-red-white-m.png">
   <meta charset="ISO-8859-1">
-  <title>Welcome Page</title>
+  <title>Sell Cryptocurrency Form</title>
   <style type="text/css">
     label {
       display: inline-block;
@@ -33,20 +33,21 @@
     }
   </style>
 </head>
-
 <body>
 	<div align="center">
-		<h2>Welcome to Testudo Bank!</h2>
-        <img src="https://fanapeel.com/wp-content/uploads/logo_-university-of-maryland-terrapins-testudo-turtle-hold-red-white-m.png" style="float:left;width:100px;height:100px;">
-		<a href='/login'>View Account</a> <br/>
-    <a href='/deposit'>Deposit</a> <br/>
-    <a href='/withdraw'>Withdraw</a> <br/>
-    <a href='/dispute'>Dispute</a> <br/>
-    <a href='/transfer'>Transfer</a> <br/>
-    <a href='/buycrypto'>Buy Cryptocurrency</a>
-    <a href='/sellcrypto'>Sell Cryptocurrency</a> <br/>
+		<form:form action="sellcrypto" method="post" modelAttribute="user">
+			<form:label path="username">Username:</form:label>
+			<form:input path="username"/><br/>
 
+			<form:label path="password">Password:</form:label>
+			<form:password path="password"/><br/>		
+
+      <form:label path="amountToSellCrypto">Amount to Sell (Ethereum):</form:label>
+			<form:input path="amountToSellCrypto"/><br/>	
+
+			<form:button>Sell Ethereum</form:button>
+		</form:form>
+    <a href='/'>Home</a>
 	</div>
 </body>
-
 </html>

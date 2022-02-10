@@ -51,6 +51,12 @@ public class User {
 
   @Setter @Getter
   private String transferHist;
+
+  @Setter @Getter @Positive
+  private double amountToBuyCrypto;
+
+  @Setter @Getter @Positive
+  private double amountToSellCrypto;
   
 	@Override
 	public String toString() {

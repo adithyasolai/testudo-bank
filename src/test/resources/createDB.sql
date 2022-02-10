@@ -33,3 +33,17 @@ CREATE TABLE TransferHistory (
   Timestamp DATETIME,
   Amount int
 );
+
+CREATE TABLE CryptoHoldings (
+  CustomerID varchar(255),
+  CryptoName varchar(255),
+  CryptoAmount float
+);
+
+CREATE TABLE CryptoHistory (
+  CustomerID varchar(255),
+  Timestamp DATETIME,
+  Action varchar(255) CHECK (Action IN ('Buy', 'Sell')),
+  CryptoName varchar(255),
+  CryptoAmount float
+);
