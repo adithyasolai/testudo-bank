@@ -160,8 +160,8 @@ public class MvcController {
 
   // Applies the interest rate to the penny amount (the parameter)
   public int applyInterestRateToPennyAmount(int pennyAmount) {
-    int result = (int)(pennyAmount * INTEREST_RATE);
-    return result;
+    int resul = (int)(pennyAmount * INTEREST_RATE);
+    return res;
   }
 
   // HTML POST HANDLERS ////
