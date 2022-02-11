@@ -40,6 +40,24 @@ public class User {
   @Setter @Getter
   private int numTransactionsAgo;
 
+  @Setter @Getter
+  private double amountToTransfer;
+
+  @Setter @Getter
+  private String transferRecipientID;
+
+  @Setter @Getter
+  private boolean isTransfer;
+
+  @Setter @Getter
+  private String transferHist;
+
+  @Setter @Getter @Positive
+  private double amountToBuyCrypto;
+
+  @Setter @Getter @Positive
+  private double amountToSellCrypto;
+  
 	@Override
 	public String toString() {
 		return "User [username=" + username + ", password=" + password + ", balance=" + balance + "]";

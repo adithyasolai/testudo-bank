@@ -36,6 +36,11 @@ public class MvcControllerIntegTest {
   private static String CUSTOMER1_LAST_NAME = "Bar";
   public static long REASONABLE_TIMESTAMP_EPSILON_IN_SECONDS = 1L;
 
+  private static String CUSTOMER2_ID = "987654321";
+  private static String CUSTOMER2_PASSWORD = "password";
+  private static String CUSTOMER2_FIRST_NAME = "Foo1";
+  private static String CUSTOMER2_LAST_NAME = "Bar1";
+  
   // Spins up small MySQL DB in local Docker container
   @Container
   public static MySQLContainer db = new MySQLContainer<>("mysql:5.7.37")
@@ -928,5 +933,175 @@ public class MvcControllerIntegTest {
     // verfiy that overdraft balance does not apply extra 2% interest after dispute
     assertEquals(CUSTOMER1_OVERDRAFT_BALANCE_IN_PENNIES, (int)customer1Data.get("OverdraftBalance"));
   }
+
+ /**
+   * This test verifies that a simple transfer of $100 from Customer1 to Customer2 will take place. Customer1's balance will be
+   * initialized to $1000, and Customer2's balance will be $500. 
+   * 
+   * After a successful transfer, Customer1's balance should reflect a $900 balance, and Customer2's balance should be $600. 
+   * 
+   * @throws SQLException
+   */
+  @Test
+  public void testTransfer() throws SQLException, ScriptException { 
+
+    //Initialize customer1 with a balance of $1000. Balance will be represented as pennies in DB.
+    double CUSTOMER1_BALANCE = 1000;
+    int CUSTOMER1_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_BALANCE);
+    MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER1_ID, CUSTOMER1_PASSWORD, CUSTOMER1_FIRST_NAME, CUSTOMER1_LAST_NAME, CUSTOMER1_BALANCE_IN_PENNIES);
+
+    //Initialize customer2 with a balance of $500. Balance will be represented as pennies in DB. 
+    double CUSTOMER2_BALANCE = 500;
+    int CUSTOMER2_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER2_BALANCE);
+    MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER2_ID, CUSTOMER2_PASSWORD, CUSTOMER2_FIRST_NAME, CUSTOMER2_LAST_NAME, CUSTOMER2_BALANCE_IN_PENNIES);
+
+    //Amount to transfer
+    double TRANSFER_AMOUNT = 100;
+    int TRANSFER_AMOUNT_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(TRANSFER_AMOUNT);
+
+    //Initializing users for the transfer
+    User CUSTOMER1 = new User();
+    CUSTOMER1.setUsername(CUSTOMER1_ID);
+    CUSTOMER1.setPassword(CUSTOMER1_PASSWORD);
+    CUSTOMER1.setTransferRecipientID(CUSTOMER2_ID);
+    CUSTOMER1.setAmountToTransfer(TRANSFER_AMOUNT);
+    
+    //Send the transfer request.
+    String returnedPage = controller.submitTransfer(CUSTOMER1);
+    
+    //Fetch customer1 & customer2's data from DB
+    List<Map<String, Object>> customer1SqlResult = jdbcTemplate.queryForList(String.format("SELECT * FROM Customers WHERE CustomerID='%s';", CUSTOMER1_ID));
+    Map<String, Object> customer1Data = customer1SqlResult.get(0);
+
+    List<Map<String, Object>> customer2SqlResult = jdbcTemplate.queryForList(String.format("SELECT * FROM Customers WHERE CustomerID='%s';", CUSTOMER2_ID));
+    Map<String, Object> customer2Data = customer2SqlResult.get(0);
+   
+    //Verify that customer1's balance decreased by $100. 
+    assertEquals((CUSTOMER1_BALANCE_IN_PENNIES - TRANSFER_AMOUNT_IN_PENNIES), (int)customer1Data.get("Balance"));
+
+    //Verify that customer2's balance increased by $100.
+    assertEquals((CUSTOMER2_BALANCE_IN_PENNIES + TRANSFER_AMOUNT_IN_PENNIES), (int)customer2Data.get("Balance"));
+
+    //Check that transfer request goes through.
+    assertEquals("account_info", returnedPage);
+  }
+
+  /**
+   * This test is written to check the scenario where a transfer between the sender and the recipient occurs when
+   * the recipient is in overdraft. The sender will have $1000 in the bank account and will send $100. The recipient
+   * will have an overdraft balance of $101. Receiving $100 should make the sender have an updated overdraft balance of
+   * $1. 
+   * 
+   * The sender's balance should decrease by the transfer amount.
+   */
+  @Test
+  public void testTransferPaysOffOverdraftBalance() throws SQLException, ScriptException { 
+    
+    //Initialize customer1 with a balance of $1000. Balance will be represented as pennies in DB.
+    double CUSTOMER1_BALANCE = 1000;
+    int CUSTOMER1_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_BALANCE);
+    MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER1_ID, CUSTOMER1_PASSWORD, CUSTOMER1_FIRST_NAME, CUSTOMER1_LAST_NAME, CUSTOMER1_BALANCE_IN_PENNIES);
+
+    //Initialize customer2 with a balance of $0 and Overdraft balance of $101. Balance will be represented as pennies in DB. 
+    double CUSTOMER2_BALANCE = 0;
+    int CUSTOMER2_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER2_BALANCE);
+    double CUSTOMER2_OVERDRAFT_BALANCE = 101.0;
+    int CUSTOMER2_OVERDRAFT_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER2_OVERDRAFT_BALANCE);
+    int CUSTOMER2_NUM_FRAUD_REVERSALS = 0;
+    MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER2_ID, CUSTOMER2_PASSWORD, CUSTOMER2_FIRST_NAME, CUSTOMER2_LAST_NAME, CUSTOMER2_BALANCE_IN_PENNIES, CUSTOMER2_OVERDRAFT_BALANCE_IN_PENNIES, CUSTOMER2_NUM_FRAUD_REVERSALS);
+
+    //Amount to transfer
+    double TRANSFER_AMOUNT = 100;
+    int TRANSFER_AMOUNT_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(TRANSFER_AMOUNT);
+
+    //Initializing users for the transfer
+    User CUSTOMER1 = new User();
+    CUSTOMER1.setUsername(CUSTOMER1_ID);
+    CUSTOMER1.setPassword(CUSTOMER1_PASSWORD);
+
+    CUSTOMER1.setTransferRecipientID(CUSTOMER2_ID);
+    CUSTOMER1.setAmountToTransfer(TRANSFER_AMOUNT);
+
+    //Send the transfer request.
+    String returnedPage = controller.submitTransfer(CUSTOMER1);
+
+    //fetch customer1 & customer2's data from DB
+    List<Map<String,Object>> customer1SqlResult = jdbcTemplate.queryForList(String.format("SELECT * FROM Customers WHERE CustomerID='%s';", CUSTOMER1_ID));
+    Map<String, Object> customer1Data = customer1SqlResult.get(0);
+
+    List<Map<String,Object>> customer2SqlResult = jdbcTemplate.queryForList(String.format("SELECT * FROM Customers WHERE CustomerID='%s';", CUSTOMER2_ID));
+    Map<String, Object> customer2Data = customer2SqlResult.get(0);
+
+    //Verify that customer1's balance decreased by $100. 
+    assertEquals((CUSTOMER1_BALANCE_IN_PENNIES - TRANSFER_AMOUNT_IN_PENNIES), (int)customer1Data.get("Balance"));
+
+    //Verify that customer2's overdraft balance decreased by $100.
+    assertEquals((CUSTOMER2_OVERDRAFT_BALANCE_IN_PENNIES - TRANSFER_AMOUNT_IN_PENNIES), (int)customer2Data.get("OverdraftBalance"));
+
+    //Check that transfer request goes through.
+    assertEquals("account_info", returnedPage);
+}
+
+/**
+ * This test will test a scenario where the sender sends the recipient (who currently has an overdraft balance) an amount
+ * that clears the recipient's overdraft balance and deposits the remainder. 
+ * 
+ * The sender will be initialized with $1000, and the recipient will have an overdraft balance of $100. Due to applied interest,
+ * the recipient will have an overdraft balance of $102. The sender will send $150, so the recipient's balance should reflect $48
+ * after the transfer.
+ * 
+ * @throws SQLException
+ * @throws ScriptException
+ */
+@Test
+public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException, ScriptException { 
+
+    //Initialize customer1 with a balance of $1000. Balance will be represented as pennies in DB.
+    double CUSTOMER1_BALANCE = 1000;
+    int CUSTOMER1_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_BALANCE);
+    MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER1_ID, CUSTOMER1_PASSWORD, CUSTOMER1_FIRST_NAME, CUSTOMER1_LAST_NAME, CUSTOMER1_BALANCE_IN_PENNIES);
+
+    double CUSTOMER2_BALANCE = 0;
+    int CUSTOMER2_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER2_BALANCE);
+    double CUSTOMER2_OVERDRAFT_BALANCE = 100.0;
+    int CUSTOMER2_OVERDRAFT_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER2_OVERDRAFT_BALANCE);
+    int CUSTOMER2_NUM_FRAUD_REVERSALS = 0;
+    MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER2_ID, CUSTOMER2_PASSWORD, CUSTOMER2_FIRST_NAME, CUSTOMER2_LAST_NAME, CUSTOMER2_BALANCE_IN_PENNIES, CUSTOMER2_OVERDRAFT_BALANCE_IN_PENNIES, CUSTOMER2_NUM_FRAUD_REVERSALS);
+
+    //Transfer $150 from sender's account to recipient's account.
+    double TRANSFER_AMOUNT = 150;
+    int TRANSFER_AMOUNT_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(TRANSFER_AMOUNT);
+
+    //Initializing users for the transfer
+    User CUSTOMER1 = new User();
+    CUSTOMER1.setUsername(CUSTOMER1_ID);
+    CUSTOMER1.setPassword(CUSTOMER1_PASSWORD);
+
+    CUSTOMER1.setTransferRecipientID(CUSTOMER2_ID);
+    CUSTOMER1.setAmountToTransfer(TRANSFER_AMOUNT);
+
+    //Send the transfer request.
+    String returnedPage = controller.submitTransfer(CUSTOMER1);
+
+    //fetch customer1 & customer2's data from DB
+    List<Map<String,Object>> customer1SqlResult = jdbcTemplate.queryForList(String.format("SELECT * FROM Customers WHERE CustomerID='%s';", CUSTOMER1_ID));
+    Map<String, Object> customer1Data = customer1SqlResult.get(0);
+
+    List<Map<String,Object>> customer2SqlResult = jdbcTemplate.queryForList(String.format("SELECT * FROM Customers WHERE CustomerID='%s';", CUSTOMER2_ID));
+    Map<String, Object> customer2Data = customer2SqlResult.get(0);
+
+    //Verify that customer1's balance decreased by $100. 
+    assertEquals((CUSTOMER1_BALANCE_IN_PENNIES - TRANSFER_AMOUNT_IN_PENNIES), (int)customer1Data.get("Balance"));
+
+    //Verify that customer2's overdraft balance is now $0.
+    assertEquals(0, (int)customer2Data.get("OverdraftBalance"));
+
+    //Verify that customer2's balance reflects a positive amount due to a remainder being leftover after the transfer amount - overdraft balance.
+    int CUSTOMER2_EXPECTED_BALANCE_IN_PENNIES = TRANSFER_AMOUNT_IN_PENNIES - CUSTOMER2_OVERDRAFT_BALANCE_IN_PENNIES;
+    assertEquals(CUSTOMER2_EXPECTED_BALANCE_IN_PENNIES, (int)customer2Data.get("Balance"));
+
+    //Check that transfer request goes through.
+    assertEquals("account_info", returnedPage);
+  } 
 
 }
