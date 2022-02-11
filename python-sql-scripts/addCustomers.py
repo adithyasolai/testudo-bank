@@ -2,7 +2,15 @@ import pymysql
 import names
 import random
 import string
-from credentials import mysql_endpoint, username, password, database_name
+# from credentials import mysql_endpoint, username, password, database_name
+
+# print("hey")
+# print(password)
+
+mysql_endpoint='localhost'
+username='root'
+password="tatakae"
+database_name = 'testudo_bank'
 
 # SQL Config Values
 num_customers_to_add = 100
