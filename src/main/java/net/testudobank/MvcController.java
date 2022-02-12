@@ -13,11 +13,6 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
 
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import java.io.IOException;
-
 import org.springframework.beans.factory.annotation.Autowired;
 
 @Controller
@@ -35,13 +30,10 @@ public class MvcController {
   private final static int MAX_OVERDRAFT_IN_PENNIES = 100000;
   public final static int MAX_DISPUTES = 2;
   private final static int MAX_NUM_TRANSACTIONS_DISPLAYED = 3;
-  private final static int MAX_NUM_TRANSFERS_DISPLAYED = 10;
   private final static int MAX_REVERSABLE_TRANSACTIONS_AGO = 3;
   private final static String HTML_LINE_BREAK = "<br/>";
   public static String TRANSACTION_HISTORY_DEPOSIT_ACTION = "Deposit";
   public static String TRANSACTION_HISTORY_WITHDRAW_ACTION = "Withdraw";
-  public static String TRANSACTION_HISTORY_TRANSFER_SEND_ACTION = "TransferSend";
-  public static String TRANSACTION_HISTORY_TRANSFER_RECEIVE_ACTION = "TransferReceive";
 
   public MvcController(@Autowired JdbcTemplate jdbcTemplate) {
     this.jdbcTemplate = jdbcTemplate;
@@ -121,51 +113,6 @@ public class MvcController {
 		return "dispute_form";
 	}
 
-  /**
-   * HTML GET request handler that serves the "transfer_form" page to the user.
-   * An empty `User` object is also added to the Model as an Attribute to store
-   * the user's transfer form input.
-   * 
-   * @param model
-   * @return "dispute_form" page
-   */
-  @GetMapping("/transfer")
-	public String showTransferForm(Model model) {
-    User user = new User();
-		model.addAttribute("user", user);
-		return "transfer_form";
-	}
-
-  /**
-   * HTML GET request handler that serves the "buycrypto_form" page to the user.
-   * An empty `User` object is also added to the Model as an Attribute to store
-   * the user's input for buying cryptocurrency.
-   * 
-   * @param model
-   * @return "buycrypto_form" page
-   */
-  @GetMapping("/buycrypto")
-	public String showBuyCryptoForm(Model model) {
-    User user = new User();
-		model.addAttribute("user", user);
-		return "buycrypto_form";
-	}
-
-  /**
-   * HTML GET request handler that serves the "sellcrypto_form" page to the user.
-   * An empty `User` object is also added to the Model as an Attribute to store
-   * the user's input for selling cryptocurrency.
-   * 
-   * @param model
-   * @return "sellcrypto_form" page
-   */
-  @GetMapping("/sellcrypto")
-	public String showSellCryptoForm(Model model) {
-    User user = new User();
-		model.addAttribute("user", user);
-		return "sellcrypto_form";
-	}
-
   //// HELPER METHODS ////
 
   /**
@@ -187,12 +134,6 @@ public class MvcController {
       transactionHistoryOutput += transactionLog + HTML_LINE_BREAK;
     }
 
-    List<Map<String,Object>> transferLogs = TestudoBankRepository.getTransferLogs(jdbcTemplate, user.getUsername(), MAX_NUM_TRANSFERS_DISPLAYED);
-    String transferHistoryOutput = HTML_LINE_BREAK;
-    for(Map<String, Object> transferLog : transferLogs){
-      transferHistoryOutput += transferLog + HTML_LINE_BREAK;
-    }
-
     String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance FROM Customers WHERE CustomerID='%s';", user.getUsername());
     List<Map<String,Object>> queryResults = jdbcTemplate.queryForList(getUserNameAndBalanceAndOverDraftBalanceSql);
     Map<String,Object> userData = queryResults.get(0);
@@ -204,7 +145,6 @@ public class MvcController {
     user.setOverDraftBalance(overDraftBalance/100);
     user.setLogs(logs);
     user.setTransactionHist(transactionHistoryOutput);
-    user.setTransferHist(transferHistoryOutput);
   }
 
   // Converts dollar amounts in frontend to penny representation in backend MySQL DB
@@ -218,36 +158,10 @@ public class MvcController {
     return dateTime;
   }
 
-  /**
-   * Private method which is used to return the current value of Ethereum
-   * in USD. This method uses JSoup to scrape the website "https://ethereumprice.org"
-   * and retrieve the current USD value of 1 ETH.
-   * 
-   * NOTE: If the web scraper fails, a value of -1 is returned
-   * 
-   * @return the current value of 1 ETH in USD
-   */
-  private double getCurrentEthValue() {
-    try {
-      // fetch the document over HTTP
-      Document doc = Jsoup.connect("https://ethereumprice.org").userAgent("Mozilla").get();
-
-      Element value = doc.getElementById("coin-price");
-      String valueStr = value.text();
-
-      // Replacing the '$'' and ',' characters from the string
-      valueStr = valueStr.replaceAll("\\$", "").replaceAll("\\,", "");
-      double ethValue = Double.parseDouble(valueStr);
-
-      return ethValue;
-    } catch (IOException e) {
-      // Print stack trace for debugging
-      e.printStackTrace();
-
-      // Return -1 if there was an error during web scraping
-      return -1;
-    }
-  }
+  // Applies interest to pennies
+  private int applyInterestRateToPennyAmount (int pennyAmount){
+    return (int) (pennyAmount * INTEREST_RATE);
+  } 
 
   // HTML POST HANDLERS ////
 
@@ -344,14 +258,8 @@ public class MvcController {
       TestudoBankRepository.increaseCustomerBalance(jdbcTemplate, userID, userDepositAmtInPennies);
     }
 
-    // only adds deposit to transaction history if is not transfer
-    if (user.isTransfer()){
-      // Adds transaction recieve to transaction history
-      TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_TRANSFER_RECEIVE_ACTION, userDepositAmtInPennies);
-    } else {
-      // Adds deposit to transaction history
-      TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_DEPOSIT_ACTION, userDepositAmtInPennies);
-    }
+    // Adds deposit to transaction history logs
+    TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_DEPOSIT_ACTION, userDepositAmtInPennies);
 
     // update Model so that View can access new main balance, overdraft balance, and logs
     updateAccountInfo(user);
@@ -405,7 +313,7 @@ public class MvcController {
     int userOverdraftBalanceInPennies = TestudoBankRepository.getCustomerOverdraftBalanceInPennies(jdbcTemplate, userID);
     if (userWithdrawAmtInPennies > userBalanceInPennies) { // if withdraw amount exceeds main balance, withdraw into overdraft with interest fee
       int excessWithdrawAmtInPennies = userWithdrawAmtInPennies - userBalanceInPennies;
-      int newOverdraftIncreaseAmtAfterInterestInPennies = (int)(excessWithdrawAmtInPennies * INTEREST_RATE);
+      int newOverdraftIncreaseAmtAfterInterestInPennies = applyInterestRateToPennyAmount(excessWithdrawAmtInPennies);
       int newOverdraftBalanceInPennies = userOverdraftBalanceInPennies + newOverdraftIncreaseAmtAfterInterestInPennies;
 
       // abort withdraw transaction if new overdraft balance exceeds max overdraft limit
@@ -425,16 +333,9 @@ public class MvcController {
       TestudoBankRepository.decreaseCustomerBalance(jdbcTemplate, userID, userWithdrawAmtInPennies);
     }
 
-    // only adds withdraw to transaction history if is not transfer
-    if (user.isTransfer()){
-      // Adds transfer send to transaction history
-      TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_TRANSFER_SEND_ACTION, userWithdrawAmtInPennies);
-    } else{
-      // Adds withdraw to transaction history
-      TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_WITHDRAW_ACTION, userWithdrawAmtInPennies);
-    }
+    // Adds withdraw to transaction history
+    TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_WITHDRAW_ACTION, userWithdrawAmtInPennies);
 
-  
     // update Model so that View can access new main balance, overdraft balance, and logs
     updateAccountInfo(user);
     return "account_info";
@@ -454,6 +355,7 @@ public class MvcController {
    * @param user
    * @return "account_info" page if login successful. Otherwise, redirect to "welcome" page.
    */
+
   @PostMapping("/dispute")
   public String submitDispute(@ModelAttribute("user") User user) {
     // Ensure that requested transaction to reverse is within acceptable range
@@ -534,108 +436,6 @@ public class MvcController {
     updateAccountInfo(user);
 
     return "account_info";
-  }
-
-  /**
-   * HTML POST request handler for the Transfer Form page.
-   * 
-   * The same username+password handling from the login page is used.
-   * 
-   * If the password attempt is correct, the users transfer successfully goes through
-   * if it is a valid transfer. Both customers balances are properly updated.
-   * 
-   * If the password attempt is incorrect, the user is redirected to the "welcome" page.
-   * 
-   * Transfer function is implemented by re-using deposit and withdraw handlers to 
-   * facilitate a transfer between 2 users.
-   * 
-   * @param user
-   * @return "account_info" page if login successful. Otherwise, redirect to "welcome" page.
-   */
-  @PostMapping("/transfer")
-  public String submitTransfer(@ModelAttribute("user") User sender) {
-
-    // checks to see the customer you are transfering to exists
-    if (!TestudoBankRepository.doesCustomerExist(jdbcTemplate, sender.getTransferRecipientID())){
-      return "welcome";
-    }
-
-    String senderUserID = sender.getUsername();
-    String senderPasswordAttempt = sender.getPassword();
-    String senderPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, senderUserID);
-
-    // creates new user for recipient
-    User recipient = new User();
-    String recipientUserID = sender.getTransferRecipientID();
-    String recipientPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, recipientUserID);
-    recipient.setUsername(recipientUserID);
-    recipient.setPassword(recipientPassword);
-
-    // sets isTransfer to true for sender and recipient
-    sender.setTransfer(true);
-    recipient.setTransfer(true);
-
-    /// Invalid Input/State Handling ///
-
-    // unsuccessful login
-    if (senderPasswordAttempt.equals(senderPassword) == false) {
-      return "welcome";
-    }
-
-    // case where customer already has too many reversals
-    int numOfReversals = TestudoBankRepository.getCustomerNumberOfReversals(jdbcTemplate, senderUserID);
-    if (numOfReversals >= MAX_DISPUTES) {
-      return "welcome";
-    }
-
-    // case where customer tries to send money to themselves
-    if (sender.getTransferRecipientID().equals(senderUserID)){
-      return "welcome";
-    }
-
-    // initialize variables for transfer amount
-    double transferAmount = sender.getAmountToTransfer();
-    int transferAmountInPennies = convertDollarsToPennies(transferAmount);
-
-    // negative transfer amount is not allowed
-    if (transferAmount < 0) {
-      return "welcome";
-    } 
-  
-    String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date()); // use same timestamp for all logs created by this transfer
-
-    // withdraw transfer amount from sender and deposit into recipient's account
-    sender.setAmountToWithdraw(transferAmount);
-    submitWithdraw(sender);
-
-    recipient.setAmountToDeposit(transferAmount);
-    submitDeposit(recipient);
-
-    // Inserting transfer into transfer history for both customers
-    TestudoBankRepository.insertRowToTransferLogsTable(jdbcTemplate, senderUserID, recipientUserID, currentTime, transferAmountInPennies);
-    updateAccountInfo(sender);
-
-    return "account_info";
-  }
-
-  /**
-   * 
-   * @param user
-   * @return "account_info" page if buy successful. Otherwise, redirect to "welcome" page.
-   */
-  @PostMapping("/buycrypto")
-  public String buyCrypto(@ModelAttribute("user") User user) {
-    return "welcome";
-  }
-
-  /**
-   * 
-   * @param user
-   * @return "account_info" page if sell successful. Otherwise, redirect to "welcome" page.
-   */
-  @PostMapping("/sellcrypto")
-  public String sellCrypto(@ModelAttribute("user") User user) {
-    return "welcome";
   }
 
 }
