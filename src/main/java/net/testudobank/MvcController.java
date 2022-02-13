@@ -42,6 +42,7 @@ public class MvcController {
   public static String TRANSACTION_HISTORY_WITHDRAW_ACTION = "Withdraw";
   public static String TRANSACTION_HISTORY_TRANSFER_SEND_ACTION = "TransferSend";
   public static String TRANSACTION_HISTORY_TRANSFER_RECEIVE_ACTION = "TransferReceive";
+  public static String CRYPTO_NAME = "ethereum";
 
   public MvcController(@Autowired JdbcTemplate jdbcTemplate) {
     this.jdbcTemplate = jdbcTemplate;
@@ -197,14 +198,14 @@ public class MvcController {
     List<Map<String,Object>> queryResults = jdbcTemplate.queryForList(getUserNameAndBalanceAndOverDraftBalanceSql);
     Map<String,Object> userData = queryResults.get(0);
 
-    double ethereumBalance = TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, user.getUsername(), "ethereum").orElse(0.0);
+    double cryptoBalance = TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, user.getUsername(), CRYPTO_NAME).orElse(0.0);
 
     user.setFirstName((String)userData.get("FirstName"));
     user.setLastName((String)userData.get("LastName"));
     user.setBalance((int)userData.get("Balance")/100.0);
     double overDraftBalance = (int)userData.get("OverdraftBalance");
     user.setOverDraftBalance(overDraftBalance/100);
-    user.setCryptoBalance(ethereumBalance);
+    user.setCryptoBalance(cryptoBalance);
     user.setLogs(logs);
     user.setTransactionHist(transactionHistoryOutput);
     user.setTransferHist(transferHistoryOutput);
@@ -665,14 +666,24 @@ public class MvcController {
     int userBalanceInPennies = TestudoBankRepository.getCustomerCashBalanceInPennies(jdbcTemplate, userID);
 
     // check if balance will cover purchase
-    if (costOfEthPurchasePennies < userBalanceInPennies) {
+    if (costOfEthPurchasePennies > userBalanceInPennies) {
       return "welcome";
     }
 
     // buy crypto
     // TODO: I don't like how this is dependent on a string return value. Withdraw logic should probably be extracted
+    user.setAmountToWithdraw(costOfEthPurchaseDollars);
     if (submitWithdraw(user).equals("account_info")) {
-      // TODO: add database logic
+
+      // create an entry for Ethereum if necessary
+      if (!TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, userID, CRYPTO_NAME).isPresent()) {
+        TestudoBankRepository.initCustomerCryptoBalance(jdbcTemplate, userID, CRYPTO_NAME);
+      }
+
+      TestudoBankRepository.increaseCustomerCryptoBalance(jdbcTemplate, userID, CRYPTO_NAME, user.getAmountToBuyCrypto());
+
+      updateAccountInfo(user);
+
       return "account_info";
     } else {
       return "welcome";

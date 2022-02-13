@@ -115,7 +115,7 @@ public class TestudoBankRepository {
 
   public static void initCustomerCryptoBalance(JdbcTemplate jdbcTemplate, String customerID, String cryptoName) {
     // TODO: this currently does not check if row with customerID and cryptoName already exists, and can create a duplicate row!
-    String balanceInitSql = String.format("INSERT INTO CryptoHoldings (CryptoAmount,CustomerID,CryptoName) VALUES (0,%s,%s);", customerID, cryptoName);
+    String balanceInitSql = String.format("INSERT INTO CryptoHoldings (CryptoAmount,CustomerID,CryptoName) VALUES (0,'%s','%s');", customerID, cryptoName);
     jdbcTemplate.update(balanceInitSql);
   }
 
