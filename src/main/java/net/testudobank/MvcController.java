@@ -17,6 +17,7 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import java.io.IOException;
+import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -623,7 +624,20 @@ public class MvcController {
   }
 
   /**
-   * 
+   * HTML POST request handler for the Buy Crypto Form page.
+   * <p>
+   * The same username+password handling from the login page is used.
+   * <p>
+   * If the password attempt is correct, the user is not in overdraft,
+   * and the purchase amount is a valid amount that does not exceed balance,
+   * the cost of the cryptocurrency in cash will be subtracted from the users balance,
+   * and cryptocurrency will be added to the users account
+   * <p>
+   * If the password attempt is incorrect or the amount to purchase is invalid,
+   * the user is redirected to the "welcome" page.
+   * <p>
+   * Crypto purchase function is implemented by re-using withdraw handler.
+   *
    * @param user
    * @return "account_info" page if buy successful. Otherwise, redirect to "welcome" page.
    */
@@ -642,7 +656,8 @@ public class MvcController {
     }
 
     // must buy a positive amount
-    if (user.getAmountToBuyCrypto() <= 0) {
+    double cryptoAmountToBuy = user.getAmountToBuyCrypto();
+    if (cryptoAmountToBuy <= 0) {
       return "welcome";
     }
 
@@ -654,7 +669,7 @@ public class MvcController {
     }
 
     // calculate how much it will cost to buy currently
-    double costOfEthPurchaseDollars = getCurrentEthValue() * user.getAmountToBuyCrypto();
+    double costOfEthPurchaseDollars = getCurrentEthValue() * cryptoAmountToBuy;
 
     // possible for web scraper to fail and return a negative value, abort if so
     if (costOfEthPurchaseDollars < 0) {
@@ -680,7 +695,7 @@ public class MvcController {
         TestudoBankRepository.initCustomerCryptoBalance(jdbcTemplate, userID, CRYPTO_NAME);
       }
 
-      TestudoBankRepository.increaseCustomerCryptoBalance(jdbcTemplate, userID, CRYPTO_NAME, user.getAmountToBuyCrypto());
+      TestudoBankRepository.increaseCustomerCryptoBalance(jdbcTemplate, userID, CRYPTO_NAME, cryptoAmountToBuy);
 
       updateAccountInfo(user);
 
@@ -692,13 +707,71 @@ public class MvcController {
   }
 
   /**
-   * 
+   * HTML POST request handler for the Sell Crypto Form page.
+   * <p>
+   * The same username+password handling from the login page is used.
+   * <p>
+   * If the password attempt is correct, and the purchase amount is a valid amount
+   * that does not exceed crypto balance, the cost of the cryptocurrency in cash will be
+   * added to the users cash balance, and cryptocurrency will be subtracted from the users account
+   * <p>
+   * If the password attempt is incorrect or the amount to purchase is invalid,
+   * the user is redirected to the "welcome" page.
+   * <p>
+   * Crypto purchase function is implemented by re-using deposit handler.
+   * Logic of deposit (applying to overdraft, adding to balance, etc.) is delegated to this handler.
+   *
    * @param user
    * @return "account_info" page if sell successful. Otherwise, redirect to "welcome" page.
    */
   @PostMapping("/sellcrypto")
   public String sellCrypto(@ModelAttribute("user") User user) {
-    return "welcome";
+
+
+    String userID = user.getUsername();
+    String userPasswordAttempt = user.getPassword();
+    String userPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, userID);
+
+    //// Invalid Input/State Handling ////
+
+    // unsuccessful login
+    if (!userPasswordAttempt.equals(userPassword)) {
+      return "welcome";
+    }
+
+    double cryptoAmountToSell = user.getAmountToSellCrypto();
+    if (cryptoAmountToSell <= 0) {
+      return "welcome";
+    }
+
+    Optional<Double> cryptoBalance = TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, userID, CRYPTO_NAME);
+
+    // possible for user to not have any crypto
+    if (!cryptoBalance.isPresent()) {
+      return "welcome";
+    }
+
+    // check if user has required crypto balance
+    // TODO: comparing doubles like this is probably not a good idea
+    if (cryptoBalance.get() < cryptoAmountToSell) {
+      return "welcome";
+    }
+
+    double cashValueOfCrypto = getCurrentEthValue() * cryptoAmountToSell;
+
+    user.setAmountToDeposit(cashValueOfCrypto);
+
+    // TODO: I don't like how this is dependent on a string return value. Deposit logic should probably be extracted
+    if (submitDeposit(user).equals("account_info")) {
+
+      TestudoBankRepository.decreaseCustomerCryptoBalance(jdbcTemplate, userID, CRYPTO_NAME, cryptoAmountToSell);
+
+      updateAccountInfo(user);
+
+      return "account_info";
+    } else {
+      return "welcome";
+    }
   }
 
 }
