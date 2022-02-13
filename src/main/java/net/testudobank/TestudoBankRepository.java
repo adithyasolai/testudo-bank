@@ -146,6 +146,11 @@ public class TestudoBankRepository {
                                                     transferAmount);
     jdbcTemplate.update(transferHistoryToSql);
   }
+
+  public static void insertRowToCryptoLogsTable(JdbcTemplate jdbcTemplate, String customerID, String cryptoName, String action, String timestamp, double cryptoAmount) {
+    String cryptoHistorySql = "INSERT INTO CryptoHistory (CustomerID, Timestamp, Action, CryptoName, CryptoAmount) VALUES (?, ?, ?, ?, ?)";
+    jdbcTemplate.update(cryptoHistorySql, customerID, timestamp, action, cryptoName, cryptoAmount);
+  }
   
   public static boolean doesCustomerExist(JdbcTemplate jdbcTemplate, String customerID) { 
     String getCustomerIDSql =  String.format("SELECT CustomerID FROM Customers WHERE CustomerID='%s';", customerID);
