@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 public class TestudoBankRepository {
@@ -27,7 +28,15 @@ public class TestudoBankRepository {
 
   public static Optional<Double> getCustomerCryptoBalance(JdbcTemplate jdbcTemplate, String customerID, String cryptoName) {
     String getUserCryptoBalanceSql = String.format("SELECT CryptoAmount FROM CryptoHoldings WHERE CustomerID='%s' AND CryptoName='%s'", customerID, cryptoName);
-    return Optional.ofNullable(jdbcTemplate.queryForObject(getUserCryptoBalanceSql, Double.class));
+    Double balance = null;
+
+    try {
+      balance = jdbcTemplate.queryForObject(getUserCryptoBalanceSql, Double.class);
+    } catch (EmptyResultDataAccessException ignored) {
+      // user may not have crypto row yet
+    }
+
+    return Optional.ofNullable(balance);
   }
 
   public static int getCustomerOverdraftBalanceInPennies(JdbcTemplate jdbcTemplate, String customerID) {
