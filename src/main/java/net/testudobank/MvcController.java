@@ -207,6 +207,7 @@ public class MvcController {
     double overDraftBalance = (int)userData.get("OverdraftBalance");
     user.setOverDraftBalance(overDraftBalance/100);
     user.setCryptoBalance(cryptoBalance);
+    user.setCryptoBalanceUSD(cryptoBalance * getCurrentEthValue());
     user.setLogs(logs);
     user.setTransactionHist(transactionHistoryOutput);
     user.setTransferHist(transferHistoryOutput);
