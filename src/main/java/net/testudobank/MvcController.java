@@ -625,7 +625,56 @@ public class MvcController {
    */
   @PostMapping("/buycrypto")
   public String buyCrypto(@ModelAttribute("user") User user) {
-    return "welcome";
+
+    String userID = user.getUsername();
+    String userPasswordAttempt = user.getPassword();
+    String userPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, userID);
+
+    //// Invalid Input/State Handling ////
+
+    // unsuccessful login
+    if (!userPasswordAttempt.equals(userPassword)) {
+      return "welcome";
+    }
+
+    // must buy a positive amount
+    if (user.getAmountToBuyCrypto() <= 0) {
+      return "welcome";
+    }
+
+    int userOverdraftBalanceInPennies = TestudoBankRepository.getCustomerOverdraftBalanceInPennies(jdbcTemplate, userID);
+
+    // cannot buy crypto while in overdraft
+    if (userOverdraftBalanceInPennies > 0) {
+      return "welcome";
+    }
+
+    // calculate how much it will cost to buy currently
+    double costOfEthPurchaseDollars = getCurrentEthValue() * user.getAmountToBuyCrypto();
+
+    // possible for web scraper to fail and return a negative value, abort if so
+    if (costOfEthPurchaseDollars < 0) {
+      return "welcome";
+    }
+
+    double costOfEthPurchasePennies = convertDollarsToPennies(costOfEthPurchaseDollars);
+
+    int userBalanceInPennies = TestudoBankRepository.getCustomerBalanceInPennies(jdbcTemplate, userID);
+
+    // check if balance will cover purchase
+    if (costOfEthPurchasePennies < userBalanceInPennies) {
+      return "welcome";
+    }
+
+    // buy crypto
+    // TODO: I don't like how this is dependent on a string return value. Withdraw logic should probably be extracted
+    if (submitWithdraw(user).equals("account_info")) {
+      // TODO: add database logic
+      return "account_info";
+    } else {
+      return "welcome";
+    }
+
   }
 
   /**
