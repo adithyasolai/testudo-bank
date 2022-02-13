@@ -36,7 +36,8 @@
     <span>Ethereum Balance in USD is: $</span><span>${user.cryptoBalanceUSD}</span><br/>
     <span>Re-payment logs: </span><span>${user.logs}</span><br/>
     <span>Transaction History: </span><span>${user.transactionHist}</span><br/>
-    <span>Transfer History: </span><span>${user.transferHist}</span><br/>
+    <span>Transfer History: </span><span>${user.transferHist}</span><br/
+    <span>Crypto History: </span><span>${user.cryptoHist}</span><br/>
     <br/>
     <a href='/deposit'>Deposit</a>
     <a href='/withdraw'>Withdraw</a>

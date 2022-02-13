@@ -199,6 +199,12 @@ public class MvcController {
       transferHistoryOutput += transferLog + HTML_LINE_BREAK;
     }
 
+    List<Map<String, Object>> cryptoLogs = TestudoBankRepository.getCryptoLogs(jdbcTemplate, user.getUsername());
+    StringBuilder cryptoHistoryOutput = new StringBuilder(HTML_LINE_BREAK);
+    for (Map<String, Object> cryptoLog : cryptoLogs) {
+      cryptoHistoryOutput.append(cryptoLog).append(HTML_LINE_BREAK);
+    }
+
     String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance FROM Customers WHERE CustomerID='%s';", user.getUsername());
     List<Map<String,Object>> queryResults = jdbcTemplate.queryForList(getUserNameAndBalanceAndOverDraftBalanceSql);
     Map<String,Object> userData = queryResults.get(0);
@@ -215,6 +221,7 @@ public class MvcController {
     user.setLogs(logs);
     user.setTransactionHist(transactionHistoryOutput);
     user.setTransferHist(transferHistoryOutput);
+    user.setCryptoHist(cryptoHistoryOutput.toString());
   }
 
   // Converts dollar amounts in frontend to penny representation in backend MySQL DB

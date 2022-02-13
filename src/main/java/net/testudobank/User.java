@@ -64,6 +64,9 @@ public class User {
   @Setter @Getter
   private String transferHist;
 
+  @Setter @Getter
+  private String cryptoHist;
+
   @Setter @Getter @Positive
   private double amountToBuyCrypto;
 
