@@ -2,6 +2,7 @@ package net.testudobank;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 
@@ -18,10 +19,15 @@ public class TestudoBankRepository {
     return numOfReversals;
   }
 
-  public static int getCustomerBalanceInPennies(JdbcTemplate jdbcTemplate, String customerID) {
+  public static int getCustomerCashBalanceInPennies(JdbcTemplate jdbcTemplate, String customerID) {
     String getUserBalanceSql =  String.format("SELECT Balance FROM Customers WHERE CustomerID='%s';", customerID);
     int userBalanceInPennies = jdbcTemplate.queryForObject(getUserBalanceSql, Integer.class);
     return userBalanceInPennies;
+  }
+
+  public static Optional<Double> getCustomerCryptoBalance(JdbcTemplate jdbcTemplate, String customerID, String cryptoName) {
+    String getUserCryptoBalanceSql = String.format("SELECT CryptoAmount FROM CryptoHoldings WHERE CustomerID='%s' AND CryptoName='%s'", customerID, cryptoName);
+    return Optional.ofNullable(jdbcTemplate.queryForObject(getUserCryptoBalanceSql, Double.class));
   }
 
   public static int getCustomerOverdraftBalanceInPennies(JdbcTemplate jdbcTemplate, String customerID) {
@@ -88,18 +94,34 @@ public class TestudoBankRepository {
     jdbcTemplate.update(overdraftBalanceIncreaseSql);
   }
 
-  public static void setCustomerBalance(JdbcTemplate jdbcTemplate, String customerID, int newBalanceInPennies) {
+  public static void setCustomerCashBalance(JdbcTemplate jdbcTemplate, String customerID, int newBalanceInPennies) {
     String updateBalanceSql = String.format("UPDATE Customers SET Balance = %d WHERE CustomerID='%s';", newBalanceInPennies, customerID);
     jdbcTemplate.update(updateBalanceSql);
   }
 
-  public static void increaseCustomerBalance(JdbcTemplate jdbcTemplate, String customerID, int increaseAmtInPennies) {
+  public static void increaseCustomerCashBalance(JdbcTemplate jdbcTemplate, String customerID, int increaseAmtInPennies) {
     String balanceIncreaseSql = String.format("UPDATE Customers SET Balance = Balance + %d WHERE CustomerID='%s';", increaseAmtInPennies, customerID);
     jdbcTemplate.update(balanceIncreaseSql);
   }
-  
-  public static void decreaseCustomerBalance(JdbcTemplate jdbcTemplate, String customerID, int decreaseAmtInPennies) {
+
+  public static void initCustomerCryptoBalance(JdbcTemplate jdbcTemplate, String customerID, String cryptoName) {
+    // TODO: this currently does not check if row with customerID and cryptoName already exists, and can create a duplicate row!
+    String balanceInitSql = String.format("INSERT INTO CryptoHoldings (CryptoAmount,CustomerID,CryptoName) VALUES (0,%s,%s);", customerID, cryptoName);
+    jdbcTemplate.update(balanceInitSql);
+  }
+
+  public static void increaseCustomerCryptoBalance(JdbcTemplate jdbcTemplate, String customerID, String cryptoName, double increaseAmt) {
+    String balanceIncreaseSql = String.format("UPDATE CryptoHoldings SET CryptoAmount = CryptoAmount + %f WHERE CustomerID='%s' AND CryptoName='%s';", increaseAmt, customerID, cryptoName);
+    jdbcTemplate.update(balanceIncreaseSql);
+  }
+
+  public static void decreaseCustomerCashBalance(JdbcTemplate jdbcTemplate, String customerID, int decreaseAmtInPennies) {
     String balanceDecreaseSql = String.format("UPDATE Customers SET Balance = Balance - %d WHERE CustomerID='%s';", decreaseAmtInPennies, customerID);
+    jdbcTemplate.update(balanceDecreaseSql);
+  }
+
+  public static void decreaseCustomerCryptoBalance(JdbcTemplate jdbcTemplate, String customerID, String cryptoName, double decreaseAmt) {
+    String balanceDecreaseSql = String.format("UPDATE CryptoHoldings SET CryptoAmount = CryptoAmount - %f WHERE CustomerID='%s' AND CryptoName='%s';", decreaseAmt, customerID, cryptoName);
     jdbcTemplate.update(balanceDecreaseSql);
   }
 
@@ -108,7 +130,7 @@ public class TestudoBankRepository {
     jdbcTemplate.update(deleteRowFromOverdraftLogsSql);
   }
 
-  public static void insertRowToTransferLogsTable(JdbcTemplate jdbcTemplate, String customerID, String recipientID, String timestamp, int transferAmount) { 
+  public static void insertRowToTransferLogsTable(JdbcTemplate jdbcTemplate, String customerID, String recipientID, String timestamp, int transferAmount) {
     String transferHistoryToSql = String.format("INSERT INTO TransferHistory VALUES ('%s', '%s', '%s', %d);",
                                                     customerID,
                                                     recipientID,

@@ -337,11 +337,11 @@ public class MvcController {
       // add any excess deposit amount to main balance in Customers table
       if (userDepositAmtInPennies > userOverdraftBalanceInPennies) {
         int mainBalanceIncreaseAmtInPennies = userDepositAmtInPennies - userOverdraftBalanceInPennies;
-        TestudoBankRepository.increaseCustomerBalance(jdbcTemplate, userID, mainBalanceIncreaseAmtInPennies);
+        TestudoBankRepository.increaseCustomerCashBalance(jdbcTemplate, userID, mainBalanceIncreaseAmtInPennies);
       }
 
     } else { // simple deposit case
-      TestudoBankRepository.increaseCustomerBalance(jdbcTemplate, userID, userDepositAmtInPennies);
+      TestudoBankRepository.increaseCustomerCashBalance(jdbcTemplate, userID, userDepositAmtInPennies);
     }
 
     // only adds deposit to transaction history if is not transfer
@@ -401,7 +401,7 @@ public class MvcController {
     //// Complete Withdraw Transaction ////
     int userWithdrawAmtInPennies = convertDollarsToPennies(userWithdrawAmt); // dollar amounts stored as pennies to avoid floating point errors
     String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date()); // use same timestamp for all logs created by this deposit
-    int userBalanceInPennies = TestudoBankRepository.getCustomerBalanceInPennies(jdbcTemplate, userID);
+    int userBalanceInPennies = TestudoBankRepository.getCustomerCashBalanceInPennies(jdbcTemplate, userID);
     int userOverdraftBalanceInPennies = TestudoBankRepository.getCustomerOverdraftBalanceInPennies(jdbcTemplate, userID);
     if (userWithdrawAmtInPennies > userBalanceInPennies) { // if withdraw amount exceeds main balance, withdraw into overdraft with interest fee
       int excessWithdrawAmtInPennies = userWithdrawAmtInPennies - userBalanceInPennies;
@@ -416,13 +416,13 @@ public class MvcController {
 
       // this is a valid withdraw into overdraft, so we can set Balance column to 0.
       // OK to do this even if we were already in overdraft since main balance was already 0 anyways
-      TestudoBankRepository.setCustomerBalance(jdbcTemplate, userID, 0);
+      TestudoBankRepository.setCustomerCashBalance(jdbcTemplate, userID, 0);
 
       // increase overdraft balance by the withdraw amount after interest
       TestudoBankRepository.setCustomerOverdraftBalance(jdbcTemplate, userID, newOverdraftBalanceInPennies);
 
     } else { // simple, non-overdraft withdraw case
-      TestudoBankRepository.decreaseCustomerBalance(jdbcTemplate, userID, userWithdrawAmtInPennies);
+      TestudoBankRepository.decreaseCustomerCashBalance(jdbcTemplate, userID, userWithdrawAmtInPennies);
     }
 
     // only adds withdraw to transaction history if is not transfer
@@ -489,7 +489,7 @@ public class MvcController {
     Map<String, Object> logToReverse = transactionLogs.get(user.getNumTransactionsAgo() - 1);
 
     // Get balance and overdraft balance
-    int userBalanceInPennies = TestudoBankRepository.getCustomerBalanceInPennies(jdbcTemplate, userID);
+    int userBalanceInPennies = TestudoBankRepository.getCustomerCashBalanceInPennies(jdbcTemplate, userID);
     int userOverdraftBalanceInPennies = TestudoBankRepository.getCustomerOverdraftBalanceInPennies(jdbcTemplate, userID);
 
     int reversalAmountInPennies = (int) logToReverse.get("Amount");
@@ -659,7 +659,7 @@ public class MvcController {
 
     double costOfEthPurchasePennies = convertDollarsToPennies(costOfEthPurchaseDollars);
 
-    int userBalanceInPennies = TestudoBankRepository.getCustomerBalanceInPennies(jdbcTemplate, userID);
+    int userBalanceInPennies = TestudoBankRepository.getCustomerCashBalanceInPennies(jdbcTemplate, userID);
 
     // check if balance will cover purchase
     if (costOfEthPurchasePennies < userBalanceInPennies) {
