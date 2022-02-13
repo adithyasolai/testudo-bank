@@ -43,6 +43,8 @@ public class MvcController {
   public static String TRANSACTION_HISTORY_WITHDRAW_ACTION = "Withdraw";
   public static String TRANSACTION_HISTORY_TRANSFER_SEND_ACTION = "TransferSend";
   public static String TRANSACTION_HISTORY_TRANSFER_RECEIVE_ACTION = "TransferReceive";
+  public static String TRANSACTION_HISTORY_CRYPTO_SELL_ACTION = "CryptoSell";
+  public static String TRANSACTION_HISTORY_CRYPTO_BUY_ACTION = "CryptoBuy";
   public static String CRYPTO_NAME = "ETH";
 
   public MvcController(@Autowired JdbcTemplate jdbcTemplate) {
@@ -354,6 +356,8 @@ public class MvcController {
     if (user.isTransfer()){
       // Adds transaction recieve to transaction history
       TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_TRANSFER_RECEIVE_ACTION, userDepositAmtInPennies);
+    } else if (user.isCryptoTransaction()) {
+      TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_CRYPTO_SELL_ACTION, userDepositAmtInPennies);
     } else {
       // Adds deposit to transaction history
       TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_DEPOSIT_ACTION, userDepositAmtInPennies);
@@ -435,7 +439,9 @@ public class MvcController {
     if (user.isTransfer()){
       // Adds transfer send to transaction history
       TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_TRANSFER_SEND_ACTION, userWithdrawAmtInPennies);
-    } else{
+    } else if (user.isCryptoTransaction()) {
+      TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_CRYPTO_BUY_ACTION, userWithdrawAmtInPennies);
+    } else {
       // Adds withdraw to transaction history
       TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_WITHDRAW_ACTION, userWithdrawAmtInPennies);
     }
@@ -689,6 +695,7 @@ public class MvcController {
     // buy crypto
     // TODO: I don't like how this is dependent on a string return value. Withdraw logic should probably be extracted
     user.setAmountToWithdraw(costOfEthPurchaseDollars);
+    user.setCryptoTransaction(true);
     if (submitWithdraw(user).equals("account_info")) {
 
       // create an entry for Ethereum if necessary
@@ -761,6 +768,7 @@ public class MvcController {
     double cashValueOfCrypto = getCurrentEthValue() * cryptoAmountToSell;
 
     user.setAmountToDeposit(cashValueOfCrypto);
+    user.setCryptoTransaction(true);
 
     // TODO: I don't like how this is dependent on a string return value. Deposit logic should probably be extracted
     if (submitDeposit(user).equals("account_info")) {

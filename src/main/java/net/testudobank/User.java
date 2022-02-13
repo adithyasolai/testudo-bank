@@ -59,6 +59,9 @@ public class User {
   private boolean isTransfer;
 
   @Setter @Getter
+  private boolean isCryptoTransaction;
+
+  @Setter @Getter
   private String transferHist;
 
   @Setter @Getter @Positive
