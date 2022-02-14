@@ -1111,6 +1111,9 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
     assertEquals("account_info", returnedPage);
   }
 
+  /**
+   * Enum for {@link CryptoTransactionTester}
+   */
   @AllArgsConstructor
   enum CryptoTransactionTestType {
     BUY("Buy", "CryptoBuy"),
@@ -1144,7 +1147,13 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
      * The (cash) overdraft balance of the user
      */
     @Builder.Default
-    double overdraftBalanceInDollars = 0;
+    double initialOverdraftBalanceInDollars = 0.0;
+
+    /**
+     * The expected ending overdraft balance of the user
+     */
+    @Builder.Default
+    double expectedEndingOverdraftBalanceInDollars = 0.0;
 
     /**
      * The initial cryptocurrency balance of the user in units of cryptocurrency
@@ -1198,7 +1207,7 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
         user.setPassword("wrongpassword");
       }
       int balanceInPennies = MvcControllerIntegTestHelpers.convertDollarsToPennies(initialBalanceInDollars);
-      MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER1_ID, CUSTOMER1_PASSWORD, CUSTOMER1_FIRST_NAME, CUSTOMER1_LAST_NAME, balanceInPennies, MvcControllerIntegTestHelpers.convertDollarsToPennies(overdraftBalanceInDollars), 0);
+      MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER1_ID, CUSTOMER1_PASSWORD, CUSTOMER1_FIRST_NAME, CUSTOMER1_LAST_NAME, balanceInPennies, MvcControllerIntegTestHelpers.convertDollarsToPennies(initialOverdraftBalanceInDollars), 0);
       if (initialCryptoBalance > 0) {
         MvcControllerIntegTestHelpers.setCryptoBalance(dbDelegate, CUSTOMER1_ID, cryptoName, initialCryptoBalance);
       }
@@ -1227,6 +1236,9 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
 
       // check the cash balance
       assertEquals(MvcControllerIntegTestHelpers.convertDollarsToPennies(expectedEndingBalanceInDollars), jdbcTemplate.queryForObject("SELECT Balance FROM Customers WHERE CustomerID=?", Integer.class, CUSTOMER1_ID));
+
+      // check the overdraft balance
+      assertEquals(MvcControllerIntegTestHelpers.convertDollarsToPennies(expectedEndingOverdraftBalanceInDollars), jdbcTemplate.queryForObject("SELECT OverdraftBalance FROM Customers WHERE CustomerID=?", Integer.class, CUSTOMER1_ID));
 
       if (!shouldSucceed) {
         // verify no transaction took place
@@ -1329,7 +1341,6 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
     CryptoTransactionTester cryptoTransactionTester = CryptoTransactionTester.builder()
             .initialBalanceInDollars(1000)
             .expectedEndingBalanceInDollars(1000)
-            .expectedEndingBalanceInDollars(1000)
             .cryptoPrice(1000)
             .cryptoAmountToTransact(-0.1)
             .cryptoName("ETH")
@@ -1346,9 +1357,9 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
   public void testCryptoBuyOverdraft() throws ScriptException {
     CryptoTransactionTester cryptoTransactionTester = CryptoTransactionTester.builder()
             .initialBalanceInDollars(1000)
-            .overdraftBalanceInDollars(100)
+            .initialOverdraftBalanceInDollars(100)
             .expectedEndingBalanceInDollars(1000)
-            .expectedEndingBalanceInDollars(1000)
+            .expectedEndingOverdraftBalanceInDollars(100)
             .cryptoPrice(1000)
             .cryptoAmountToTransact(0.1)
             .cryptoName("ETH")
@@ -1368,6 +1379,27 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
             .initialCryptoBalance(0.1)
             .expectedEndingBalanceInDollars(1100)
             .expectedEndingCryptoBalance(0)
+            .cryptoPrice(1000)
+            .cryptoAmountToTransact(0.1)
+            .cryptoName("ETH")
+            .cryptoTransactionTestType(CryptoTransactionTestType.SELL)
+            .shouldSucceed(true)
+            .build();
+    cryptoTransactionTester.test();
+  }
+
+  /**
+   * Test that selling cryptocurrency first pays off overdraft balance
+   */
+  @Test
+  public void testCryptoSellOverdraft() throws ScriptException {
+    CryptoTransactionTester cryptoTransactionTester = CryptoTransactionTester.builder()
+            .initialBalanceInDollars(1000)
+            .initialOverdraftBalanceInDollars(50)
+            .initialCryptoBalance(0.1)
+            .expectedEndingBalanceInDollars(1050)
+            .expectedEndingCryptoBalance(0)
+            .expectedEndingOverdraftBalanceInDollars(0)
             .cryptoPrice(1000)
             .cryptoAmountToTransact(0.1)
             .cryptoName("ETH")
