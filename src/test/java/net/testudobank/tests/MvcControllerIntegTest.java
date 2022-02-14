@@ -11,9 +11,11 @@ import java.util.Map;
 
 import javax.script.ScriptException;
 
+import net.testudobank.CryptoPriceClient;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -50,10 +52,11 @@ public class MvcControllerIntegTest {
     .withPassword("db_password")
     .withDatabaseName("testudo_bank");
 
-  
+
   private static MvcController controller;
   private static JdbcTemplate jdbcTemplate;
   private static DatabaseDelegate dbDelegate;
+  private static CryptoPriceClient cryptoPriceClient = Mockito.mock(CryptoPriceClient.class);
 
   @BeforeAll
   public static void init() throws SQLException {
@@ -61,7 +64,7 @@ public class MvcControllerIntegTest {
     ScriptUtils.runInitScript(dbDelegate, "createDB.sql");
     jdbcTemplate = new JdbcTemplate(MvcControllerIntegTestHelpers.dataSource(db));
     jdbcTemplate.getDataSource().getConnection().setCatalog(db.getDatabaseName());
-    controller = new MvcController(jdbcTemplate);
+    controller = new MvcController(jdbcTemplate, cryptoPriceClient);
   }
 
   @AfterEach
@@ -1162,9 +1165,10 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
     User user = new User();
     user.setUsername(CUSTOMER1_ID);
     user.setPassword(CUSTOMER1_PASSWORD);
-    user.setAmountToBuyCrypto(0.0001);
+    user.setAmountToBuyCrypto(0.1);
     String CRYPTO_NAME = "ETH";
     double CUSTOMER1_BALANCE = 1000;
+    Mockito.when(cryptoPriceClient.getCurrentEthValue()).thenReturn(1000.0);
     int CUSTOMER1_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_BALANCE);
     MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER1_ID, CUSTOMER1_PASSWORD, CUSTOMER1_FIRST_NAME, CUSTOMER1_LAST_NAME, CUSTOMER1_BALANCE_IN_PENNIES);
 
@@ -1183,9 +1187,9 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
     // verify no transaction took place
     assertEquals("account_info", returnedPage);
     assertEquals(1, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM TransactionHistory;", Integer.class));
-    //MvcControllerIntegTestHelpers.checkTransactionLog(customer1TransactionLog, timeWhenCryptoBuy, CUSTOMER1_ID, "CryptoBuy", 100);
-    //assertEquals(CUSTOMER1_BALANCE_IN_PENNIES, jdbcTemplate.queryForObject("SELECT Balance FROM Customers WHERE CustomerID=?", Integer.class, CUSTOMER1_ID));
-    assertEquals(0.0001, jdbcTemplate.queryForObject("SELECT CryptoAmount FROM CryptoHoldings WHERE CustomerID=? AND CryptoName=?", Double.class, CUSTOMER1_ID, CRYPTO_NAME));
+    MvcControllerIntegTestHelpers.checkTransactionLog(customer1TransactionLog, timeWhenCryptoBuy, CUSTOMER1_ID, "CryptoBuy", 10000);
+    assertEquals(CUSTOMER1_BALANCE_IN_PENNIES - 10000, jdbcTemplate.queryForObject("SELECT Balance FROM Customers WHERE CustomerID=?", Integer.class, CUSTOMER1_ID));
+    assertEquals(0.1, jdbcTemplate.queryForObject("SELECT CryptoAmount FROM CryptoHoldings WHERE CustomerID=? AND CryptoName=?", Double.class, CUSTOMER1_ID, CRYPTO_NAME));
   }
 
 }

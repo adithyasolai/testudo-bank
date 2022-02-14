@@ -1,5 +1,6 @@
 package net.testudobank.tests;
 
+import net.testudobank.CryptoPriceClient;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -29,6 +30,9 @@ public class MvcControllerTest {
 
   @Mock
   Model mockModel;
+
+  @Mock
+  private CryptoPriceClient cryptoPriceClient;
 
   private MvcController controller;
 
@@ -70,7 +74,7 @@ public class MvcControllerTest {
   @BeforeEach
   public void setup() {
     MockitoAnnotations.initMocks(this);
-    controller = new MvcController(jdbcTemplate);
+    controller = new MvcController(jdbcTemplate, cryptoPriceClient);
   }
 
 	@Test

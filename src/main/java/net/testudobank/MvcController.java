@@ -13,10 +13,6 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
 
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import java.io.IOException;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,6 +23,9 @@ public class MvcController {
   // A simplified JDBC client that is injected with the login credentials
   // specified in /src/main/resources/application.properties
   private JdbcTemplate jdbcTemplate;
+
+  // Client to get crypto price
+  private CryptoPriceClient cryptoPriceClient;
 
   // Formatter for converting Java Dates to SQL-compatible DATETIME Strings
   private static java.text.SimpleDateFormat SQL_DATETIME_FORMATTER = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
@@ -49,8 +48,9 @@ public class MvcController {
   public static String CRYPTO_HISTORY_BUY_ACTION = "Buy";
   public static String CRYPTO_NAME = "ETH";
 
-  public MvcController(@Autowired JdbcTemplate jdbcTemplate) {
+  public MvcController(@Autowired JdbcTemplate jdbcTemplate, @Autowired CryptoPriceClient cryptoPriceClient) {
     this.jdbcTemplate = jdbcTemplate;
+    this.cryptoPriceClient = cryptoPriceClient;
   }
 
   //// HTML GET HANDLERS ////
@@ -217,7 +217,7 @@ public class MvcController {
     double overDraftBalance = (int)userData.get("OverdraftBalance");
     user.setOverDraftBalance(overDraftBalance/100);
     user.setCryptoBalance(cryptoBalance);
-    user.setCryptoBalanceUSD(cryptoBalance * getCurrentEthValue());
+    user.setCryptoBalanceUSD(cryptoBalance * cryptoPriceClient.getCurrentEthValue());
     user.setLogs(logs);
     user.setTransactionHist(transactionHistoryOutput);
     user.setTransferHist(transferHistoryOutput);
@@ -233,37 +233,6 @@ public class MvcController {
   private static Date convertLocalDateTimeToDate(LocalDateTime ldt){
     Date dateTime = Date.from(ldt.atZone(ZoneId.systemDefault()).toInstant());
     return dateTime;
-  }
-
-  /**
-   * Private method which is used to return the current value of Ethereum
-   * in USD. This method uses JSoup to scrape the website "https://ethereumprice.org"
-   * and retrieve the current USD value of 1 ETH.
-   * 
-   * NOTE: If the web scraper fails, a value of -1 is returned
-   * 
-   * @return the current value of 1 ETH in USD
-   */
-  private double getCurrentEthValue() {
-    try {
-      // fetch the document over HTTP
-      Document doc = Jsoup.connect("https://ethereumprice.org").userAgent("Mozilla").get();
-
-      Element value = doc.getElementById("coin-price");
-      String valueStr = value.text();
-
-      // Replacing the '$'' and ',' characters from the string
-      valueStr = valueStr.replaceAll("\\$", "").replaceAll("\\,", "");
-      double ethValue = Double.parseDouble(valueStr);
-
-      return ethValue;
-    } catch (IOException e) {
-      // Print stack trace for debugging
-      e.printStackTrace();
-
-      // Return -1 if there was an error during web scraping
-      return -1;
-    }
   }
 
   // HTML POST HANDLERS ////
@@ -685,7 +654,7 @@ public class MvcController {
     }
 
     // calculate how much it will cost to buy currently
-    double costOfEthPurchaseDollars = getCurrentEthValue() * cryptoAmountToBuy;
+    double costOfEthPurchaseDollars = cryptoPriceClient.getCurrentEthValue() * cryptoAmountToBuy;
 
     // possible for web scraper to fail and return a negative value, abort if so
     if (costOfEthPurchaseDollars < 0) {
@@ -777,7 +746,7 @@ public class MvcController {
       return "welcome";
     }
 
-    double cashValueOfCrypto = getCurrentEthValue() * cryptoAmountToSell;
+    double cashValueOfCrypto = cryptoPriceClient.getCurrentEthValue() * cryptoAmountToSell;
 
     String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date());
 
