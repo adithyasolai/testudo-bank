@@ -149,7 +149,9 @@ public class MvcController {
     User user = new User();
 		model.addAttribute("user", user);
 		return "buycrypto_form";
-	}
+  }
+
+  /* comment */
 
   /**
    * HTML GET request handler that serves the "sellcrypto_form" page to the user.
@@ -216,6 +218,12 @@ public class MvcController {
   private static Date convertLocalDateTimeToDate(LocalDateTime ldt){
     Date dateTime = Date.from(ldt.atZone(ZoneId.systemDefault()).toInstant());
     return dateTime;
+  }
+
+  // Applies the interest rate to the penny amount (the parameter)
+  public int applyInterestRateToPennyAmount(int pennyAmount) {
+    int result = (int)(pennyAmount * INTEREST_RATE);
+    return result;
   }
 
   /**
@@ -405,7 +413,7 @@ public class MvcController {
     int userOverdraftBalanceInPennies = TestudoBankRepository.getCustomerOverdraftBalanceInPennies(jdbcTemplate, userID);
     if (userWithdrawAmtInPennies > userBalanceInPennies) { // if withdraw amount exceeds main balance, withdraw into overdraft with interest fee
       int excessWithdrawAmtInPennies = userWithdrawAmtInPennies - userBalanceInPennies;
-      int newOverdraftIncreaseAmtAfterInterestInPennies = (int)(excessWithdrawAmtInPennies * INTEREST_RATE);
+      int newOverdraftIncreaseAmtAfterInterestInPennies = applyInterestRateToPennyAmount(excessWithdrawAmtInPennies);
       int newOverdraftBalanceInPennies = userOverdraftBalanceInPennies + newOverdraftIncreaseAmtAfterInterestInPennies;
 
       // abort withdraw transaction if new overdraft balance exceeds max overdraft limit
