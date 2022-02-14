@@ -78,6 +78,19 @@ public class MvcControllerIntegTestHelpers {
     System.out.println("Timestamp stored in OverdraftLogs table for the Repayment: " + overdraftLogTimestamp);
   }
 
+  // Verifies that a single crypto log in the CryptoHistory table matches the expected customerID, timestamp, action, cryptocurrency, and amount
+  public static void checkCryptoLog(Map<String,Object> cryptoLog, LocalDateTime timeWhenRequestSent, String expectedCustomerID, String expectedAction, String expectedCryptoName, double expectedCryptoAmount, double amountTolerance) {
+    assertEquals(expectedCustomerID, cryptoLog.get("CustomerID"));
+    assertEquals(expectedAction, cryptoLog.get("Action"));
+    assertEquals(expectedCryptoAmount, ((Float) cryptoLog.get("CryptoAmount")).doubleValue(), amountTolerance);
+    assertEquals(expectedCryptoName, cryptoLog.get("CryptoName"));
+    // verify that the timestamp for the Deposit is within a reasonable range from when the request was first sent
+    LocalDateTime transactionLogTimestamp = (LocalDateTime)cryptoLog.get("Timestamp");
+    LocalDateTime transactionLogTimestampAllowedUpperBound = timeWhenRequestSent.plusSeconds(MvcControllerIntegTest.REASONABLE_TIMESTAMP_EPSILON_IN_SECONDS);
+    assertTrue(transactionLogTimestamp.compareTo(timeWhenRequestSent) >= 0 && transactionLogTimestamp.compareTo(transactionLogTimestampAllowedUpperBound) <= 0);
+    System.out.println("Timestamp stored in CryptoHistory table for the request: " + transactionLogTimestamp);
+  }
+
   // Converts dollar amounts in frontend to penny representation in backend MySQL DB
   public static int convertDollarsToPennies(double dollarAmount) {
     return (int) (dollarAmount * 100);

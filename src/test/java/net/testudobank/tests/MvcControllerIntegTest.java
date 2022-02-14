@@ -1183,13 +1183,15 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
     String returnedPage = controller.buyCrypto(user);
 
     List<Map<String, Object>> transactionHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM TransactionHistory;");
+    List<Map<String, Object>> cryptoHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM CryptoHistory;");
     Map<String, Object> customer1TransactionLog = transactionHistoryTableData.get(0);
+    Map<String, Object> customer1CryptoLog = cryptoHistoryTableData.get(0);
 
     // verify transaction took place
     assertEquals("account_info", returnedPage);
     assertEquals(1, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM TransactionHistory;", Integer.class));
     MvcControllerIntegTestHelpers.checkTransactionLog(customer1TransactionLog, timeWhenCryptoBuy, CUSTOMER1_ID, "CryptoBuy", 10000);
-    // TODO: check crypto transaction log
+    MvcControllerIntegTestHelpers.checkCryptoLog(customer1CryptoLog, timeWhenCryptoBuy, CUSTOMER1_ID, "Buy", CRYPTO_NAME, 0.1, REASONABLE_CRYPTO_EPSILON);
     assertEquals(CUSTOMER1_BALANCE_IN_PENNIES - 10000, jdbcTemplate.queryForObject("SELECT Balance FROM Customers WHERE CustomerID=?", Integer.class, CUSTOMER1_ID));
     assertEquals(0.1, jdbcTemplate.queryForObject("SELECT CryptoAmount FROM CryptoHoldings WHERE CustomerID=? AND CryptoName=?", Double.class, CUSTOMER1_ID, CRYPTO_NAME));
   }
@@ -1252,12 +1254,15 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
     String returnedPage = controller.sellCrypto(user);
 
     List<Map<String, Object>> transactionHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM TransactionHistory;");
+    List<Map<String, Object>> cryptoHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM CryptoHistory;");
     Map<String, Object> customer1TransactionLog = transactionHistoryTableData.get(0);
+    Map<String, Object> customer1CryptoLog = cryptoHistoryTableData.get(0);
 
     // verify no transaction took place
     assertEquals("account_info", returnedPage);
     assertEquals(1, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM TransactionHistory;", Integer.class));
     MvcControllerIntegTestHelpers.checkTransactionLog(customer1TransactionLog, timeWhenCryptoBuy, CUSTOMER1_ID, "CryptoSell", 15000);
+    MvcControllerIntegTestHelpers.checkCryptoLog(customer1CryptoLog, timeWhenCryptoBuy, CUSTOMER1_ID, "Sell", CRYPTO_NAME, 0.1, REASONABLE_CRYPTO_EPSILON);
     assertEquals(CUSTOMER1_BALANCE_IN_PENNIES + 15000, jdbcTemplate.queryForObject("SELECT Balance FROM Customers WHERE CustomerID=?", Integer.class, CUSTOMER1_ID));
 
     // TODO: floating point precision is lost
