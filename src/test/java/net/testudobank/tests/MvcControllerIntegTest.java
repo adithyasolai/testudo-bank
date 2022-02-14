@@ -1207,7 +1207,8 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
         user.setPassword("wrongpassword");
       }
       int balanceInPennies = MvcControllerIntegTestHelpers.convertDollarsToPennies(initialBalanceInDollars);
-      MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER1_ID, CUSTOMER1_PASSWORD, CUSTOMER1_FIRST_NAME, CUSTOMER1_LAST_NAME, balanceInPennies, MvcControllerIntegTestHelpers.convertDollarsToPennies(initialOverdraftBalanceInDollars), 0);
+      MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER1_ID, CUSTOMER1_PASSWORD, CUSTOMER1_FIRST_NAME,
+              CUSTOMER1_LAST_NAME, balanceInPennies, MvcControllerIntegTestHelpers.convertDollarsToPennies(initialOverdraftBalanceInDollars), 0);
       if (initialCryptoBalance != 0) {
         MvcControllerIntegTestHelpers.setCryptoBalance(dbDelegate, CUSTOMER1_ID, cryptoName, initialCryptoBalance);
       }
@@ -1216,7 +1217,7 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
       Mockito.when(cryptoPriceClient.getCurrentEthValue()).thenReturn(cryptoPrice);
 
       // attempt transaction
-      LocalDateTime timeWhenCryptoBuy = MvcControllerIntegTestHelpers.fetchCurrentTimeAsLocalDateTimeNoMilliseconds();
+      LocalDateTime cryptoTransactionTime = MvcControllerIntegTestHelpers.fetchCurrentTimeAsLocalDateTimeNoMilliseconds();
       String returnedPage;
       if (cryptoTransactionTestType == CryptoTransactionTestType.BUY) {
         user.setAmountToBuyCrypto(cryptoAmountToTransact);
@@ -1235,10 +1236,12 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
       }
 
       // check the cash balance
-      assertEquals(MvcControllerIntegTestHelpers.convertDollarsToPennies(expectedEndingBalanceInDollars), jdbcTemplate.queryForObject("SELECT Balance FROM Customers WHERE CustomerID=?", Integer.class, CUSTOMER1_ID));
+      assertEquals(MvcControllerIntegTestHelpers.convertDollarsToPennies(expectedEndingBalanceInDollars),
+              jdbcTemplate.queryForObject("SELECT Balance FROM Customers WHERE CustomerID=?", Integer.class, CUSTOMER1_ID));
 
       // check the overdraft balance
-      assertEquals(MvcControllerIntegTestHelpers.convertDollarsToPennies(expectedEndingOverdraftBalanceInDollars), jdbcTemplate.queryForObject("SELECT OverdraftBalance FROM Customers WHERE CustomerID=?", Integer.class, CUSTOMER1_ID));
+      assertEquals(MvcControllerIntegTestHelpers.convertDollarsToPennies(expectedEndingOverdraftBalanceInDollars),
+              jdbcTemplate.queryForObject("SELECT OverdraftBalance FROM Customers WHERE CustomerID=?", Integer.class, CUSTOMER1_ID));
 
       if (!shouldSucceed) {
         // verify no transaction took place
@@ -1247,18 +1250,31 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
         assertEquals(0, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM CryptoHistory;", Integer.class));
       } else {
         assertEquals("account_info", returnedPage);
-        assertEquals(1, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM TransactionHistory;", Integer.class));
-        assertEquals(1, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM CryptoHistory;", Integer.class));
-
-        List<Map<String, Object>> transactionHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM TransactionHistory;");
-        List<Map<String, Object>> cryptoHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM CryptoHistory;");
-        Map<String, Object> customer1TransactionLog = transactionHistoryTableData.get(0);
-        Map<String, Object> customer1CryptoLog = cryptoHistoryTableData.get(0);
 
         // check transaction logs
-        int expectedCostInPennies = MvcControllerIntegTestHelpers.convertDollarsToPennies(cryptoPrice * cryptoAmountToTransact);
-        MvcControllerIntegTestHelpers.checkTransactionLog(customer1TransactionLog, timeWhenCryptoBuy, CUSTOMER1_ID, cryptoTransactionTestType.transactionHistoryActionName, expectedCostInPennies);
-        MvcControllerIntegTestHelpers.checkCryptoLog(customer1CryptoLog, timeWhenCryptoBuy, CUSTOMER1_ID, cryptoTransactionTestType.cryptoHistoryActionName, cryptoName, cryptoAmountToTransact, REASONABLE_CRYPTO_EPSILON);
+        assertEquals(1, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM TransactionHistory;", Integer.class));
+        List<Map<String, Object>> transactionHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM TransactionHistory;");
+        Map<String, Object> customer1TransactionLog = transactionHistoryTableData.get(0);
+        int expectedCryptoValueInPennies = MvcControllerIntegTestHelpers.convertDollarsToPennies(cryptoPrice * cryptoAmountToTransact);
+        MvcControllerIntegTestHelpers.checkTransactionLog(customer1TransactionLog, cryptoTransactionTime, CUSTOMER1_ID, cryptoTransactionTestType.transactionHistoryActionName, expectedCryptoValueInPennies);
+
+        // check crypto logs
+        assertEquals(1, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM CryptoHistory;", Integer.class));
+        List<Map<String, Object>> cryptoHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM CryptoHistory;");
+        Map<String, Object> customer1CryptoLog = cryptoHistoryTableData.get(0);
+        MvcControllerIntegTestHelpers.checkCryptoLog(customer1CryptoLog, cryptoTransactionTime, CUSTOMER1_ID, cryptoTransactionTestType.cryptoHistoryActionName,
+                cryptoName, cryptoAmountToTransact, REASONABLE_CRYPTO_EPSILON);
+
+        // check overdraft logs (if applicable)
+        if (initialOverdraftBalanceInDollars != 0) {
+          assertEquals(1, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM OverdraftLogs;", Integer.class));
+          List<Map<String, Object>> overdraftLogTableData = jdbcTemplate.queryForList("SELECT * FROM OverdraftLogs;");
+          Map<String, Object> customer1OverdraftLog = overdraftLogTableData.get(0);
+          MvcControllerIntegTestHelpers.checkOverdraftLog(customer1OverdraftLog, cryptoTransactionTime, CUSTOMER1_ID, expectedCryptoValueInPennies,
+                  MvcControllerIntegTestHelpers.convertDollarsToPennies(initialOverdraftBalanceInDollars),
+                  MvcControllerIntegTestHelpers.convertDollarsToPennies(expectedEndingOverdraftBalanceInDollars));
+        }
+
       }
     }
   }
@@ -1398,9 +1414,9 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
     CryptoTransactionTester cryptoTransactionTester = CryptoTransactionTester.builder()
             .initialBalanceInDollars(1000)
             .initialOverdraftBalanceInDollars(50)
-            .initialCryptoBalance(0.1)
+            .initialCryptoBalance(0.15)
             .expectedEndingBalanceInDollars(1050)
-            .expectedEndingCryptoBalance(0)
+            .expectedEndingCryptoBalance(0.05)
             .expectedEndingOverdraftBalanceInDollars(0)
             .cryptoPrice(1000)
             .cryptoAmountToTransact(0.1)
