@@ -39,6 +39,7 @@ public class MvcControllerIntegTest {
   private static String CUSTOMER1_FIRST_NAME = "Foo";
   private static String CUSTOMER1_LAST_NAME = "Bar";
   public static long REASONABLE_TIMESTAMP_EPSILON_IN_SECONDS = 1L;
+  private static double REASONABLE_CRYPTO_EPSILON = 0.00000001;
 
   private static String CUSTOMER2_ID = "987654321";
   private static String CUSTOMER2_PASSWORD = "password";
@@ -1184,12 +1185,83 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
     List<Map<String, Object>> transactionHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM TransactionHistory;");
     Map<String, Object> customer1TransactionLog = transactionHistoryTableData.get(0);
 
-    // verify no transaction took place
+    // verify transaction took place
     assertEquals("account_info", returnedPage);
     assertEquals(1, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM TransactionHistory;", Integer.class));
     MvcControllerIntegTestHelpers.checkTransactionLog(customer1TransactionLog, timeWhenCryptoBuy, CUSTOMER1_ID, "CryptoBuy", 10000);
+    // TODO: check crypto transaction log
     assertEquals(CUSTOMER1_BALANCE_IN_PENNIES - 10000, jdbcTemplate.queryForObject("SELECT Balance FROM Customers WHERE CustomerID=?", Integer.class, CUSTOMER1_ID));
     assertEquals(0.1, jdbcTemplate.queryForObject("SELECT CryptoAmount FROM CryptoHoldings WHERE CustomerID=? AND CryptoName=?", Double.class, CUSTOMER1_ID, CRYPTO_NAME));
+  }
+
+  /**
+   * Test that no buying should take place when user is under overdraft
+   */
+  @Test
+  public void testCryptoBuyOverdraft() throws ScriptException {
+    User user = new User();
+    user.setUsername(CUSTOMER1_ID);
+    user.setPassword(CUSTOMER1_PASSWORD);
+    user.setAmountToBuyCrypto(0.1);
+    String CRYPTO_NAME = "ETH";
+    double CUSTOMER1_BALANCE = 1000;
+    double CUSTOMER1_OVERDRAFT_BALANCE = 1000;
+    Mockito.when(cryptoPriceClient.getCurrentEthValue()).thenReturn(1000.0);
+    int CUSTOMER1_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_BALANCE);
+    int CUSTOMER1_OVERDRAFT_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_OVERDRAFT_BALANCE);
+    MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER1_ID, CUSTOMER1_PASSWORD, CUSTOMER1_FIRST_NAME, CUSTOMER1_LAST_NAME, CUSTOMER1_BALANCE_IN_PENNIES, CUSTOMER1_OVERDRAFT_BALANCE_IN_PENNIES, 0);
+
+    // verify initial state
+    assertEquals(0, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM TransactionHistory;", Integer.class));
+    assertEquals(CUSTOMER1_BALANCE_IN_PENNIES, jdbcTemplate.queryForObject("SELECT Balance FROM Customers WHERE CustomerID=?", Integer.class, CUSTOMER1_ID));
+    assertThrows(EmptyResultDataAccessException.class, () -> jdbcTemplate.queryForObject("SELECT CryptoAmount FROM CryptoHoldings WHERE CustomerID=? AND CryptoName=?", Double.class, CUSTOMER1_ID, CRYPTO_NAME));
+
+    // attempt transaction
+    String returnedPage = controller.buyCrypto(user);
+
+    // verify no transaction took place
+    assertEquals("welcome", returnedPage);
+    assertEquals(0, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM TransactionHistory;", Integer.class));
+    assertEquals(CUSTOMER1_BALANCE_IN_PENNIES, jdbcTemplate.queryForObject("SELECT Balance FROM Customers WHERE CustomerID=?", Integer.class, CUSTOMER1_ID));
+    assertThrows(EmptyResultDataAccessException.class, () -> jdbcTemplate.queryForObject("SELECT CryptoAmount FROM CryptoHoldings WHERE CustomerID=? AND CryptoName=?", Double.class, CUSTOMER1_ID, CRYPTO_NAME));
+  }
+
+  /**
+   * Test simple selling of cryptocurrency
+   */
+  @Test
+  public void testCryptoSellSimple() throws ScriptException {
+    User user = new User();
+    user.setUsername(CUSTOMER1_ID);
+    user.setPassword(CUSTOMER1_PASSWORD);
+    user.setAmountToSellCrypto(0.1);
+    String CRYPTO_NAME = "ETH";
+    double CUSTOMER1_BALANCE = 1000;
+    Mockito.when(cryptoPriceClient.getCurrentEthValue()).thenReturn(1500.0);
+    int CUSTOMER1_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_BALANCE);
+    MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER1_ID, CUSTOMER1_PASSWORD, CUSTOMER1_FIRST_NAME, CUSTOMER1_LAST_NAME, CUSTOMER1_BALANCE_IN_PENNIES);
+    MvcControllerIntegTestHelpers.setCryptoBalance(dbDelegate, CUSTOMER1_ID, CRYPTO_NAME, 0.1);
+
+    // verify initial state
+    assertEquals(0, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM TransactionHistory;", Integer.class));
+    assertEquals(CUSTOMER1_BALANCE_IN_PENNIES, jdbcTemplate.queryForObject("SELECT Balance FROM Customers WHERE CustomerID=?", Integer.class, CUSTOMER1_ID));
+    assertEquals(0.1, jdbcTemplate.queryForObject("SELECT CryptoAmount FROM CryptoHoldings WHERE CustomerID=? AND CryptoName=?", Double.class, CUSTOMER1_ID, CRYPTO_NAME));
+
+    // attempt transaction
+    LocalDateTime timeWhenCryptoBuy = MvcControllerIntegTestHelpers.fetchCurrentTimeAsLocalDateTimeNoMilliseconds();
+    String returnedPage = controller.sellCrypto(user);
+
+    List<Map<String, Object>> transactionHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM TransactionHistory;");
+    Map<String, Object> customer1TransactionLog = transactionHistoryTableData.get(0);
+
+    // verify no transaction took place
+    assertEquals("account_info", returnedPage);
+    assertEquals(1, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM TransactionHistory;", Integer.class));
+    MvcControllerIntegTestHelpers.checkTransactionLog(customer1TransactionLog, timeWhenCryptoBuy, CUSTOMER1_ID, "CryptoSell", 15000);
+    assertEquals(CUSTOMER1_BALANCE_IN_PENNIES + 15000, jdbcTemplate.queryForObject("SELECT Balance FROM Customers WHERE CustomerID=?", Integer.class, CUSTOMER1_ID));
+
+    // TODO: floating point precision is lost
+    assertEquals(0, jdbcTemplate.queryForObject("SELECT CryptoAmount FROM CryptoHoldings WHERE CustomerID=? AND CryptoName=?", Double.class, CUSTOMER1_ID, CRYPTO_NAME), REASONABLE_CRYPTO_EPSILON);
   }
 
 }
