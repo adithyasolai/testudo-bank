@@ -45,6 +45,14 @@ public class MvcControllerIntegTestHelpers {
     addCustomerToDB(dbDelegate, ID, password, firstName, lastName, balance, 0, 0);
   }
 
+  // Set crypto balance to specified amount
+  public static void setCryptoBalance(DatabaseDelegate dbDelegate, String userID, String cryptoName, double cryptoAmount) throws ScriptException {
+    String removeOldBalanceSql = String.format("DELETE FROM CryptoHoldings WHERE CustomerID='%s' AND CryptoName= '%s';", userID, cryptoName);
+    ScriptUtils.executeDatabaseScript(dbDelegate, null, removeOldBalanceSql);
+    String setBalanceSql = String.format("INSERT INTO CryptoHoldings (CryptoAmount,CustomerID,CryptoName) VALUES (%f, '%s' , '%s')", cryptoAmount, userID, cryptoName);
+    ScriptUtils.executeDatabaseScript(dbDelegate, null, setBalanceSql);
+  }
+
   // Verifies that a single transaction log in the TransactionHistory table matches the expected customerID, timestamp, action, and amount
   public static void checkTransactionLog(Map<String,Object> transactionLog, LocalDateTime timeWhenRequestSent, String expectedCustomerID, String expectedAction, int expectedAmountInPennies) {
     assertEquals(expectedCustomerID, (String)transactionLog.get("CustomerID"));

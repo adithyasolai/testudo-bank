@@ -1,6 +1,7 @@
 package net.testudobank.tests;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.sql.SQLException;
@@ -14,6 +15,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.delegate.DatabaseDelegate;
@@ -1102,6 +1104,88 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
 
     //Check that transfer request goes through.
     assertEquals("account_info", returnedPage);
-  } 
+  }
+
+  /**
+   * Test that no crypto buy transaction occurs when the user password is incorrect
+   */
+  @Test
+  public void testCryptoBuyInvalidPassword() throws ScriptException {
+    User user = new User();
+    user.setUsername(CUSTOMER1_ID);
+    user.setPassword("wrongpassword");
+    user.setAmountToBuyCrypto(0.0001);
+    String CRYPTO_NAME = "ETH";
+    double CUSTOMER1_BALANCE = 1000;
+    int CUSTOMER1_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_BALANCE);
+    MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER1_ID, CUSTOMER1_PASSWORD, CUSTOMER1_FIRST_NAME, CUSTOMER1_LAST_NAME, CUSTOMER1_BALANCE_IN_PENNIES);
+
+    // attempt transaction
+    String returnedPage = controller.buyCrypto(user);
+
+    // verify no transaction took place
+    assertEquals("welcome", returnedPage);
+    assertEquals(0, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM TransactionHistory;", Integer.class));
+    assertEquals(CUSTOMER1_BALANCE_IN_PENNIES, jdbcTemplate.queryForObject("SELECT Balance FROM Customers WHERE CustomerID=?", Integer.class, CUSTOMER1_ID));
+    assertThrows(EmptyResultDataAccessException.class, () -> jdbcTemplate.queryForObject("SELECT CryptoAmount FROM CryptoHoldings WHERE CustomerID=? AND CryptoName=?", Double.class, CUSTOMER1_ID, CRYPTO_NAME));
+  }
+
+  /**
+   * Test that no crypto sell transaction occurs when the user password is incorrect
+   */
+  @Test
+  public void testCryptoSellInvalidPassword() throws ScriptException {
+    User user = new User();
+    user.setUsername(CUSTOMER1_ID);
+    user.setPassword("wrongpassword");
+    user.setAmountToSellCrypto(0.0001);
+    String CRYPTO_NAME = "ETH";
+    double CUSTOMER1_BALANCE = 1000;
+    int CUSTOMER1_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_BALANCE);
+    MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER1_ID, CUSTOMER1_PASSWORD, CUSTOMER1_FIRST_NAME, CUSTOMER1_LAST_NAME, CUSTOMER1_BALANCE_IN_PENNIES);
+    MvcControllerIntegTestHelpers.setCryptoBalance(dbDelegate, CUSTOMER1_ID, CRYPTO_NAME, 0.1);
+
+    // attempt transaction
+    String returnedPage = controller.sellCrypto(user);
+
+    // verify no transaction took place
+    assertEquals("welcome", returnedPage);
+    assertEquals(0, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM TransactionHistory;", Integer.class));
+    assertEquals(CUSTOMER1_BALANCE_IN_PENNIES, jdbcTemplate.queryForObject("SELECT Balance FROM Customers WHERE CustomerID=?", Integer.class, CUSTOMER1_ID));
+  }
+
+  /**
+   * Test simple buying of cryptocurrency
+   */
+  @Test
+  public void testCryptoBuySimple() throws ScriptException {
+    User user = new User();
+    user.setUsername(CUSTOMER1_ID);
+    user.setPassword(CUSTOMER1_PASSWORD);
+    user.setAmountToBuyCrypto(0.0001);
+    String CRYPTO_NAME = "ETH";
+    double CUSTOMER1_BALANCE = 1000;
+    int CUSTOMER1_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_BALANCE);
+    MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER1_ID, CUSTOMER1_PASSWORD, CUSTOMER1_FIRST_NAME, CUSTOMER1_LAST_NAME, CUSTOMER1_BALANCE_IN_PENNIES);
+
+    // verify initial state
+    assertEquals(0, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM TransactionHistory;", Integer.class));
+    assertEquals(CUSTOMER1_BALANCE_IN_PENNIES, jdbcTemplate.queryForObject("SELECT Balance FROM Customers WHERE CustomerID=?", Integer.class, CUSTOMER1_ID));
+    assertThrows(EmptyResultDataAccessException.class, () -> jdbcTemplate.queryForObject("SELECT CryptoAmount FROM CryptoHoldings WHERE CustomerID=? AND CryptoName=?", Double.class, CUSTOMER1_ID, CRYPTO_NAME));
+
+    // attempt transaction
+    LocalDateTime timeWhenCryptoBuy = MvcControllerIntegTestHelpers.fetchCurrentTimeAsLocalDateTimeNoMilliseconds();
+    String returnedPage = controller.buyCrypto(user);
+
+    List<Map<String, Object>> transactionHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM TransactionHistory;");
+    Map<String, Object> customer1TransactionLog = transactionHistoryTableData.get(0);
+
+    // verify no transaction took place
+    assertEquals("account_info", returnedPage);
+    assertEquals(1, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM TransactionHistory;", Integer.class));
+    //MvcControllerIntegTestHelpers.checkTransactionLog(customer1TransactionLog, timeWhenCryptoBuy, CUSTOMER1_ID, "CryptoBuy", 100);
+    //assertEquals(CUSTOMER1_BALANCE_IN_PENNIES, jdbcTemplate.queryForObject("SELECT Balance FROM Customers WHERE CustomerID=?", Integer.class, CUSTOMER1_ID));
+    assertEquals(0.0001, jdbcTemplate.queryForObject("SELECT CryptoAmount FROM CryptoHoldings WHERE CustomerID=? AND CryptoName=?", Double.class, CUSTOMER1_ID, CRYPTO_NAME));
+  }
 
 }
