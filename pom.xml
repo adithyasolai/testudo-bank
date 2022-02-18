@@ -6,8 +6,8 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>2.2.13.RELEASE</version>
-		<relativePath /> <!-- lookup parent from repository -->
+    <version>2.2.13.RELEASE</version>
+    <relativePath>../../spring-boot-dependencies</relativePath>
 	</parent>
 	<groupId>net.codejava</groupId>
 	<artifactId>SpringBootFormHandling</artifactId>
@@ -50,7 +50,7 @@
       <groupId>mysql</groupId>
       <artifactId>mysql-connector-java</artifactId>
       <scope>runtime</scope>
-	  <version>8.0.26</version>
+	  <version>8.0.28</version>
     </dependency>
 
     <dependency>
