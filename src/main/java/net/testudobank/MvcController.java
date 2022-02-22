@@ -61,10 +61,11 @@ public class MvcController {
    * @param model
    * @return "welcome" page
    */
-	@GetMapping("/")
-	public String showWelcome(Model model) {
-		return "welcome";
-	}
+  @GetMapping("/")
+  public String showWelcome(Model model) {
+    model.addAttribute("ethPrice", cryptoPriceClient.getCurrentEthValue());
+    return "welcome";
+  }
 
   /**
    * HTML GET request handler that serves the "login_form" page to the user.
