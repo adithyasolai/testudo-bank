@@ -73,4 +73,7 @@ public class User {
   @Setter @Getter @Positive
   private double amountToSellCrypto;
 
+  @Setter @Getter
+  private double ethPrice;
+
 }
