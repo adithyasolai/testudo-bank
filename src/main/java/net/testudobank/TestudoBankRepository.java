@@ -125,4 +125,48 @@ public class TestudoBankRepository {
       return false;
     }
   }
+
+  public static void insertRowToCryptoHoldingsTable(JdbcTemplate jdbcTemplate, String customerID,String cryptoName, double cryptoAmount) { 
+    String cryptoHoldingsToSql = String.format("INSERT INTO CryptoHoldings VALUES ('%s', '%s', %,.6f);",
+                                                    customerID,
+                                                    cryptoName,
+                                                    cryptoAmount);
+    jdbcTemplate.update(cryptoHoldingsToSql);
+  }
+
+  public static void insertRowToCryptoHistoryTable(JdbcTemplate jdbcTemplate, String customerID,String timeStamp,String action, String cryptoName, double cryptoAmount) { 
+    String cryptoHistoryToSql = String.format("INSERT INTO CryptoHistory VALUES ('%s', '%s','%s','%s', %,.6f);",
+                                                    customerID,
+                                                    timeStamp,
+                                                    action,
+                                                    cryptoName,
+                                                    cryptoAmount);
+    jdbcTemplate.update(cryptoHistoryToSql);
+  }
+
+  public static boolean doesCryptoCustomerExist(JdbcTemplate jdbcTemplate, String customerID, String cryptoName) { 
+    String getCustomerIDSql =  String.format("SELECT CustomerID FROM CryptoHoldings WHERE CustomerID='%s' AND CryptoName='%s';", customerID, cryptoName);
+    if (((List<String>) jdbcTemplate.queryForList(getCustomerIDSql, String.class)).isEmpty()){
+      return false;
+    } else {
+      return true;
+    }
+  }
+
+  public static void updateCustomerCryptoHoldings(JdbcTemplate jdbcTemplate, String customerID, String cryptoName,double cryptoAmount) {
+    String cryptoUpdateSql = String.format("UPDATE CryptoHoldings SET CryptoAmount = CryptoAmount + %,.6f WHERE CustomerID='%s' AND CryptoName ='%s';", cryptoAmount, customerID, cryptoName);
+    jdbcTemplate.update(cryptoUpdateSql);
+  }
+
+  public static List<Map<String,Object>> getCryptoLogs(JdbcTemplate jdbcTemplate, String customerID, int numTransfersToFetch) {
+    String getTransferHistorySql = String.format("Select * from CryptoHistory WHERE CustomerID='%s'  ORDER BY Timestamp DESC LIMIT %d;", customerID, numTransfersToFetch);
+    List<Map<String,Object>> transferLogs = jdbcTemplate.queryForList(getTransferHistorySql);
+    return transferLogs;
+  }
+
+  public static String getEthHoldings(JdbcTemplate jdbcTemplate, String customerID) {
+    String getEthHoldingsSql = String.format("SELECT CryptoAmount FROM CryptoHoldings WHERE CustomerID='%s';", customerID);
+    String ethHoldings = jdbcTemplate.queryForObject(getEthHoldingsSql, String.class);
+    return ethHoldings;
+  }  
 }
