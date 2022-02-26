@@ -214,7 +214,7 @@ public class MvcController {
     return (int) (dollarAmount * 100);
   }
 
-  // Returns the penny amount with the intrest rate applied to it
+  // Returns the penny amount with the intrest rate applied to it.
   private static int applyInterestRateToPennyAmount(int pennyAmount){
     return (int) (pennyAmount * INTEREST_RATE);
   }
