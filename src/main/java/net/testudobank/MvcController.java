@@ -208,6 +208,27 @@ public class MvcController {
     user.setTransactionHist(transactionHistoryOutput);
     user.setTransferHist(transferHistoryOutput);
     user.setEthPrice(getCurrentEthValue());
+
+    String checkUserHasCrypto = String.format("SELECT Count(*) FROM CryptoHoldings WHERE CustomerID='%s';", user.getUsername());
+    if(checkUserHasCrypto.equals("1")) {
+      //fetch crypto holdings; i.e have the user set stuff
+      // String getHistoryUserNameAndTimeStampAndActionAndCryptoBalanceSql = String.format("SELECT CustomerID, Timestamp, Action, CryptoName, CryptoAmount FROM CryptoHistory WHERE CustomerID='%s';", user.getUsername());
+      // List<Map<String,Object>> historyQueryResults = jdbcTemplate.queryForList(getHistoryUserNameAndTimeStampAndActionAndCryptoBalanceSql);
+      // Map<String,Object> userDataHistory = historyQueryResults.get(0);
+      List<Map<String,Object>> cryptoLogs = TestudoBankRepository.getCryptoTransactions(jdbcTemplate, user.getUsername(), MAX_NUM_TRANSFERS_DISPLAYED);
+      String cryptoHistoryOutput = HTML_LINE_BREAK;
+      for(Map<String, Object> cryptoLog : cryptoLogs){
+        cryptoHistoryOutput += cryptoLog + HTML_LINE_BREAK;
+      }
+      user.setCryptoHist(cryptoHistoryOutput);
+
+      String getHoldingsUserNameAndCryptoNameAndCryptoBalanceSql = String.format("SELECT CustomerID, CryptoName, CryptoAmount FROM CryptoHoldings WHERE CustomerID='%s';", user.getUsername());
+      List<Map<String,Object>> holdingsQueryResults = jdbcTemplate.queryForList(getHoldingsUserNameAndCryptoNameAndCryptoBalanceSql);
+      Map<String,Object> userDataHoldings = holdingsQueryResults.get(0);
+
+      // double ethBalance = (int)userDataHoldings.get("CryptoAmount");
+      user.setEthBalance((double)userDataHoldings.get("CryptoAmount"));
+    }
   }
 
   // Converts dollar amounts in frontend to penny representation in backend MySQL DB
