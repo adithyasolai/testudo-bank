@@ -60,7 +60,13 @@ public class User {
   
   @Setter @Getter
   private double ethPrice;
-  
+
+  @Setter @Getter
+  private double ethBalance;
+
+  @Setter @Getter
+  private String cryptoHist;
+
 	@Override
 	public String toString() {
 		return "User [username=" + username + ", password=" + password + ", balance=" + balance + "]";
