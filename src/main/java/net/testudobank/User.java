@@ -64,6 +64,14 @@ public class User {
   @Setter @Getter
   private boolean isCrypto;
 
+  @Setter @Getter @Positive
+  private double totalEthHoldings;
+
+  @Setter @Getter @Positive
+  private double ethPrice;
+
+
+
 
 	@Override
 	public String toString() {

@@ -164,9 +164,9 @@ public class TestudoBankRepository {
     return transferLogs;
   }
 
-  public static String getEthHoldings(JdbcTemplate jdbcTemplate, String customerID) {
+  public static Double getEthHoldings(JdbcTemplate jdbcTemplate, String customerID) {
     String getEthHoldingsSql = String.format("SELECT CryptoAmount FROM CryptoHoldings WHERE CustomerID='%s';", customerID);
-    String ethHoldings = jdbcTemplate.queryForObject(getEthHoldingsSql, String.class);
+    Double ethHoldings = jdbcTemplate.queryForObject(getEthHoldingsSql, Double.class);
     return ethHoldings;
   }  
 }

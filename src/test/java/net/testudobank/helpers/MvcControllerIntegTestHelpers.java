@@ -3,6 +3,7 @@ package net.testudobank.helpers;
 import static org.junit.Assert.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
@@ -13,6 +14,11 @@ import javax.script.ScriptException;
 import javax.sql.DataSource;
 
 import com.mysql.cj.jdbc.MysqlDataSource;
+
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import java.io.IOException;
 
 import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.delegate.DatabaseDelegate;
@@ -90,5 +96,27 @@ public class MvcControllerIntegTestHelpers {
   // Converts the java.util.Date object into the LocalDateTime returned by the MySQL DB
   public static LocalDateTime convertDateToLocalDateTime(Date dateToConvert) { 
     return dateToConvert.toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
+  }
+
+  public static double getCurrentEthValue() {
+    try {
+      // fetch the document over HTTP
+      Document doc = Jsoup.connect("https://ethereumprice.org").userAgent("Mozilla").get();
+
+      Element value = doc.getElementById("coin-price");
+      String valueStr = value.text();
+
+      // Replacing the '$'' and ',' characters from the string
+      valueStr = valueStr.replaceAll("\\$", "").replaceAll("\\,", "");
+      double ethValue = Double.parseDouble(valueStr);
+
+      return ethValue;
+    } catch (IOException e) {
+      // Print stack trace for debugging
+      e.printStackTrace();
+
+      // Return -1 if there was an error during web scraping
+      return -1;
+    }
   }
 }

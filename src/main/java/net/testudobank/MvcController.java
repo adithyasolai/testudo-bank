@@ -208,7 +208,7 @@ public class MvcController {
     Map<String,Object> userData = queryResults.get(0);
 
 
-    String userEthHoldings = TestudoBankRepository.getEthHoldings(jdbcTemplate, user.getUsername());
+    
     
 
     user.setFirstName((String)userData.get("FirstName"));
@@ -220,6 +220,7 @@ public class MvcController {
     user.setTransactionHist(transactionHistoryOutput);
     user.setTransferHist(transferHistoryOutput);
     user.setCryptoHist(cryptoHistoryOutput);
+    user.setEthPrice(getCurrentEthValue());
   }
 
   // Converts dollar amounts in frontend to penny representation in backend MySQL DB
@@ -428,6 +429,16 @@ public class MvcController {
       // abort withdraw transaction if new overdraft balance exceeds max overdraft limit
       // IMPORTANT: Compare new overdraft balance to max overdraft limit AFTER applying the interest rate!
       if (newOverdraftBalanceInPennies > MAX_OVERDRAFT_IN_PENNIES) {
+        return "welcome";
+      }
+
+      //if in overdraft do not process crypto buy
+      if (userOverdraftBalanceInPennies>0 && user.isCrypto()){
+        return "welcome";
+      }
+
+      // if buying crypto will put in overdraft don't process the buy
+      if (userWithdrawAmtInPennies > userBalanceInPennies && user.isCrypto()) { 
         return "welcome";
       }
 
@@ -648,10 +659,9 @@ public class MvcController {
     String userID = user.getUsername();
     double cryptoAmount = user.getAmountToBuyCrypto();
     user.setAmountToWithdraw(cryptoAmount);
-    if (submitWithdraw(user).equals("welcome")){
+    if (submitWithdraw(user).equals("welcome")){  // Withdraw does the error checking
       return "welcome";
     }
-    
     double coins = cryptoAmount / getCurrentEthValue();
     String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date());
     
@@ -660,7 +670,8 @@ public class MvcController {
     } else {
       TestudoBankRepository.insertRowToCryptoHoldingsTable(jdbcTemplate, userID, "ETH", coins);
     }
-
+    Double userEthHoldings  = TestudoBankRepository.getEthHoldings(jdbcTemplate, userID);
+    user.setTotalEthHoldings(userEthHoldings);
     TestudoBankRepository.insertRowToCryptoHistoryTable(jdbcTemplate, userID, currentTime, "BUY", "ETH", coins);
     updateAccountInfo(user);
     return "account_info";

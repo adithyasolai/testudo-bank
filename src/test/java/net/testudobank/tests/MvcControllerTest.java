@@ -8,6 +8,7 @@ import org.springframework.ui.Model;
 
 import net.testudobank.MvcController;
 import net.testudobank.User;
+import net.testudobank.helpers.MvcControllerIntegTestHelpers;
 
 import org.mockito.Mock;
 import org.mockito.Mockito;
@@ -285,4 +286,5 @@ public class MvcControllerTest {
     // verify "account_info" page is returned
 		assertEquals("account_info", pageReturned);
 	}
+
 }
