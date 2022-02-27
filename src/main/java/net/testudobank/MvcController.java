@@ -712,34 +712,30 @@ public class MvcController {
     // unsuccessful login
     if (passwordAttempt.equals(password) == false) { return "welcome"; }
 
-    // Check if in overdraft
-    if(user.getBalance() == 0) { return "welcome";}
+    
     // Get how much ETH coins they want to buy from the user object
     // initialize variables for buy crypto amount
-    double amountToBuyCrypto = user.getAmountToBuyCrypto();
-    // Design: SUser submits how much in dollars they want to buy ETH
-    int buyCryptoInPennies = convertDollarsToPennies(amountToBuyCrypto);
+    double amountToSellCrypto = user.getAmountToSellCrypto();
+    // Design: User submits how much in dollars they want to sell ETH
+    int sellCryptoInPennies = convertDollarsToPennies(amountToSellCrypto);
 
     // negative ETH amount is not allowed
-    if(buyCryptoInPennies < 0) {return "welcome";}
-    
-    // enough money in balance to buy crypto? If not -> return welcome
-    if(buyCryptoInPennies > user.getBalance()) {return "welcome";}
+    if(sellCryptoInPennies < 0) {return "welcome";}
 
-    // Submit Withdraw request
-    user.setAmountToWithdraw(amountToBuyCrypto);
-    submitWithdraw(user);
+    // Submit deposit request
+
+    user.setAmountToDeposit(amountToSellCrypto);
+    submitDeposit(user);
 
     // Convert to from dollars to ETH
     double currentEth = user.getEthPrice();
-    double storeEth = amountToBuyCrypto/currentEth;
+    double storeEth = amountToSellCrypto/currentEth;
 
 
     // Update CryptoHoldings and CryptoHistory table
-    // Add helper methods to TestudoBankRepository.java [insertRow into crypto holdings table && transactions table]
     String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date()); // use same timestamp for all logs created by this transfer
 
-    TestudoBankRepository.insertRowToCryptoLogsTable(jdbcTemplate, userID, currentTime, "Buy" , "ETH",  storeEth);
+    TestudoBankRepository.insertRowToCryptoLogsTable(jdbcTemplate, userID, currentTime, "Sell" , "ETH",  storeEth);
     TestudoBankRepository.insertRowToCryptoHoldingsTable(jdbcTemplate, userID, "ETH", storeEth);
     updateAccountInfo(user);
     
