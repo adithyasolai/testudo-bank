@@ -649,7 +649,49 @@ public class MvcController {
    */
   @PostMapping("/buycrypto")
   public String buyCrypto(@ModelAttribute("user") User user) {
-    return "welcome";
+    // Check if user exists
+    if (!TestudoBankRepository.doesCustomerExist(jdbcTemplate, user.getUsername())){
+      return "welcome";
+    }
+
+    String userID = user.getUsername();
+    String passwordAttempt = user.getPassword();
+    String password = TestudoBankRepository.getCustomerPassword(jdbcTemplate, userID);
+    // unsuccessful login
+    if (passwordAttempt.equals(password) == false) { return "welcome"; }
+
+    // Check if in overdraft
+    if(user.getBalance() == 0) { return "welcome";}
+    // Get how much ETH coins they want to buy from the user object
+    // initialize variables for buy crypto amount
+    double amountToBuyCrypto = user.getAmountToBuyCrypto();
+    // Design: SUser submits how much in dollars they want to buy ETH
+    int buyCryptoInPennies = convertDollarsToPennies(amountToBuyCrypto);
+
+    // negative ETH amount is not allowed
+    if(buyCryptoInPennies < 0) {return "welcome";}
+    
+    // enough money in balance to buy crypto? If not -> return welcome
+    if(buyCryptoInPennies > user.getBalance()) {return "welcome";}
+
+    // Submit Withdraw request
+    user.setAmountToWithdraw(amountToBuyCrypto);
+    submitWithdraw(user);
+
+    // Convert to from dollars to ETH
+    double currentEth = user.getEthPrice();
+    double storeEth = amountToBuyCrypto/currentEth;
+
+
+    // Update CryptoHoldings and CryptoHistory table
+    // Add helper methods to TestudoBankRepository.java [insertRow into crypto holdings table && transactions table]
+    String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date()); // use same timestamp for all logs created by this transfer
+
+    TestudoBankRepository.insertRowToCryptoLogsTable(jdbcTemplate, userID, currentTime, "Buy" , "ETH",  storeEth);
+    TestudoBankRepository.insertRowToCryptoHoldingsTable(jdbcTemplate, userID, "ETH", storeEth);
+    updateAccountInfo(user);
+    
+    return "account_info";
   }
 
   /**
@@ -659,7 +701,49 @@ public class MvcController {
    */
   @PostMapping("/sellcrypto")
   public String sellCrypto(@ModelAttribute("user") User user) {
-    return "welcome";
+    // Check if user exists
+    if (!TestudoBankRepository.doesCustomerExist(jdbcTemplate, user.getUsername())){
+      return "welcome";
+    }
+
+    String userID = user.getUsername();
+    String passwordAttempt = user.getPassword();
+    String password = TestudoBankRepository.getCustomerPassword(jdbcTemplate, userID);
+    // unsuccessful login
+    if (passwordAttempt.equals(password) == false) { return "welcome"; }
+
+    // Check if in overdraft
+    if(user.getBalance() == 0) { return "welcome";}
+    // Get how much ETH coins they want to buy from the user object
+    // initialize variables for buy crypto amount
+    double amountToBuyCrypto = user.getAmountToBuyCrypto();
+    // Design: SUser submits how much in dollars they want to buy ETH
+    int buyCryptoInPennies = convertDollarsToPennies(amountToBuyCrypto);
+
+    // negative ETH amount is not allowed
+    if(buyCryptoInPennies < 0) {return "welcome";}
+    
+    // enough money in balance to buy crypto? If not -> return welcome
+    if(buyCryptoInPennies > user.getBalance()) {return "welcome";}
+
+    // Submit Withdraw request
+    user.setAmountToWithdraw(amountToBuyCrypto);
+    submitWithdraw(user);
+
+    // Convert to from dollars to ETH
+    double currentEth = user.getEthPrice();
+    double storeEth = amountToBuyCrypto/currentEth;
+
+
+    // Update CryptoHoldings and CryptoHistory table
+    // Add helper methods to TestudoBankRepository.java [insertRow into crypto holdings table && transactions table]
+    String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date()); // use same timestamp for all logs created by this transfer
+
+    TestudoBankRepository.insertRowToCryptoLogsTable(jdbcTemplate, userID, currentTime, "Buy" , "ETH",  storeEth);
+    TestudoBankRepository.insertRowToCryptoHoldingsTable(jdbcTemplate, userID, "ETH", storeEth);
+    updateAccountInfo(user);
+    
+    return "account_info";
   }
 
 }

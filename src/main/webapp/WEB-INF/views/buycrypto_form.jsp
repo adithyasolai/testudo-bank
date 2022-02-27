@@ -42,7 +42,7 @@
 			<form:label path="password">Password:</form:label>
 			<form:password path="password"/><br/>		
 
-      <form:label path="amountToBuyCrypto">Amount to buy (Ethereum):</form:label>
+      <form:label path="amountToBuyCrypto">Amount to buy (Ethereum in $):</form:label>
 			<form:input path="amountToBuyCrypto"/><br/>
 
       <span>Current $ETH Price: </span><span>${user.ethPrice}</span><br/>
