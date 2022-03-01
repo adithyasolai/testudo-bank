@@ -42,6 +42,11 @@ public class MvcController {
   public static String TRANSACTION_HISTORY_WITHDRAW_ACTION = "Withdraw";
   public static String TRANSACTION_HISTORY_TRANSFER_SEND_ACTION = "TransferSend";
   public static String TRANSACTION_HISTORY_TRANSFER_RECEIVE_ACTION = "TransferReceive";
+  public static String TRANSACTION_HISTORY_CRYPTOBUY_ACTION = "CryptoBuy";
+  public static String TRANSACTION_HISTORY_CRYPTOSELL_ACTION = "CryptoSell";
+  public static String CRYPTO_HISTORY_BUY_ACTION = "Buy";
+  public static String CRYPTO_HISTORY_SELL_ACTION = "Sell";
+  public static String CRYPTO_NAME = "ETH";
 
   public MvcController(@Autowired JdbcTemplate jdbcTemplate) {
     this.jdbcTemplate = jdbcTemplate;
@@ -187,6 +192,12 @@ public class MvcController {
       transactionHistoryOutput += transactionLog + HTML_LINE_BREAK;
     }
 
+    List<Map<String,Object>> cryptoLogs = TestudoBankRepository.getRecentCryptoTransactions(jdbcTemplate, user.getUsername(), MAX_NUM_TRANSACTIONS_DISPLAYED);
+    String cryptoHistoryOutput = HTML_LINE_BREAK;
+    for(Map<String, Object> cryptoLog : cryptoLogs){
+      cryptoHistoryOutput += cryptoLog + HTML_LINE_BREAK;
+    }
+
     List<Map<String,Object>> transferLogs = TestudoBankRepository.getTransferLogs(jdbcTemplate, user.getUsername(), MAX_NUM_TRANSFERS_DISPLAYED);
     String transferHistoryOutput = HTML_LINE_BREAK;
     for(Map<String, Object> transferLog : transferLogs){
@@ -204,7 +215,10 @@ public class MvcController {
     user.setOverDraftBalance(overDraftBalance/100);
     user.setLogs(logs);
     user.setTransactionHist(transactionHistoryOutput);
+    user.setCryptoHist(cryptoHistoryOutput);
     user.setTransferHist(transferHistoryOutput);
+    double ethval = getCurrentEthValue();
+    user.setCurrEthValue(ethval);
   }
 
   // Converts dollar amounts in frontend to penny representation in backend MySQL DB
@@ -619,23 +633,157 @@ public class MvcController {
   }
 
   /**
+   * HTML POST request handler for the Buy Crypto Form page.
+   * 
+   * If the user is not currently in overdraft and the crypto buy amount does not exceed the user's
+   * current main balance, the main balance is decremented by the amount specified
+   * 
+   * If the crypto buy amount exceeds the user's current main balance, the user's main balance is set to
+   * 0 and the user's overdraft balance becomes the excess crypto buy amount with interest applied.
+   * 
+   * If the user was already in overdraft, the entire withdraw amount with interest applied is added
+   * to the existing overdraft balance.
    * 
    * @param user
    * @return "account_info" page if buy successful. Otherwise, redirect to "welcome" page.
    */
   @PostMapping("/buycrypto")
   public String buyCrypto(@ModelAttribute("user") User user) {
-    return "welcome";
+    String userID = user.getUsername();
+    String userPasswordAttempt = user.getPassword();
+    String userPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, userID);
+
+    //// Invalid Input/State Handling ////
+
+    // unsuccessful login
+    if (userPasswordAttempt.equals(userPassword) == false) {
+      return "welcome";
+    }
+
+    // If customer already has too many reversals, their account is frozen. Don't complete buy.
+    int numOfReversals = TestudoBankRepository.getCustomerNumberOfReversals(jdbcTemplate, userID);
+    if (numOfReversals >= MAX_DISPUTES){
+      return "welcome";
+    }
+
+    // Negative buy amount is not allowed
+    double userCryptoBuyAmt = user.getAmountToBuyCrypto();
+    if (userCryptoBuyAmt <= 0.0) {
+      return "welcome";
+    }
+
+    //// Complete Crypto Buy Transaction ////
+    double userCryptoBuyAmtUSD = userCryptoBuyAmt*getCurrentEthValue();
+    int userCryptoBuyAmtInPennies = convertDollarsToPennies(userCryptoBuyAmtUSD); // dollar amounts stored as pennies to avoid floating point errors
+    String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date()); // use same timestamp for all logs created by this deposit
+    int userBalanceInPennies = TestudoBankRepository.getCustomerBalanceInPennies(jdbcTemplate, userID);
+
+    // cannot overdraft when buying crypto
+    if (userBalanceInPennies < userCryptoBuyAmtInPennies) {
+      return "welcome";
+    }
+    else { // simple, non-overdraft crypto buy case
+      TestudoBankRepository.decreaseCustomerBalance(jdbcTemplate, userID, userCryptoBuyAmtInPennies);
+
+      // add crypto buy transaction to transaction history table
+    TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_CRYPTOBUY_ACTION, userCryptoBuyAmtInPennies);
+    }
+
+    // add buy transaction to crypto history table
+    TestudoBankRepository.insertRowToCryptoHistoryTable(jdbcTemplate, userID, currentTime, CRYPTO_HISTORY_BUY_ACTION, CRYPTO_NAME, userCryptoBuyAmt);
+    // if crypto balance is zero, make new crypto holdings row and set new balance, otherwise just increase the crypto balance
+    if (TestudoBankRepository.getCryptoAmt(jdbcTemplate, userID, CRYPTO_NAME) > 0.0) {
+      TestudoBankRepository.increaseCustomerCryptoBalance(jdbcTemplate, userID, CRYPTO_NAME, userCryptoBuyAmt);
+      user.setCryptoBalance(TestudoBankRepository.getCryptoAmt(jdbcTemplate, userID, CRYPTO_NAME));
+    }
+    else if (TestudoBankRepository.getCryptoAmt(jdbcTemplate, userID, CRYPTO_NAME) == 0.0) {
+      TestudoBankRepository.insertRowToCryptoHoldingsTable(jdbcTemplate, userID, CRYPTO_NAME, userCryptoBuyAmt);
+      TestudoBankRepository.setCustomerCryptoBalance(jdbcTemplate, userID, CRYPTO_NAME, userCryptoBuyAmt);
+      user.setCryptoBalance(userCryptoBuyAmt);
+    }
+
+    // update Model so that View can access new main balance, overdraft balance, and logs
+    updateAccountInfo(user);
+    return "account_info";
   }
 
   /**
+   * HTML POST request handler for the Crypto Sell Form page.
+   * 
+   * If the user is currently not in overdraft, the sell amount is simply
+   * added to the user's main balance.
+   * 
+   * If the user is in overdraft, the sell amount first pays off the overdraft balance,
+   * and any excess sell amount is added to the main balance.
    * 
    * @param user
    * @return "account_info" page if sell successful. Otherwise, redirect to "welcome" page.
    */
   @PostMapping("/sellcrypto")
   public String sellCrypto(@ModelAttribute("user") User user) {
-    return "welcome";
+    String userID = user.getUsername();
+    String userPasswordAttempt = user.getPassword();
+    String userPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, userID);
+
+    //// Invalid Input/State Handling ////
+
+    // unsuccessful login
+    if (userPasswordAttempt.equals(userPassword) == false) {
+      return "welcome";
+    }
+
+    // If customer already has too many reversals, their account is frozen. Don't complete sell.
+    int numOfReversals = TestudoBankRepository.getCustomerNumberOfReversals(jdbcTemplate, userID);
+    if (numOfReversals >= MAX_DISPUTES){
+      return "welcome";
+    }
+
+    // Negative sell amount is not allowed
+    double userCryptoSellAmt = user.getAmountToSellCrypto();
+    if (userCryptoSellAmt < 0 || userCryptoSellAmt > TestudoBankRepository.getCryptoAmt(jdbcTemplate, userID, CRYPTO_NAME)) {
+      return "welcome";
+    }
+    
+    //// Complete Deposit Transaction ////
+    double userCryptoSellAmtUSD =  userCryptoSellAmt*getCurrentEthValue();
+    int userCryptoSellAmtInPennies = convertDollarsToPennies(userCryptoSellAmtUSD); // dollar amounts stored as pennies to avoid floating point errors
+    String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date()); // use same timestamp for all logs created by this deposit
+    int userOverdraftBalanceInPennies = TestudoBankRepository.getCustomerOverdraftBalanceInPennies(jdbcTemplate, userID);
+    if (userOverdraftBalanceInPennies > 0) { // deposit will pay off overdraft first
+      // update overdraft balance in Customers table, and log the repayment in OverdraftLogs table.
+      int newOverdraftBalanceInPennies = Math.max(userOverdraftBalanceInPennies - userCryptoSellAmtInPennies, 0);
+      TestudoBankRepository.setCustomerOverdraftBalance(jdbcTemplate, userID, newOverdraftBalanceInPennies);
+      TestudoBankRepository.insertRowToOverdraftLogsTable(jdbcTemplate, userID, currentTime, userCryptoSellAmtInPennies, userOverdraftBalanceInPennies, newOverdraftBalanceInPennies);
+      
+      // add any excess deposit amount to main balance in Customers table
+      if (userCryptoSellAmtInPennies > userOverdraftBalanceInPennies) {
+        int mainBalanceIncreaseAmtInPennies = userCryptoSellAmtInPennies - userOverdraftBalanceInPennies;
+        TestudoBankRepository.increaseCustomerBalance(jdbcTemplate, userID, mainBalanceIncreaseAmtInPennies);
+      }
+
+    } else { // simple deposit case
+      TestudoBankRepository.increaseCustomerBalance(jdbcTemplate, userID, userCryptoSellAmtInPennies);
+    }
+
+    // only adds cryptosell to transaction history and crypto history
+    TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_CRYPTOSELL_ACTION, userCryptoSellAmtInPennies);
+    TestudoBankRepository.insertRowToCryptoHistoryTable(jdbcTemplate, userID, currentTime, CRYPTO_HISTORY_SELL_ACTION, CRYPTO_NAME, userCryptoSellAmt);
+    
+    // decreases customer crypto balance
+    TestudoBankRepository.decreaseCustomerCryptoBalance(jdbcTemplate, userID, CRYPTO_NAME, userCryptoSellAmt);
+
+    // if customer crypto balance is now zero, delete the row of holdings
+    if (TestudoBankRepository.getCryptoAmt(jdbcTemplate, userID, CRYPTO_NAME) == 0.0) {
+      TestudoBankRepository.deleteRowFromCryptoHoldingsTable(jdbcTemplate, userID, CRYPTO_NAME);
+      user.setCryptoBalance(0.0);
+    }
+    else {
+      user.setCryptoBalance(TestudoBankRepository.getCryptoAmt(jdbcTemplate, userID, CRYPTO_NAME));
+    }
+    
+    // update Model so that View can access new main balance, overdraft balance, and logs
+    updateAccountInfo(user);
+    return "account_info";
   }
 
 }

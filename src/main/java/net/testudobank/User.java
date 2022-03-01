@@ -22,6 +22,9 @@ public class User {
   @Setter  @Getter @PositiveOrZero
 	private double balance;
 
+  @Setter  @Getter @PositiveOrZero
+	private double cryptoBalance;
+
   @Setter @Getter @PositiveOrZero
 	private double overDraftBalance;
 
@@ -30,6 +33,9 @@ public class User {
 
   @Setter @Getter
   private String transactionHist;
+
+  @Setter @Getter
+  private String cryptoHist;
 
   @Setter @Getter @Positive
   private double amountToDeposit;
@@ -57,6 +63,9 @@ public class User {
 
   @Setter @Getter @Positive
   private double amountToSellCrypto;
+
+  @Setter @Getter @PositiveOrZero
+	private double currEthValue;
   
 	@Override
 	public String toString() {
