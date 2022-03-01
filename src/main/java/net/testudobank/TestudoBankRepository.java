@@ -54,6 +54,12 @@ public class TestudoBankRepository {
     return overdraftLogs;
   }
 
+  public static List<Map<String,Object>> getCryptoLogs(JdbcTemplate jdbcTemplate, String customerID) {
+    String getCryptoHistorySql = String.format("Select * from CryptoHistory WHERE CustomerID='%s';", customerID);
+    List<Map<String,Object>> cryptoLogs = jdbcTemplate.queryForList(getCryptoHistorySql);
+    return cryptoLogs;
+  }
+
   public static void insertRowToTransactionHistoryTable(JdbcTemplate jdbcTemplate, String customerID, String timestamp, String action, int amtInPennies) {
     String insertRowToTransactionHistorySql = String.format("INSERT INTO TransactionHistory VALUES ('%s', '%s', '%s', %d);",
                                                               customerID,
@@ -116,7 +122,32 @@ public class TestudoBankRepository {
                                                     transferAmount);
     jdbcTemplate.update(transferHistoryToSql);
   }
+
+  public static void insertRowToCryptoHoldingsTable(JdbcTemplate jdbcTemplate, String customerID, String cryptoName, double cryptoAmount) {
+    String insertRowToCryptoHoldingsToSql = String.format("INSERT INTO CryptoHoldings VALUES ('%s', '%s', %f);", customerID, cryptoName, cryptoAmount);
+    jdbcTemplate.update(insertRowToCryptoHoldingsToSql); 
+  }
+
+  public static void insertRowToCryptoLogsTable(JdbcTemplate jdbcTemplate, String customerID, String timestamp, String action, String cryptoName, double cryptoAmount) {
+    String insertRowToCryptoHistoryToSql = String.format("INSERT INTO CryptoHistory VALUES ('%s', '%s', '%s', '%s', %f);", 
+                                                        customerID,
+                                                        timestamp, 
+                                                        action, 
+                                                        cryptoName,
+                                                        cryptoAmount);
+    jdbcTemplate.update(insertRowToCryptoHistoryToSql); 
+  }
+
+  public static void increaseCustomerCryptoBalance(JdbcTemplate jdbcTemplate, String customerID, String cryptoName, double increaseAmtInCrypto) {
+    String cryptoBalanceIncreaseSql = String.format("UPDATE CryptoHoldings SET CryptoAmount = CryptoAmount + %f WHERE CustomerID='%s' AND CryptoName='%s';", increaseAmtInCrypto, customerID, cryptoName);
+    jdbcTemplate.update(cryptoBalanceIncreaseSql);
+  }
   
+  public static void decreaseCustomerCryptoBalance(JdbcTemplate jdbcTemplate, String customerID, String cryptoName, double decreaseAmtInCrypto) {
+    String cryptoBalanceDecreaseSql = String.format("UPDATE CryptoHoldings SET CryptoAmount = CryptoAmount - %f WHERE CustomerID='%s' AND CryptoName='%s';", decreaseAmtInCrypto, customerID, cryptoName);
+    jdbcTemplate.update(cryptoBalanceDecreaseSql);
+  }
+
   public static boolean doesCustomerExist(JdbcTemplate jdbcTemplate, String customerID) { 
     String getCustomerIDSql =  String.format("SELECT CustomerID FROM Customers WHERE CustomerID='%s';", customerID);
     if (jdbcTemplate.queryForObject(getCustomerIDSql, String.class) != null) {

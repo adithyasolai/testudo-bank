@@ -45,6 +45,8 @@
       <form:label path="amountToBuyCrypto">Amount to buy (Ethereum):</form:label>
 			<form:input path="amountToBuyCrypto"/><br/>	
 
+      <span>Current $ETH Price: </span><span>${user.ethPrice}</span><br/>
+      
 			<form:button>Buy Ethereum</form:button>
 		</form:form>
     <a href='/'>Home</a>

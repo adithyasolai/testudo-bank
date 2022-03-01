@@ -91,4 +91,21 @@ public class MvcControllerIntegTestHelpers {
   public static LocalDateTime convertDateToLocalDateTime(Date dateToConvert) { 
     return dateToConvert.toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
   }
+
+  // Verifies that a single crypto log in the CryptoHistory table matches the expected customerID, timestamp, action, and amount
+  public static void checkCryptoLog(Map<String,Object> cryptoLog, LocalDateTime timeWhenRequestSent, String expectedCustomerID, String expectedAction, Double expectedAmountInCrypto) {
+    assertEquals(expectedCustomerID, (String)cryptoLog.get("CustomerID"));
+    assertEquals(expectedAction, (String)cryptoLog.get("Action"));
+    assertEquals(expectedAmountInCrypto, Double.valueOf(String.valueOf(cryptoLog.get("CryptoAmount"))));
+    // verify that the timestamp for the Cyrpto Buy or Sell is within a reasonable range from when the request was first sent
+    LocalDateTime cryptoLogTimestamp = (LocalDateTime)cryptoLog.get("Timestamp");
+    LocalDateTime transactionLogTimestampAllowedUpperBound = timeWhenRequestSent.plusSeconds(MvcControllerIntegTest.REASONABLE_TIMESTAMP_EPSILON_IN_SECONDS);
+    assertTrue(cryptoLogTimestamp.compareTo(timeWhenRequestSent) >= 0 && cryptoLogTimestamp.compareTo(transactionLogTimestampAllowedUpperBound) <= 0);
+    System.out.println("Timestamp stored in CryptoHistory table for the request: " + cryptoLogTimestamp);
+  }
+
+  public static void addCustomerToDBCryptoHoldings(DatabaseDelegate dbDelegate, String ID, String cryptoName, Double cryptoAmount) throws ScriptException {
+    String insertCustomerSql = String.format("INSERT INTO CryptoHoldings VALUES ('%s', '%s', %f)", ID, cryptoName, cryptoAmount);
+    ScriptUtils.executeDatabaseScript(dbDelegate, null, insertCustomerSql);
+  }
 }

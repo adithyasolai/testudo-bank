@@ -23,6 +23,9 @@ public class User {
 	private double balance;
 
   @Setter @Getter @PositiveOrZero
+  private double cryptoBalance;
+
+  @Setter @Getter @PositiveOrZero
 	private double overDraftBalance;
 
   @Setter @Getter
@@ -30,6 +33,9 @@ public class User {
 
   @Setter @Getter
   private String transactionHist;
+
+  @Setter @Getter
+  private String cryptoHist;
 
   @Setter @Getter @Positive
   private double amountToDeposit;
@@ -58,6 +64,18 @@ public class User {
   @Setter @Getter @Positive
   private double amountToSellCrypto;
   
+  @Setter @Getter
+  private double ethPrice;
+
+  @Setter @Getter
+  private boolean isCryptoBuy;
+
+  @Setter @Getter
+  private boolean isCryptoSell;
+
+
+
+
 	@Override
 	public String toString() {
 		return "User [username=" + username + ", password=" + password + ", balance=" + balance + "]";

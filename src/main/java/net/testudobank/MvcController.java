@@ -42,6 +42,11 @@ public class MvcController {
   public static String TRANSACTION_HISTORY_WITHDRAW_ACTION = "Withdraw";
   public static String TRANSACTION_HISTORY_TRANSFER_SEND_ACTION = "TransferSend";
   public static String TRANSACTION_HISTORY_TRANSFER_RECEIVE_ACTION = "TransferReceive";
+  public static String TRANSACTION_HISTORY_CRYPTO_SELL_ACTION = "CryptoSell";
+  public static String TRANSACTION_CRYPTO_HISTORY_CRYPTO_BUY_ACTION = "Buy";
+  public static String TRANSACTION_CRYPTO_HISTORY_CRYPTO_SELL_ACTION = "Sell";
+  public static String TRANSACTION_HISTORY_CRYPTO_BUY_ACTION = "CryptoBuy";
+  public static String ETH_CRYPTO_NAME = "ETH";
 
   public MvcController(@Autowired JdbcTemplate jdbcTemplate) {
     this.jdbcTemplate = jdbcTemplate;
@@ -147,6 +152,7 @@ public class MvcController {
   @GetMapping("/buycrypto")
 	public String showBuyCryptoForm(Model model) {
     User user = new User();
+    user.setEthPrice(getCurrentEthValue());
 		model.addAttribute("user", user);
 		return "buycrypto_form";
 	}
@@ -162,6 +168,7 @@ public class MvcController {
   @GetMapping("/sellcrypto")
 	public String showSellCryptoForm(Model model) {
     User user = new User();
+    user.setEthPrice(getCurrentEthValue());
 		model.addAttribute("user", user);
 		return "sellcrypto_form";
 	}
@@ -193,9 +200,29 @@ public class MvcController {
       transferHistoryOutput += transferLog + HTML_LINE_BREAK;
     }
 
+    List<Map<String,Object>> cryptoLogs = TestudoBankRepository.getCryptoLogs(jdbcTemplate, user.getUsername());
+    String cryptoHistoryOutput = HTML_LINE_BREAK;
+    for(Map<String, Object> cryptoLog : cryptoLogs){
+      cryptoHistoryOutput += cryptoLog + HTML_LINE_BREAK;
+    }
+
     String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance FROM Customers WHERE CustomerID='%s';", user.getUsername());
     List<Map<String,Object>> queryResults = jdbcTemplate.queryForList(getUserNameAndBalanceAndOverDraftBalanceSql);
     Map<String,Object> userData = queryResults.get(0);
+
+    // Check if the user has a row in the crypto holdings table
+    String getIfUserIsInHoldings = String.format("SELECT COUNT(*) FROM CryptoHoldings WHERE CustomerID='%s';", user.getUsername());
+    int countForUserInHoldings = jdbcTemplate.queryForObject(getIfUserIsInHoldings, Integer.class);
+    // If the user has no table set their crypto balance to 0
+    if (countForUserInHoldings == 0){
+      user.setCryptoBalance(0);
+    } else {
+      // Query the user's crypto balance and set the balance to the amount found in the table
+      String getUserCryptoBalance = String.format("SELECT CryptoAmount FROM CryptoHoldings WHERE CustomerID='%s';", user.getUsername());
+      double cryptoBalanceInHolding = jdbcTemplate.queryForObject(getUserCryptoBalance, Double.class);
+      user.setCryptoBalance(cryptoBalanceInHolding);
+    }
+     
 
     user.setFirstName((String)userData.get("FirstName"));
     user.setLastName((String)userData.get("LastName"));
@@ -205,6 +232,8 @@ public class MvcController {
     user.setLogs(logs);
     user.setTransactionHist(transactionHistoryOutput);
     user.setTransferHist(transferHistoryOutput);
+    user.setEthPrice(getCurrentEthValue());
+    user.setCryptoHist(cryptoHistoryOutput);
   }
 
   // Converts dollar amounts in frontend to penny representation in backend MySQL DB
@@ -348,6 +377,10 @@ public class MvcController {
     if (user.isTransfer()){
       // Adds transaction recieve to transaction history
       TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_TRANSFER_RECEIVE_ACTION, userDepositAmtInPennies);
+    } else if (user.isCryptoSell()) {
+      
+      // Adds crypto selling to transaction history
+      TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_CRYPTO_SELL_ACTION, userDepositAmtInPennies);
     } else {
       // Adds deposit to transaction history
       TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_DEPOSIT_ACTION, userDepositAmtInPennies);
@@ -429,7 +462,12 @@ public class MvcController {
     if (user.isTransfer()){
       // Adds transfer send to transaction history
       TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_TRANSFER_SEND_ACTION, userWithdrawAmtInPennies);
-    } else{
+    } else if (user.isCryptoBuy()) {
+      
+      // Adds crypto buy to transaction history
+      TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_CRYPTO_BUY_ACTION, userWithdrawAmtInPennies);
+
+    } else {
       // Adds withdraw to transaction history
       TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_WITHDRAW_ACTION, userWithdrawAmtInPennies);
     }
@@ -625,7 +663,53 @@ public class MvcController {
    */
   @PostMapping("/buycrypto")
   public String buyCrypto(@ModelAttribute("user") User user) {
-    return "welcome";
+    // obtain user login information to access account
+    String userID = user.getUsername();
+    String userPasswordAttempt = user.getPassword();
+    String userPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, userID);
+
+    // unsuccessful login
+    if (userPasswordAttempt.equals(userPassword) == false) {
+      return "welcome";
+    }
+
+    // setup the time and amount of crypto being purchased
+    String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date()); // use same timestamp for all logs created by this deposit    
+    double cryptoAmtToBuy = user.getAmountToBuyCrypto();
+    double priceOfCrypto = getCurrentEthValue();
+    user.setEthPrice(priceOfCrypto);
+
+    // multiply the crypto amount by the price of each crypto and convert to pennies
+    double cryptoUserAmtInDollars = cryptoAmtToBuy * priceOfCrypto;
+    int cryptoUserAmtInPennies = convertDollarsToPennies(cryptoAmtToBuy * priceOfCrypto);
+    int userBalanceInPennies = TestudoBankRepository.getCustomerBalanceInPennies(jdbcTemplate, userID);
+    
+    // check if the user is not going into overdraft to buy crypto
+    if (cryptoUserAmtInPennies <= userBalanceInPennies) {
+      // set flag so that the transaction history knows that this is a crypto buy
+      user.setCryptoBuy(true);
+      user.setAmountToWithdraw(cryptoUserAmtInDollars);
+      submitWithdraw(user);
+        
+      // if this is the user's first crypto purchase then setup a row in cryptoholdings for them
+      String getIfUserIsInHoldings = String.format("SELECT COUNT(*) FROM CryptoHoldings WHERE CustomerID='%s';", user.getUsername());
+      int countForUserInHoldings = jdbcTemplate.queryForObject(getIfUserIsInHoldings, Integer.class);
+      if (countForUserInHoldings == 0){
+        TestudoBankRepository.insertRowToCryptoHoldingsTable(jdbcTemplate, userID, ETH_CRYPTO_NAME, 0);
+      }
+
+      // Adds crypto buy to crypto transaction history
+      TestudoBankRepository.insertRowToCryptoLogsTable(jdbcTemplate, userID, currentTime, TRANSACTION_CRYPTO_HISTORY_CRYPTO_BUY_ACTION, ETH_CRYPTO_NAME, cryptoAmtToBuy);
+
+      // increases the amount of crypto that the customer is holding
+      TestudoBankRepository.increaseCustomerCryptoBalance(jdbcTemplate, userID, ETH_CRYPTO_NAME, cryptoAmtToBuy);
+
+      updateAccountInfo(user);
+
+      return "account_info";
+    } else {
+      return "welcome";
+    }
   }
 
   /**
@@ -635,7 +719,56 @@ public class MvcController {
    */
   @PostMapping("/sellcrypto")
   public String sellCrypto(@ModelAttribute("user") User user) {
-    return "welcome";
-  }
+    // obtain user login information to access account
+    String userID = user.getUsername();
+    String userPasswordAttempt = user.getPassword();
+    String userPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, userID);
 
+    // unsuccessful login
+    if (userPasswordAttempt.equals(userPassword) == false) {
+      return "welcome";
+    }
+
+    /// Check if the user has a row in the crypto holdings table
+    String getIfUserIsInHoldings = String.format("SELECT COUNT(*) FROM CryptoHoldings WHERE CustomerID='%s';", user.getUsername());
+    int countForUserInHoldings = jdbcTemplate.queryForObject(getIfUserIsInHoldings, Integer.class);
+    // If the user has no table set their crypto balance to 0
+    if (countForUserInHoldings == 0){
+      user.setCryptoBalance(0);
+    } else {
+      // Query the user's crypto balance and set the balance to the amount found in the table
+      String getUserCryptoBalance = String.format("SELECT CryptoAmount FROM CryptoHoldings WHERE CustomerID='%s';", user.getUsername());
+      double cryptoBalanceInHolding = jdbcTemplate.queryForObject(getUserCryptoBalance, Double.class);
+      user.setCryptoBalance(cryptoBalanceInHolding);
+    }
+    
+    // setup the crypto balance and amount to sell
+    double userCryptoBalance = user.getCryptoBalance();
+    String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date()); // use same timestamp for all logs created by this deposit    
+    double cryptoAmtToSell = user.getAmountToSellCrypto();
+    double priceOfCrypto = getCurrentEthValue();
+    double cryptoUserAmtInDollars = cryptoAmtToSell * priceOfCrypto;
+    user.setEthPrice(priceOfCrypto);
+
+
+    // if you are not selling more crypto than you own
+    if (cryptoAmtToSell <= userCryptoBalance) {
+      // set flag for transaction history to show that crypto was sold
+      user.setCryptoSell(true);
+      user.setAmountToDeposit(cryptoUserAmtInDollars);
+      submitDeposit(user);
+
+      // Adds crypto selling to crypto transaction history
+      TestudoBankRepository.insertRowToCryptoLogsTable(jdbcTemplate, userID, currentTime, TRANSACTION_CRYPTO_HISTORY_CRYPTO_SELL_ACTION, ETH_CRYPTO_NAME, cryptoAmtToSell);
+    
+      // Decreases the amount of crypto that the customer is holding
+      TestudoBankRepository.decreaseCustomerCryptoBalance(jdbcTemplate, userID, ETH_CRYPTO_NAME, cryptoAmtToSell);
+
+      updateAccountInfo(user);
+
+      return "account_info";
+    } else {
+      return "welcome";
+    }
+  }
 }
