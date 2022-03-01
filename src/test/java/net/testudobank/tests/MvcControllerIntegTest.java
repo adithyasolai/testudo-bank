@@ -189,6 +189,54 @@ public class MvcControllerIntegTest {
     MvcControllerIntegTestHelpers.checkTransactionLog(customer1TransactionLog, timeWhenWithdrawRequestSent, CUSTOMER1_ID, MvcController.TRANSACTION_HISTORY_WITHDRAW_ACTION, CUSTOMER1_AMOUNT_TO_WITHDRAW_IN_PENNIES);
   }
 
+  @Test
+  public void testSimpleSell() throws SQLException, ScriptException {
+    // initialize customer1 with a balance of $123.45 (to make sure this works for non-whole dollar amounts). represented as pennies in the DB.
+    double CUSTOMER1_BALANCE = 123.45;
+    int CUSTOMER1_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_BALANCE);
+    MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER1_ID, CUSTOMER1_PASSWORD, CUSTOMER1_FIRST_NAME, CUSTOMER1_LAST_NAME, CUSTOMER1_BALANCE_IN_PENNIES);
+
+    // Prepare Sell Form to sell 1.2 eth from customer 1's account.
+    double CUSTOMER1_AMOUNT_TO_SELL = 1.2; // user input is in eth amount, not pennies.
+    User customer1SellFormInputs = new User();
+    customer1SellFormInputs.setUsername(CUSTOMER1_ID);
+    customer1SellFormInputs.setPassword(CUSTOMER1_PASSWORD);
+    customer1SellFormInputs.setAmountToSellCrypto(CUSTOMER1_AMOUNT_TO_SELL); 
+    customer1SellFormInputs.setCryptoBalance(2);
+
+    // store timestamp of when Sell request is sent to verify timestamps in the TransactionHistory table later
+    LocalDateTime timeWhenSellRequestSent = MvcControllerIntegTestHelpers.fetchCurrentTimeAsLocalDateTimeNoMilliseconds();
+    System.out.println("Timestamp when Sell Request is sent: " + timeWhenSellRequestSent);
+
+    // send request to the Sell Form's POST handler in MvcController
+    controller.sellCrypto(customer1SellFormInputs);
+
+    // fetch updated data from the DB
+    List<Map<String,Object>> customersTableData = jdbcTemplate.queryForList("SELECT * FROM Customers;");
+    List<Map<String,Object>> transactionHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM TransactionHistory;");
+    List<Map<String,Object>> cryptoHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM CryptoHistory;");
+  
+    // verify that customer1's data is still the only data populated in Customers table
+    assertEquals(1, customersTableData.size());
+    Map<String,Object> customer1Data = customersTableData.get(0);
+    assertEquals(CUSTOMER1_ID, (String)customer1Data.get("CustomerID"));
+
+    // verify customer balance was increased by 1.2ETH in USD
+    double CUSTOMER1_EXPECTED_FINAL_BALANCE = CUSTOMER1_AMOUNT_TO_SELL*customer1SellFormInputs.currEthValue + CUSTOMER1_BALANCE;
+    double CUSTOMER1_EXPECTED_FINAL_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_EXPECTED_FINAL_BALANCE);
+    assertEquals(CUSTOMER1_EXPECTED_FINAL_BALANCE_IN_PENNIES, (int)customer1Data.get("Balance"));
+/*
+    // verify that the Sell is the only log in TransactionHistory table
+    assertEquals(1, transactionHistoryTableData.size());
+    
+    // verify that the Deposit's details are accurately logged in the TransactionHistory table
+    Map<String,Object> customer1TransactionLog = transactionHistoryTableData.get(0);
+    Map<String,Object> customer1CryptoLog = cryptoHistoryTableData.get(0);
+    int CUSTOMER1_AMOUNT_TO_SELL_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_AMOUNT_TO_SELL);
+    MvcControllerIntegTestHelpers.checkTransactionLog(customer1TransactionLog, timeWhenSellRequestSent, CUSTOMER1_ID, MvcController.TRANSACTION_HISTORY_CRYPTOSELL_ACTION, CUSTOMER1_AMOUNT_TO_SELL_IN_PENNIES);
+    MvcControllerIntegTestHelpers.checkCryptoLog(customer1CryptoLog, timeWhenSellRequestSent, CUSTOMER1_ID, MvcController.CRYPTO_HISTORY_SELL_ACTION, CUSTOMER1_AMOUNT_TO_SELL);*/
+  }
+
   /**
    * Verifies the case where a customer withdraws more than their available balance.
    * The customer's main balance should be set to $0, and their Overdraft balance
