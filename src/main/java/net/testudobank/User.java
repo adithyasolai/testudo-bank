@@ -57,6 +57,15 @@ public class User {
 
   @Setter @Getter @Positive
   private double amountToSellCrypto;
+
+  @Setter @Getter @Positive
+  private float cryptoBalance;
+
+  @Setter @Getter @Positive
+  private String cryptoHistory;
+
+  @Setter @Getter @Positive
+  private double ethPrice;
   
 	@Override
 	public String toString() {

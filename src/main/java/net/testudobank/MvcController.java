@@ -42,6 +42,8 @@ public class MvcController {
   public static String TRANSACTION_HISTORY_WITHDRAW_ACTION = "Withdraw";
   public static String TRANSACTION_HISTORY_TRANSFER_SEND_ACTION = "TransferSend";
   public static String TRANSACTION_HISTORY_TRANSFER_RECEIVE_ACTION = "TransferReceive";
+  public static String TRANSACTION_HISTORY_CRYPTO_BUY = "CryptoBuy";
+  public static String TRANSACTION_HISTORY_CRYPTO_SELL = "CryptoSell";
 
   public MvcController(@Autowired JdbcTemplate jdbcTemplate) {
     this.jdbcTemplate = jdbcTemplate;
@@ -191,8 +193,7 @@ public class MvcController {
     String transferHistoryOutput = HTML_LINE_BREAK;
     for(Map<String, Object> transferLog : transferLogs){
       transferHistoryOutput += transferLog + HTML_LINE_BREAK;
-    }
-
+    } 
     String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance FROM Customers WHERE CustomerID='%s';", user.getUsername());
     List<Map<String,Object>> queryResults = jdbcTemplate.queryForList(getUserNameAndBalanceAndOverDraftBalanceSql);
     Map<String,Object> userData = queryResults.get(0);
@@ -205,6 +206,35 @@ public class MvcController {
     user.setLogs(logs);
     user.setTransactionHist(transactionHistoryOutput);
     user.setTransferHist(transferHistoryOutput);
+  }
+  /**
+   * Helper method that queries the MySQL DB for the customer account info (First Name, Last Name, and Balance)
+   * and adds these values to the `user` Model Attribute so that they can be displayed in the "account_info" page.
+   * 
+   * @param user
+   */
+  private void updateCryptoAccountInfo(User user) {
+    List<Map<String,Object>> CryptoLogs = TestudoBankRepository.getCryptoHistory(jdbcTemplate, user.getUsername(), MAX_NUM_TRANSFERS_DISPLAYED);
+    String cryptoHistory = HTML_LINE_BREAK;
+    for(Map<String, Object> cryptoLog : CryptoLogs){
+      cryptoHistory += cryptoLog + HTML_LINE_BREAK;
+    }
+
+    String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance FROM Customers WHERE CustomerID='%s';", user.getUsername());
+    List<Map<String,Object>> queryResults = jdbcTemplate.queryForList(getUserNameAndBalanceAndOverDraftBalanceSql);
+    Map<String,Object> userData = queryResults.get(0);
+
+    user.setFirstName((String)userData.get("FirstName"));
+    user.setLastName((String)userData.get("LastName"));
+    user.setBalance((int)userData.get("Balance")/100.0);
+    
+    if (TestudoBankRepository.doesCustomerHaveCrypto(jdbcTemplate, user.getUsername())){
+      user.setCryptoBalance(TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, user.getUsername()));
+    }
+    else{
+      user.setCryptoBalance(0);
+    }
+    user.setCryptoHistory(cryptoHistory);
   }
 
   // Converts dollar amounts in frontend to penny representation in backend MySQL DB
@@ -614,7 +644,6 @@ public class MvcController {
     // Inserting transfer into transfer history for both customers
     TestudoBankRepository.insertRowToTransferLogsTable(jdbcTemplate, senderUserID, recipientUserID, currentTime, transferAmountInPennies);
     updateAccountInfo(sender);
-
     return "account_info";
   }
 
@@ -625,7 +654,63 @@ public class MvcController {
    */
   @PostMapping("/buycrypto")
   public String buyCrypto(@ModelAttribute("user") User user) {
-    return "welcome";
+
+    int userBalanceInPennies = TestudoBankRepository.getCustomerBalanceInPennies(jdbcTemplate, user.getUsername());
+    double userBalance = userBalanceInPennies/100.0;
+
+    // Getting the current price of Ethereum
+    double current_eth_price = getCurrentEthValue();
+    user.setEthPrice(current_eth_price);
+    float crypto_amount = (float)user.getAmountToBuyCrypto();
+    // calculate how much to deduct from user's balance
+    double crypto_ammount_in_dollar = crypto_amount * current_eth_price;
+
+    System.out.println("user balance: " + userBalance);
+    System.out.println("crypto ammount to buy: " + crypto_amount);
+
+    // If user does not have enough money to buy crypto return welcome
+    // Or if user tries to buy 0 crypto
+    if (userBalance < crypto_ammount_in_dollar || crypto_amount == 0) {
+      System.out.println("You do not have enough money to buy crypto");
+      return "welcome";
+    }
+    System.out.println("Hello line 655");
+    Float userCryptoBalance = crypto_amount;
+
+    // update User object and call submit_withdraw(), as done in submit_transfer()
+    userBalance = userBalance - crypto_ammount_in_dollar;
+    // Updating the user object
+    user.setBalance(userBalance);
+    user.setAmountToWithdraw(crypto_ammount_in_dollar);
+    submitWithdraw(user);
+    // Time stamp for the transaction
+    String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date()); // use same timestamp for all logs created by this deposit
+    userBalance = userBalance - crypto_ammount_in_dollar;
+    System.out.println("Hello line 663");
+    // Do things not covered in submit_withdraw() like updating cryptoHoldings and cryptoHistory table.
+    
+    System.out.println("Hello line 667");
+    // If the user is not in the CryptoHoldings/CryptoHistory table, insert a new row
+    if (!TestudoBankRepository.doesCustomerHaveCrypto(jdbcTemplate, user.getUsername())){
+      System.out.println("Hello line 670");
+      TestudoBankRepository.insertRowToCryptoHistoryTable(jdbcTemplate, user.getUsername(), currentTime, "Buy", crypto_amount, "Ethereum");
+      TestudoBankRepository.insertRowToCryptoHoldings(jdbcTemplate, user.getUsername(), "Ethereum", crypto_amount);
+      user.setCryptoBalance(userCryptoBalance);
+    }
+    // If the user is in the CryptoHoldings/CryptoHistory table, update the row and add to existing balance
+    else{
+      userCryptoBalance = TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, user.getUsername()) + crypto_amount;
+      user.setCryptoBalance(userCryptoBalance);
+      System.out.println("Hello line 677");
+      TestudoBankRepository.updateCustomerCryptoBalance(jdbcTemplate, user.getUsername(), userCryptoBalance); 
+      TestudoBankRepository.insertRowToCryptoHistoryTable(jdbcTemplate, user.getUsername(), currentTime, "Buy", (float)crypto_amount, "Ethereum");
+    }
+    
+    // call updateAccountInfo(), and edit updateAccountInfo() so that you show ETH price and Crypto Holdings in
+    // account_info.jsp page
+    updateCryptoAccountInfo(user);
+    // Inserting the transaction into the transaction history
+    return "account_info";
   }
 
   /**
@@ -635,7 +720,90 @@ public class MvcController {
    */
   @PostMapping("/sellcrypto")
   public String sellCrypto(@ModelAttribute("user") User user) {
-    return "welcome";
+    // float crypto_amount_sold = (float)user.getAmountToSellCrypto();
+
+    // // If user does not have enough crypto to sell, return welcome
+    // // Or if user tries to sell 0 crypto
+    // if (!TestudoBankRepository.doesCustomerHaveCrypto(jdbcTemplate, user.getUsername()) || TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, user.getUsername()) < crypto_amount_sold
+    //     || crypto_amount_sold == 0) {
+    //   return "welcome";
+    // }
+    // // get the current price of Ethereum
+    // double current_eth_price = getCurrentEthValue();
+    // user.setEthPrice(current_eth_price);
+    // // calculate how much to add to user's balance
+    // double crypto_ammount_in_dollar = crypto_amount_sold * current_eth_price;
+    // // get the user's current balance
+    // double userBalance = (TestudoBankRepository.getCustomerBalanceInPennies(jdbcTemplate, user.getUsername())/100.0);
+    // double newBalance = userBalance + crypto_ammount_in_dollar;
+    // float userCryptoBalance = TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, user.getUsername()) - crypto_amount_sold;
+    // // Debugging user crypto balance
+    // System.out.println("user crypto balance: " + userCryptoBalance);
+    // // Time stamp for the transaction
+    // String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date()); // use same timestamp for all logs created by this deposit
+    
+    // // Doing things not covered in submit_deposit() like updating cryptoHoldings and cryptoHistory table.
+    // TestudoBankRepository.insertRowToCryptoHistoryTable(jdbcTemplate, user.getUsername(), currentTime, "Sell", crypto_amount_sold, "Ethereum");
+    // TestudoBankRepository.updateCustomerCryptoBalance(jdbcTemplate, user.getUsername(), userCryptoBalance);
+
+    // // update User object and call submit_deposit(), as done in submit_transfer()
+    // user.setBalance(newBalance);
+    // user.setAmountToDeposit(crypto_ammount_in_dollar);
+    // user.setEthPrice(current_eth_price);
+    // user.setCryptoBalance(userCryptoBalance);
+    // // Printing the user's crypto balance from the sql table
+    // System.out.println("user crypto balance: " + TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, user.getUsername()));
+    
+    // submitDeposit(user);
+    // updateCryptoAccountInfo(user);
+    // return "account_info";
+    int userBalanceInPennies = TestudoBankRepository.getCustomerBalanceInPennies(jdbcTemplate, user.getUsername());
+    double userBalance = userBalanceInPennies/100.0;
+
+    // Getting the current price of Ethereum
+    double current_eth_price = getCurrentEthValue();
+    user.setEthPrice(current_eth_price);
+    float crypto_amount = (float)user.getAmountToSellCrypto();
+    // calculate how much to deduct from user's balance
+    double crypto_ammount_in_dollar = crypto_amount * current_eth_price;
+
+    System.out.println("user balance: " + userBalance);
+    System.out.println("crypto ammount to be sold: " + crypto_amount);
+
+    // If user does not have enough crypto to sell, 
+    // or if user tries to sell 0 crypto, return welcome
+    if (!TestudoBankRepository.doesCustomerHaveCrypto(jdbcTemplate, user.getUsername()) || TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, user.getUsername()) < crypto_amount
+        || crypto_amount == 0) {
+      return "welcome";
+    }
+    
+    System.out.println("Hello line 655");
+    Float userCryptoBalance = TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, user.getUsername()) - crypto_amount;
+    // Debugging user crypto balance in the code
+    System.out.println("user crypto balance ln 783: " + userCryptoBalance);
+    // update User object and call submit_withdraw(), as done in submit_transfer()
+    userBalance = userBalance + crypto_ammount_in_dollar;
+    // Updating the user object
+    user.setBalance(userBalance);
+    user.setCryptoBalance(userCryptoBalance);
+    user.setAmountToDeposit(crypto_ammount_in_dollar);
+    submitWithdraw(user);
+    // Time stamp for the transaction
+    String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date()); // use same timestamp for all logs created by this deposit
+    // Doing things not covered in submit_deposit() like updating cryptoHoldings and cryptoHistory table.
+    TestudoBankRepository.insertRowToCryptoHistoryTable(jdbcTemplate, user.getUsername(), currentTime, "Sell", crypto_amount, "Ethereum");
+    
+    TestudoBankRepository.updateCustomerCryptoBalance(jdbcTemplate, user.getUsername(), userCryptoBalance);
+    // Manually updating the user's balance in the sql tables
+    TestudoBankRepository.setCustomerBalance(jdbcTemplate, user.getUsername(), (int)(userBalance*(100.0)));
+    // check crypto balance being updated
+    System.out.println("user crypto balance ln 796: " + userCryptoBalance);
+    // check crypto balance in the sql table
+    System.out.println("user crypto balance table: " + TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, user.getUsername()));
+    // call updateCryptoAccountInfo() to show ETH price and Crypto Holdings in account_info.jsp page
+    updateCryptoAccountInfo(user);
+    // Inserting the transaction into the transaction history
+    return "account_info";    
   }
 
 }
