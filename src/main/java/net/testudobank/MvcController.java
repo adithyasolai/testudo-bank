@@ -42,8 +42,8 @@ public class MvcController {
   public static String TRANSACTION_HISTORY_WITHDRAW_ACTION = "Withdraw";
   public static String TRANSACTION_HISTORY_TRANSFER_SEND_ACTION = "TransferSend";
   public static String TRANSACTION_HISTORY_TRANSFER_RECEIVE_ACTION = "TransferReceive";
-  public static String TRANSACTION_HISTORY_CRYPTO_BUY = "CryptoBuy";
-  public static String TRANSACTION_HISTORY_CRYPTO_SELL = "CryptoSell";
+  public static String TRANSACTION_HISTORY_CRYPTO_BUY = "Buy";
+  public static String TRANSACTION_HISTORY_CRYPTO_SELL = "Sell";
 
   public MvcController(@Autowired JdbcTemplate jdbcTemplate) {
     this.jdbcTemplate = jdbcTemplate;
@@ -656,7 +656,7 @@ public class MvcController {
   public String buyCrypto(@ModelAttribute("user") User user) {
 
     int userBalanceInPennies = TestudoBankRepository.getCustomerBalanceInPennies(jdbcTemplate, user.getUsername());
-    double userBalance = userBalanceInPennies/100.0;
+    double userBalance = userBalanceInPennies/100;
 
     // Getting the current price of Ethereum
     double current_eth_price = getCurrentEthValue();
@@ -720,43 +720,6 @@ public class MvcController {
    */
   @PostMapping("/sellcrypto")
   public String sellCrypto(@ModelAttribute("user") User user) {
-    // float crypto_amount_sold = (float)user.getAmountToSellCrypto();
-
-    // // If user does not have enough crypto to sell, return welcome
-    // // Or if user tries to sell 0 crypto
-    // if (!TestudoBankRepository.doesCustomerHaveCrypto(jdbcTemplate, user.getUsername()) || TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, user.getUsername()) < crypto_amount_sold
-    //     || crypto_amount_sold == 0) {
-    //   return "welcome";
-    // }
-    // // get the current price of Ethereum
-    // double current_eth_price = getCurrentEthValue();
-    // user.setEthPrice(current_eth_price);
-    // // calculate how much to add to user's balance
-    // double crypto_ammount_in_dollar = crypto_amount_sold * current_eth_price;
-    // // get the user's current balance
-    // double userBalance = (TestudoBankRepository.getCustomerBalanceInPennies(jdbcTemplate, user.getUsername())/100.0);
-    // double newBalance = userBalance + crypto_ammount_in_dollar;
-    // float userCryptoBalance = TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, user.getUsername()) - crypto_amount_sold;
-    // // Debugging user crypto balance
-    // System.out.println("user crypto balance: " + userCryptoBalance);
-    // // Time stamp for the transaction
-    // String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date()); // use same timestamp for all logs created by this deposit
-    
-    // // Doing things not covered in submit_deposit() like updating cryptoHoldings and cryptoHistory table.
-    // TestudoBankRepository.insertRowToCryptoHistoryTable(jdbcTemplate, user.getUsername(), currentTime, "Sell", crypto_amount_sold, "Ethereum");
-    // TestudoBankRepository.updateCustomerCryptoBalance(jdbcTemplate, user.getUsername(), userCryptoBalance);
-
-    // // update User object and call submit_deposit(), as done in submit_transfer()
-    // user.setBalance(newBalance);
-    // user.setAmountToDeposit(crypto_ammount_in_dollar);
-    // user.setEthPrice(current_eth_price);
-    // user.setCryptoBalance(userCryptoBalance);
-    // // Printing the user's crypto balance from the sql table
-    // System.out.println("user crypto balance: " + TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, user.getUsername()));
-    
-    // submitDeposit(user);
-    // updateCryptoAccountInfo(user);
-    // return "account_info";
     int userBalanceInPennies = TestudoBankRepository.getCustomerBalanceInPennies(jdbcTemplate, user.getUsername());
     double userBalance = userBalanceInPennies/100.0;
 
@@ -776,8 +739,6 @@ public class MvcController {
         || crypto_amount == 0) {
       return "welcome";
     }
-    
-    System.out.println("Hello line 655");
     Float userCryptoBalance = TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, user.getUsername()) - crypto_amount;
     // Debugging user crypto balance in the code
     System.out.println("user crypto balance ln 783: " + userCryptoBalance);
@@ -795,7 +756,7 @@ public class MvcController {
     
     TestudoBankRepository.updateCustomerCryptoBalance(jdbcTemplate, user.getUsername(), userCryptoBalance);
     // Manually updating the user's balance in the sql tables
-    TestudoBankRepository.setCustomerBalance(jdbcTemplate, user.getUsername(), (int)(userBalance*(100.0)));
+    TestudoBankRepository.setCustomerBalance(jdbcTemplate, user.getUsername(), (int)(userBalance*(100)));
     // check crypto balance being updated
     System.out.println("user crypto balance ln 796: " + userCryptoBalance);
     // check crypto balance in the sql table

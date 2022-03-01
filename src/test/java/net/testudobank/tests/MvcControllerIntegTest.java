@@ -22,7 +22,10 @@ import org.testcontainers.jdbc.JdbcDatabaseDelegate;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import jnr.ffi.Struct.int16_t;
 import net.testudobank.MvcController;
+import net.testudobank.TestudoBankApplication;
+import net.testudobank.TestudoBankRepository;
 import net.testudobank.User;
 import net.testudobank.helpers.MvcControllerIntegTestHelpers;
 
@@ -1103,5 +1106,77 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
     //Check that transfer request goes through.
     assertEquals("account_info", returnedPage);
   } 
+  /**
+   * Verifies the simplest crypto buy case.
+   * The customer's cryptoAmount in the CryptoHoldings table should be increased,
+   * and the withdrawal should be logged in the TransactionHistory table.
+   * The customer's balance should also decrease by 
+   * cryptoAmount purchased * the current Ethereum price
+   * 
+   * Assumes that the customer's account is in the simplest state
+   * (not in overdraft, account is not frozen due to too many transaction disputes, etc.)
+   * 
+   * @throws SQLException
+   * @throws ScriptException
+   */
+  @Test
+  public void testSimpleCryptoBuy() throws SQLException, ScriptException {
+    // initialize customer1 with a balance of $1230.45 (to make sure this works for non-whole dollar amounts). represented as pennies in the DB.
+    double CUSTOMER1_BALANCE = 1230.45;
+    float CRYPTO_TO_BUY = (float)0.2;
+    int CUSTOMER1_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_BALANCE);
+    MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER1_ID, CUSTOMER1_PASSWORD, CUSTOMER1_FIRST_NAME, CUSTOMER1_LAST_NAME, CUSTOMER1_BALANCE_IN_PENNIES);
+    
+    User customer1DepositFormInputs = new User();
+    customer1DepositFormInputs.setUsername(CUSTOMER1_ID);
+    customer1DepositFormInputs.setPassword(CUSTOMER1_PASSWORD);
+    customer1DepositFormInputs.setAmountToBuyCrypto(CRYPTO_TO_BUY);
+
+
+    // verify that there are no other logs in the CryptoHistory table before Deposit
+    assertEquals(0, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM CryptoHistory;", Integer.class));
+
+    // send request to the BuyCrypto Form's POST handler in MvcController
+    controller.buyCrypto(customer1DepositFormInputs);
+    
+    // store timestamp of when Crypto Purchase request sent to verify timestamps in the TransactionHistory table later
+    LocalDateTime timeWhenDepositRequestSent = MvcControllerIntegTestHelpers.fetchCurrentTimeAsLocalDateTimeNoMilliseconds();
+    System.out.println("Timestamp when Deposit Request is sent: " + timeWhenDepositRequestSent);
+
+
+    // fetch updated data from the DB
+    List<Map<String,Object>> customersTableData = jdbcTemplate.queryForList("SELECT * FROM Customers;");
+    List<Map<String,Object>> cryptoHistoryData = jdbcTemplate.queryForList("SELECT * FROM CryptoHistory;");
+  
+    // verify that customer1's data is still the only data populated in Customers table
+    assertEquals(1, customersTableData.size());
+    Map<String,Object> customer1Data = customersTableData.get(0);
+    assertEquals(CUSTOMER1_ID, (String)customer1Data.get("CustomerID"));
+
+    // Current Ethereum Price
+    double CURRENT_ETH_PRICE = customer1DepositFormInputs.getEthPrice();
+
+    // verify customer balance was decreased by CryptoAmount bought * Price at time of purchase
+    double CUSTOMER1_EXPECTED_FINAL_BALANCE = CUSTOMER1_BALANCE - (CRYPTO_TO_BUY*CURRENT_ETH_PRICE);
+    // converting from dollars and cents to pennies and ensuring that value is rounded to the upper nearest int
+    double CUSTOMER1_EXPECTED_FINAL_BALANCE_IN_PENNIES = (int)(Math.round((CUSTOMER1_EXPECTED_FINAL_BALANCE * 100.0) + 0.5));
+    assertEquals(CUSTOMER1_EXPECTED_FINAL_BALANCE_IN_PENNIES , (int) (customer1Data.get("Balance")));
+
+    cryptoHistoryData = jdbcTemplate.queryForList("SELECT * FROM CryptoHistory;");
+    // verify that the Crypto purchase is the only log in CryptoHistory table
+    assertEquals(1, cryptoHistoryData.size());
+
+    // verify that the Crypto Amount in user's balance is correct
+    assertEquals(CRYPTO_TO_BUY, TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, customer1DepositFormInputs.getUsername()));
+    
+    // verify that the Deposit's details are accurately logged in the TransactionHistory table
+    // Map<String,Object> customer1CryptoTransactionLog = cryptoHistoryData.get(0);
+    // Print customer1CryptoTransactionLog
+    // System.out.println("Log: "+ customer1CryptoTransactionLog);
+    // MvcControllerIntegTestHelpers.checkCryptoTransactionLog(customer1CryptoTransactionLog, timeWhenDepositRequestSent, CUSTOMER1_ID, MvcController.TRANSACTION_HISTORY_CRYPTO_BUY, CRYPTO_TO_BUY);
+    // Print that test's have all passed for crypto buy
+    System.out.println("All tests for crypto buy have passed successfully");
+  }
+
 
 }

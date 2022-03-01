@@ -57,6 +57,18 @@ public class MvcControllerIntegTestHelpers {
     System.out.println("Timestamp stored in TransactionHistory table for the request: " + transactionLogTimestamp);
   }
 
+  // Verifies that a single crypto transaction log in the CryptoHistory table matches the expected customerID, timestamp, action, and amount
+  public static void checkCryptoTransactionLog(Map<String,Object> cryptoTransactionLog, LocalDateTime timeWhenRequestSent, String expectedCustomerID, String expectedAction, float expectedCryptoAmount) {
+    assertEquals(expectedCustomerID, (String)cryptoTransactionLog.get("CustomerID"));
+    assertEquals(expectedAction, (String)cryptoTransactionLog.get("Action"));
+    assertEquals(expectedCryptoAmount, (int)cryptoTransactionLog.get("Amount"));
+    // verify that the timestamp for the Deposit is within a reasonable range from when the request was first sent
+    LocalDateTime cryptoTransactionLogTimestamp = (LocalDateTime)cryptoTransactionLog.get("Timestamp");
+    LocalDateTime cryptoTransactionLogTimestampAllowedUpperBound = timeWhenRequestSent.plusSeconds(MvcControllerIntegTest.REASONABLE_TIMESTAMP_EPSILON_IN_SECONDS);
+    assertTrue(cryptoTransactionLogTimestamp.compareTo(timeWhenRequestSent) >= 0 && cryptoTransactionLogTimestamp.compareTo(cryptoTransactionLogTimestampAllowedUpperBound) <= 0);
+    System.out.println("Timestamp stored in TransactionHistory table for the request: " + cryptoTransactionLogTimestamp);
+  }
+
   // Verifies that a single overdraft repayment log in the OverdraftLogs table matches the expected customerID, timestamp, depositAmt, oldOverBalance, and newOverBalance
   public static void checkOverdraftLog(Map<String,Object> overdraftLog, LocalDateTime timeWhenRequestSent, String expectedCustomerID, int expectedDepositAmtInPennies, int expectedOldOverBalanceInPennies, int expectedNewOverBalanceInPennies) {
     assertEquals(expectedCustomerID, (String)overdraftLog.get("CustomerID"));
