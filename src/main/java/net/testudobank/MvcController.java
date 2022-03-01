@@ -241,7 +241,7 @@ public class MvcController {
    * 
    * @return the current value of 1 ETH in USD
    */
-  private double getCurrentEthValue() {
+  public double getCurrentEthValue() {
     try {
       // fetch the document over HTTP
       Document doc = Jsoup.connect("https://ethereumprice.org").userAgent("Mozilla").get();
