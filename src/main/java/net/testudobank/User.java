@@ -65,7 +65,7 @@ public class User {
   private double amountToSellCrypto;
 
   @Setter @Getter @PositiveOrZero
-	private double currEthValue;
+	public double currEthValue;
   
 	@Override
 	public String toString() {
