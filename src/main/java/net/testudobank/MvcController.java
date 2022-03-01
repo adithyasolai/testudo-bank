@@ -200,7 +200,7 @@ public class MvcController {
 
     user.setFirstName((String)userData.get("FirstName"));
     user.setLastName((String)userData.get("LastName"));
-    user.setBalance((int)userData.get("Balance")/100.0);
+    user.setBalance((int)userData.get("Balance")/100);
     double overDraftBalance = (int)userData.get("OverdraftBalance");
     user.setOverDraftBalance(overDraftBalance/100);
     user.setLogs(logs);
@@ -225,7 +225,7 @@ public class MvcController {
     Map<String,Object> userData = queryResults.get(0);
 
     user.setFirstName((String)userData.get("FirstName"));
-    user.setLastName((String)userData.get("LastName"));
+    user.setLastName((String)userData.get("LastName"));    
     user.setBalance((int)userData.get("Balance")/100.0);
     
     if (TestudoBankRepository.doesCustomerHaveCrypto(jdbcTemplate, user.getUsername())){
@@ -742,25 +742,27 @@ public class MvcController {
     Float userCryptoBalance = TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, user.getUsername()) - crypto_amount;
     // Debugging user crypto balance in the code
     System.out.println("user crypto balance ln 783: " + userCryptoBalance);
-    // update User object and call submit_withdraw(), as done in submit_transfer()
-    userBalance = userBalance + crypto_ammount_in_dollar;
+    // update User object and call submit_deposit(), as done in submit_transfer()
+    userBalance += crypto_ammount_in_dollar;
     // Updating the user object
     user.setBalance(userBalance);
     user.setCryptoBalance(userCryptoBalance);
     user.setAmountToDeposit(crypto_ammount_in_dollar);
-    submitWithdraw(user);
+    submitDeposit(user);
+    // System.out.println("User Balance at line 752: " + user.getBalance());
     // Time stamp for the transaction
     String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date()); // use same timestamp for all logs created by this deposit
     // Doing things not covered in submit_deposit() like updating cryptoHoldings and cryptoHistory table.
     TestudoBankRepository.insertRowToCryptoHistoryTable(jdbcTemplate, user.getUsername(), currentTime, "Sell", crypto_amount, "Ethereum");
-    
     TestudoBankRepository.updateCustomerCryptoBalance(jdbcTemplate, user.getUsername(), userCryptoBalance);
     // Manually updating the user's balance in the sql tables
     TestudoBankRepository.setCustomerBalance(jdbcTemplate, user.getUsername(), (int)(userBalance*(100)));
     // check crypto balance being updated
-    System.out.println("user crypto balance ln 796: " + userCryptoBalance);
+    System.out.println("user crypto balance ln 761: " + userCryptoBalance);
     // check crypto balance in the sql table
     System.out.println("user crypto balance table: " + TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, user.getUsername()));
+    // Check user balance in pennies in the table
+    // System.out.println("User balance in pennies ln 765: " + TestudoBankRepository.getCustomerBalanceInPennies(jdbcTemplate, user.getUsername()));
     // call updateCryptoAccountInfo() to show ETH price and Crypto Holdings in account_info.jsp page
     updateCryptoAccountInfo(user);
     // Inserting the transaction into the transaction history

@@ -43,7 +43,9 @@
 			<form:password path="password"/><br/>		
 
       <form:label path="amountToSellCrypto">Amount to Sell (Ethereum):</form:label>
-			<form:input path="amountToSellCrypto"/><br/>	
+			<form:input path="amountToSellCrypto"/><br/>
+      
+      <span>Current $ETH Price: </span><span>${user.ethPrice}</span><br/>
 
 			<form:button>Sell Ethereum</form:button>
 		</form:form>
