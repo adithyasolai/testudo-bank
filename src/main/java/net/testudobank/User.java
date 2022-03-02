@@ -31,6 +31,9 @@ public class User {
   @Setter @Getter
   private String transactionHist;
 
+  @Setter @Getter
+  private String cryptoHist;
+
   @Setter @Getter @Positive
   private double amountToDeposit;
 
@@ -50,6 +53,12 @@ public class User {
   private boolean isTransfer;
 
   @Setter @Getter
+  private boolean isCryptoBuy;
+
+  @Setter @Getter
+  private boolean isCryptoSell;
+
+  @Setter @Getter
   private String transferHist;
 
   @Setter @Getter @Positive
@@ -57,6 +66,15 @@ public class User {
 
   @Setter @Getter @Positive
   private double amountToSellCrypto;
+
+  @Setter @Getter 
+  private double ethPrice;
+
+  @Setter @Getter 
+  private float ethAmount;
+
+  @Setter @Getter 
+  private float ethValue;
   
 	@Override
 	public String toString() {
