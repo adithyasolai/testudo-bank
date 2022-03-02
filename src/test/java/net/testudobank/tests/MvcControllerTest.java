@@ -7,12 +7,10 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.ui.Model;
 
 import net.testudobank.MvcController;
-import net.testudobank.User;
-
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
-
+import net.testudobank.User;
 import static org.mockito.Mockito.*;
 
 import java.util.HashMap;
