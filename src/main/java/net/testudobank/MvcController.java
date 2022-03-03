@@ -674,10 +674,13 @@ public class MvcController {
     String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date());
 
     // buy crypto
-    // TODO: I don't like how this is dependent on a string return value. Withdraw logic should probably be extracted
     user.setAmountToWithdraw(costOfEthPurchaseDollars);
     user.setCryptoTransaction(true);
-    if (submitWithdraw(user).equals("account_info")) {
+
+    // TODO: I don't like how this is dependent on a string return value. Withdraw logic should probably be extracted
+    String withdrawResponse = submitWithdraw(user);
+
+    if (withdrawResponse.equals("account_info")) {
 
       // create an entry for Ethereum if necessary
       if (!TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, userID, CRYPTO_NAME).isPresent()) {
@@ -755,7 +758,9 @@ public class MvcController {
     user.setCryptoTransaction(true);
 
     // TODO: I don't like how this is dependent on a string return value. Deposit logic should probably be extracted
-    if (submitDeposit(user).equals("account_info")) {
+    String depositResponse = submitDeposit(user);
+
+    if (depositResponse.equals("account_info")) {
 
       TestudoBankRepository.decreaseCustomerCryptoBalance(jdbcTemplate, userID, CRYPTO_NAME, cryptoAmountToSell);
       TestudoBankRepository.insertRowToCryptoLogsTable(jdbcTemplate, userID, CRYPTO_NAME, CRYPTO_HISTORY_SELL_ACTION, currentTime, cryptoAmountToSell);
