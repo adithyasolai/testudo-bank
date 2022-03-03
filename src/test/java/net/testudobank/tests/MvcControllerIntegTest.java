@@ -3,6 +3,7 @@ package net.testudobank.tests;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -40,7 +41,6 @@ public class MvcControllerIntegTest {
   private static String CUSTOMER1_FIRST_NAME = "Foo";
   private static String CUSTOMER1_LAST_NAME = "Bar";
   public static long REASONABLE_TIMESTAMP_EPSILON_IN_SECONDS = 1L;
-  private static double REASONABLE_CRYPTO_EPSILON = 0.00000001;
 
   private static String CUSTOMER2_ID = "987654321";
   private static String CUSTOMER2_PASSWORD = "password";
@@ -1229,8 +1229,8 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
 
       // check the crypto balance
       try {
-        double endingCryptoBalance = jdbcTemplate.queryForObject("SELECT CryptoAmount FROM CryptoHoldings WHERE CustomerID=? AND CryptoName=?", Double.class, CUSTOMER1_ID, cryptoName);
-        assertEquals(expectedEndingCryptoBalance, endingCryptoBalance, REASONABLE_CRYPTO_EPSILON);
+        double endingCryptoBalance = jdbcTemplate.queryForObject("SELECT CryptoAmount FROM CryptoHoldings WHERE CustomerID=? AND CryptoName=?", BigDecimal.class, CUSTOMER1_ID, cryptoName).doubleValue();
+        assertEquals(expectedEndingCryptoBalance, endingCryptoBalance);
       } catch (EmptyResultDataAccessException e) {
         assertEquals(expectedEndingCryptoBalance, 0);
       }
@@ -1264,7 +1264,7 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
         List<Map<String, Object>> cryptoHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM CryptoHistory;");
         Map<String, Object> customer1CryptoLog = cryptoHistoryTableData.get(0);
         MvcControllerIntegTestHelpers.checkCryptoLog(customer1CryptoLog, cryptoTransactionTime, CUSTOMER1_ID, cryptoTransactionTestType.cryptoHistoryActionName,
-                cryptoName, cryptoAmountToTransact, REASONABLE_CRYPTO_EPSILON);
+                cryptoName, cryptoAmountToTransact);
 
         // check overdraft logs (if applicable)
         if (initialOverdraftBalanceInDollars != 0) {

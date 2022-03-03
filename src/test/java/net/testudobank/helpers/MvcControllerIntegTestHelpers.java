@@ -3,6 +3,7 @@ package net.testudobank.helpers;
 import static org.junit.Assert.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
@@ -79,10 +80,10 @@ public class MvcControllerIntegTestHelpers {
   }
 
   // Verifies that a single crypto log in the CryptoHistory table matches the expected customerID, timestamp, action, cryptocurrency, and amount
-  public static void checkCryptoLog(Map<String,Object> cryptoLog, LocalDateTime timeWhenRequestSent, String expectedCustomerID, String expectedAction, String expectedCryptoName, double expectedCryptoAmount, double amountTolerance) {
+  public static void checkCryptoLog(Map<String,Object> cryptoLog, LocalDateTime timeWhenRequestSent, String expectedCustomerID, String expectedAction, String expectedCryptoName, double expectedCryptoAmount) {
     assertEquals(expectedCustomerID, cryptoLog.get("CustomerID"));
     assertEquals(expectedAction, cryptoLog.get("Action"));
-    assertEquals(expectedCryptoAmount, ((Float) cryptoLog.get("CryptoAmount")).doubleValue(), amountTolerance);
+    assertEquals(expectedCryptoAmount, ((BigDecimal) cryptoLog.get("CryptoAmount")).doubleValue());
     assertEquals(expectedCryptoName, cryptoLog.get("CryptoName"));
     // verify that the timestamp for the Deposit is within a reasonable range from when the request was first sent
     LocalDateTime transactionLogTimestamp = (LocalDateTime)cryptoLog.get("Timestamp");

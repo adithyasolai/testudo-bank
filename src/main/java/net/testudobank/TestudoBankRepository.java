@@ -1,5 +1,6 @@
 package net.testudobank;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -30,7 +31,7 @@ public class TestudoBankRepository {
     String getUserCryptoBalanceSql = "SELECT CryptoAmount FROM CryptoHoldings WHERE CustomerID= ? AND CryptoName= ?;";
 
     try {
-      return Optional.ofNullable(jdbcTemplate.queryForObject(getUserCryptoBalanceSql, Double.class, customerID, cryptoName));
+      return Optional.ofNullable(jdbcTemplate.queryForObject(getUserCryptoBalanceSql, BigDecimal.class, customerID, cryptoName)).map(BigDecimal::doubleValue);
     } catch (EmptyResultDataAccessException ignored) {
       // user may not have crypto row yet
       return Optional.empty();
