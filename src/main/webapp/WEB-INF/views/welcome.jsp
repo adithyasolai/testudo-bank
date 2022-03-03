@@ -38,7 +38,6 @@
 	<div align="center">
 		<h2>Welcome to Testudo Bank!</h2>
         <img src="https://fanapeel.com/wp-content/uploads/logo_-university-of-maryland-terrapins-testudo-turtle-hold-red-white-m.png" style="float:left;width:100px;height:100px;">
-        <span>Current Ethereum Price $${ethPrice}</span><br>
 		<a href='/login'>View Account</a> <br/>
     <a href='/deposit'>Deposit</a> <br/>
     <a href='/withdraw'>Withdraw</a> <br/>
