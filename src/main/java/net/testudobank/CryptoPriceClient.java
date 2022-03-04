@@ -3,6 +3,9 @@ package net.testudobank;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -15,10 +18,14 @@ public class CryptoPriceClient {
      * in USD. This method uses JSoup to scrape the website "https://ethereumprice.org"
      * and retrieve the current USD value of 1 ETH.
      * <p>
+     * To avoid frequent calls to the external service, the value is cached.
+     * See {@link #clearEthPriceCache()}
+     * <p>
      * NOTE: If the web scraper fails, a value of -1 is returned
      *
      * @return the current value of 1 ETH in USD
      */
+    @Cacheable("eth-value")
     public double getCurrentEthValue() {
         try {
             // fetch the document over HTTP
@@ -43,4 +50,15 @@ public class CryptoPriceClient {
             return -1;
         }
     }
+
+    /**
+     * Clear the cached price of ethereum.
+     * <p>
+     * This method is scheduled to run every 30 seconds.
+     */
+    @Scheduled(fixedRate = 30000)
+    @CacheEvict("eth-value")
+    public void clearEthPriceCache() {
+    }
+
 }
