@@ -713,7 +713,7 @@ public class MvcController {
     
     // call updateAccountInfo(), and edit updateAccountInfo() so that you show ETH price and Crypto Holdings in
     // account_info.jsp page
-    updateCryptoAccountInfo(user);
+    updateAccountInfo(user);
     // Inserting the transaction into the transaction history
     return "account_info";
   }
