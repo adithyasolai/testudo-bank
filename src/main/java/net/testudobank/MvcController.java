@@ -666,21 +666,21 @@ public class MvcController {
     // Getting the current price of Ethereum
     double current_eth_price = getCurrentEthValue();
     user.setEthPrice(current_eth_price);
-    float crypto_amount = (float)user.getAmountToBuyCrypto();
+    float cryptoAmount = (float)user.getAmountToBuyCrypto();
     // calculate how much to deduct from user's balance
-    double crypto_ammount_in_dollar = crypto_amount * current_eth_price;
+    double crypto_ammount_in_dollar = cryptoAmount * current_eth_price;
 
     System.out.println("user balance: " + userBalance);
-    System.out.println("crypto ammount to buy: " + crypto_amount);
+    System.out.println("crypto ammount to buy: " + cryptoAmount);
 
     // If user does not have enough money to buy crypto return welcome
     // Or if user tries to buy 0 crypto
-    if (userBalance < crypto_ammount_in_dollar || crypto_amount == 0) {
+    if (userBalance < crypto_ammount_in_dollar || cryptoAmount == 0) {
       System.out.println("You do not have enough money to buy crypto");
       return "welcome";
     }
     System.out.println("Hello line 655");
-    Float userCryptoBalance = crypto_amount;
+    Float userCryptoBalance = cryptoAmount;
 
     // update User object and call submit_withdraw(), as done in submit_transfer()
     userBalance = userBalance - crypto_ammount_in_dollar;
@@ -698,17 +698,17 @@ public class MvcController {
     // If the user is not in the CryptoHoldings/CryptoHistory table, insert a new row
     if (!TestudoBankRepository.doesCustomerHaveCrypto(jdbcTemplate, user.getUsername())){
       System.out.println("Hello line 670");
-      TestudoBankRepository.insertRowToCryptoHistoryTable(jdbcTemplate, user.getUsername(), currentTime, "Buy", crypto_amount, "Ethereum");
-      TestudoBankRepository.insertRowToCryptoHoldings(jdbcTemplate, user.getUsername(), "Ethereum", crypto_amount);
+      TestudoBankRepository.insertRowToCryptoHistoryTable(jdbcTemplate, user.getUsername(), currentTime, "Buy", cryptoAmount, "Ethereum");
+      TestudoBankRepository.insertRowToCryptoHoldings(jdbcTemplate, user.getUsername(), "Ethereum", cryptoAmount);
       user.setCryptoBalance(userCryptoBalance);
     }
     // If the user is in the CryptoHoldings/CryptoHistory table, update the row and add to existing balance
     else{
-      userCryptoBalance = TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, user.getUsername()) + crypto_amount;
+      userCryptoBalance = TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, user.getUsername()) + cryptoAmount;
       user.setCryptoBalance(userCryptoBalance);
       System.out.println("Hello line 677");
       TestudoBankRepository.updateCustomerCryptoBalance(jdbcTemplate, user.getUsername(), userCryptoBalance); 
-      TestudoBankRepository.insertRowToCryptoHistoryTable(jdbcTemplate, user.getUsername(), currentTime, "Buy", (float)crypto_amount, "Ethereum");
+      TestudoBankRepository.insertRowToCryptoHistoryTable(jdbcTemplate, user.getUsername(), currentTime, "Buy", (float)cryptoAmount, "Ethereum");
     }
     
     // call updateAccountInfo(), and edit updateAccountInfo() so that you show ETH price and Crypto Holdings in
@@ -731,20 +731,20 @@ public class MvcController {
     // Getting the current price of Ethereum
     double current_eth_price = getCurrentEthValue();
     user.setEthPrice(current_eth_price);
-    float crypto_amount = (float)user.getAmountToSellCrypto();
+    float cryptoAmount = (float)user.getAmountToSellCrypto();
     // calculate how much to deduct from user's balance
-    double crypto_ammount_in_dollar = crypto_amount * current_eth_price;
+    double crypto_ammount_in_dollar = cryptoAmount * current_eth_price;
 
     System.out.println("user balance: " + userBalance);
-    System.out.println("crypto ammount to be sold: " + crypto_amount);
+    System.out.println("crypto ammount to be sold: " + cryptoAmount);
 
     // If user does not have enough crypto to sell, 
     // or if user tries to sell 0 crypto, return welcome
-    if (!TestudoBankRepository.doesCustomerHaveCrypto(jdbcTemplate, user.getUsername()) || TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, user.getUsername()) < crypto_amount
-        || crypto_amount == 0) {
+    if (!TestudoBankRepository.doesCustomerHaveCrypto(jdbcTemplate, user.getUsername()) || TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, user.getUsername()) < cryptoAmount
+        || cryptoAmount == 0) {
       return "welcome";
     }
-    Float userCryptoBalance = TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, user.getUsername()) - crypto_amount;
+    Float userCryptoBalance = TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, user.getUsername()) - cryptoAmount;
     // Debugging user crypto balance in the code
     System.out.println("user crypto balance ln 783: " + userCryptoBalance);
     // update User object and call submit_deposit(), as done in submit_transfer()
@@ -758,7 +758,7 @@ public class MvcController {
     // Time stamp for the transaction
     String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date()); // use same timestamp for all logs created by this deposit
     // Doing things not covered in submit_deposit() like updating cryptoHoldings and cryptoHistory table.
-    TestudoBankRepository.insertRowToCryptoHistoryTable(jdbcTemplate, user.getUsername(), currentTime, "Sell", crypto_amount, "Ethereum");
+    TestudoBankRepository.insertRowToCryptoHistoryTable(jdbcTemplate, user.getUsername(), currentTime, "Sell", cryptoAmount, "Ethereum");
     TestudoBankRepository.updateCustomerCryptoBalance(jdbcTemplate, user.getUsername(), userCryptoBalance);
     // Manually updating the user's balance in the sql tables
     TestudoBankRepository.setCustomerBalance(jdbcTemplate, user.getUsername(), (int)(userBalance*(100)));
