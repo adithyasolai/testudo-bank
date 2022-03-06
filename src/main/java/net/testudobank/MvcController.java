@@ -206,6 +206,11 @@ public class MvcController {
     user.setLogs(logs);
     user.setTransactionHist(transactionHistoryOutput);
     user.setTransferHist(transferHistoryOutput);
+
+    // Check if customer has crypto then call update crypto account info
+    if(TestudoBankRepository.doesCustomerHaveCrypto(jdbcTemplate, user.getUsername())){
+      updateCryptoAccountInfo(user);
+    }
   }
   /**
    * Helper method that queries the MySQL DB for the customer account info (First Name, Last Name, and Balance)
@@ -757,13 +762,7 @@ public class MvcController {
     TestudoBankRepository.updateCustomerCryptoBalance(jdbcTemplate, user.getUsername(), userCryptoBalance);
     // Manually updating the user's balance in the sql tables
     TestudoBankRepository.setCustomerBalance(jdbcTemplate, user.getUsername(), (int)(userBalance*(100)));
-    // check crypto balance being updated
-    System.out.println("user crypto balance ln 761: " + userCryptoBalance);
-    // check crypto balance in the sql table
-    System.out.println("user crypto balance table: " + TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, user.getUsername()));
-    // Check user balance in pennies in the table
-    // System.out.println("User balance in pennies ln 765: " + TestudoBankRepository.getCustomerBalanceInPennies(jdbcTemplate, user.getUsername()));
-    // call updateCryptoAccountInfo() to show ETH price and Crypto Holdings in account_info.jsp page
+    // call updateAccountInfo(), and edit updateAccountInfo() so that you show ETH price and Crypto Holdings in
     updateCryptoAccountInfo(user);
     // Inserting the transaction into the transaction history
     return "account_info";    
