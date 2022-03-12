@@ -65,7 +65,10 @@ public class User {
   private boolean isCrypto;
 
   @Setter @Getter @Positive
-  private double totalEthHoldings;
+  private double totalEthHoldingsCoins;
+
+  @Setter @Getter @Positive
+  private double totalEthHoldingsDollars;
 
   @Setter @Getter @Positive
   private double ethPrice;

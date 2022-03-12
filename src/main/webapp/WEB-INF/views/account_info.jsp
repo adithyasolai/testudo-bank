@@ -32,7 +32,8 @@
 		<h2><span>${user.firstName}</span> <span>${user.lastName}</span> Bank Account Info</h2>
 		<span>Balance is: $</span><span>${user.balance}</span><br/>
     <span>Overdraft Balance is: $</span><span>${user.overDraftBalance}</span><br/>
-    <span>Eth Holdings(Coin): $</span><span>${user.totalEthHoldings}</span><br/>
+    <span>Eth Holdings(Coin): $</span><span>${user.totalEthHoldingsCoins}</span><br/>
+    <span>Eth Holdings(Dollars): $</span><span>${user.totalEthHoldingsDollars}</span><br/>
     <span>Current Eth Price: $</span><span>${user.ethPrice}</span><br/>
     <span>Re-payment logs: </span><span>${user.logs}</span><br/>
     <span>Transaction History: </span><span>${user.transactionHist}</span><br/>

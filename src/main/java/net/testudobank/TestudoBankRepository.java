@@ -159,9 +159,9 @@ public class TestudoBankRepository {
   }
 
   public static List<Map<String,Object>> getCryptoLogs(JdbcTemplate jdbcTemplate, String customerID, int numTransfersToFetch) {
-    String getTransferHistorySql = String.format("Select * from CryptoHistory WHERE CustomerID='%s'  ORDER BY Timestamp DESC LIMIT %d;", customerID, numTransfersToFetch);
-    List<Map<String,Object>> transferLogs = jdbcTemplate.queryForList(getTransferHistorySql);
-    return transferLogs;
+    String getCryptoHistorySql = String.format("Select * from CryptoHistory WHERE CustomerID='%s'  ORDER BY Timestamp DESC LIMIT %d;", customerID, numTransfersToFetch);
+    List<Map<String,Object>> cryptoLogs = jdbcTemplate.queryForList(getCryptoHistorySql);
+    return cryptoLogs;
   }
 
   public static Double getEthHoldings(JdbcTemplate jdbcTemplate, String customerID) {

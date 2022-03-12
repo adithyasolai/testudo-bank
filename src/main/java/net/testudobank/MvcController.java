@@ -649,6 +649,14 @@ public class MvcController {
   }
 
   /**
+   * HTML POST request handler for the Crypto Buy Form page.
+   * 
+   * If the user is currently in overdraft and the sell crypto the amount earned from
+   * the  sell will go to paying off the overdraft balence
+   * 
+   * If the crypto amount to sell exceeds the amount of crypto the user then nothing will
+   * happeen and the user will return to the welcome page
+   * 
    * 
    * @param user
    * @return "account_info" page if buy successful. Otherwise, redirect to "welcome" page.
@@ -659,9 +667,13 @@ public class MvcController {
     String userID = user.getUsername();
     double cryptoAmount = user.getAmountToBuyCrypto();
     user.setAmountToWithdraw(cryptoAmount);
+    if(user.getOverDraftBalance()>0) {
+      return "welcome";
+    }
     if (submitWithdraw(user).equals("welcome")){  // Withdraw does the error checking
       return "welcome";
     }
+    
     double coins = cryptoAmount / getCurrentEthValue();
     String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date());
     
@@ -671,16 +683,25 @@ public class MvcController {
       TestudoBankRepository.insertRowToCryptoHoldingsTable(jdbcTemplate, userID, "ETH", coins);
     }
     Double userEthHoldings  = TestudoBankRepository.getEthHoldings(jdbcTemplate, userID);
-    user.setTotalEthHoldings(userEthHoldings);
+    user.setTotalEthHoldingsCoins(userEthHoldings);
+    user.setTotalEthHoldingsDollars(userEthHoldings*getCurrentEthValue());
     TestudoBankRepository.insertRowToCryptoHistoryTable(jdbcTemplate, userID, currentTime, "BUY", "ETH", coins);
     updateAccountInfo(user);
     return "account_info";
   }
 
   /**
+   * HTML POST request handler for the Crypto Sell Form page.
+   * 
+   * If the user is currently in overdraft and the sell crypto the amount earned from
+   * the  sell will go to paying off the overdraft balence first then go into the users
+   * balence
+   * 
+   * If the crypto amount to sell exceeds the amount of crypto the user then nothing will
+   * happeen and the user will return to the welcome page
    * 
    * @param user
-   * @return "account_info" page if sell successful. Otherwise, redirect to "welcome" page.
+   * @return "account_info" page if cryptoSell was successful. Otherwise, redirect to "welcome" page.
    */
   @PostMapping("/sellcrypto")
   public String sellCrypto(@ModelAttribute("user") User user) {
@@ -694,9 +715,9 @@ public class MvcController {
       return "welcome";
     }
     String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date());
-    
+    double cryptoAmtToSell = (-1) * coins;
     if (TestudoBankRepository.doesCryptoCustomerExist(jdbcTemplate, userID,"ETH")) {
-      TestudoBankRepository.updateCustomerCryptoHoldings(jdbcTemplate, userID, "ETH", (-1) * coins);
+      TestudoBankRepository.updateCustomerCryptoHoldings(jdbcTemplate, userID, "ETH", cryptoAmtToSell);
     } 
 
     TestudoBankRepository.insertRowToCryptoHistoryTable(jdbcTemplate, userID, currentTime, "SELL", "ETH", coins);
