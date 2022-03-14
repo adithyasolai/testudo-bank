@@ -21,7 +21,36 @@ import org.testcontainers.ext.ScriptUtils;
 import net.testudobank.MvcController;
 import net.testudobank.tests.MvcControllerIntegTest;
 
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import java.io.IOException;
+
+
 public class MvcControllerIntegTestHelpers {
+
+  public static double getCurrentEthValue() {
+    try {
+      // fetch the document over HTTP
+      Document doc = Jsoup.connect("https://ethereumprice.org").userAgent("Mozilla").get();
+
+      Element value = doc.getElementById("coin-price");
+      String valueStr = value.text();
+
+      // Replacing the '$'' and ',' characters from the string
+      valueStr = valueStr.replaceAll("\\$", "").replaceAll("\\,", "");
+      double ethValue = Double.parseDouble(valueStr);
+
+      return ethValue;
+    } catch (IOException e) {
+      // Print stack trace for debugging
+      e.printStackTrace();
+
+      // Return -1 if there was an error during web scraping
+      return -1;
+    }
+  }
+
   // Fetches DB credentials to initialize jdbcTemplate client
   public static DataSource dataSource(MySQLContainer db) {
     MysqlDataSource dataSource = new MysqlDataSource();
@@ -57,16 +86,50 @@ public class MvcControllerIntegTestHelpers {
     System.out.println("Timestamp stored in TransactionHistory table for the request: " + transactionLogTimestamp);
   }
 
-  public static void checkCryptoTransactionLog(Map<String,Object> transactionLog, LocalDateTime timeWhenRequestSent, String expectedCustomerID, String expectedAction, String expectedCryptoName, int expectedAmountInPennies) {
+  // public static void checkCryptoTransactionLog(Map<String,Object> transactionLog, LocalDateTime timeWhenRequestSent, String expectedCustomerID, String expectedAction, String expectedCryptoName, int expectedAmountInPennies, int epsilon) {
+  public static void checkCryptoTransactionLog(Map<String,Object> transactionLog, LocalDateTime timeWhenRequestSent, String expectedCustomerID, String expectedAction, String expectedCryptoName, int expectedAmountInPennies, int epsilon) {
+    System.out.println("null?");
+    double currentEthPrice = MvcControllerIntegTestHelpers.getCurrentEthValue();
     assertEquals(expectedCustomerID, (String)transactionLog.get("CustomerID"));
+    System.out.println("null? 2");
+
     assertEquals(expectedAction, (String)transactionLog.get("Action"));
-    assertEquals(expectedAmountInPennies, (int)transactionLog.get("Amount"));
+    for(String str: transactionLog.keySet()) {
+      System.out.println(str);
+      System.out.println(transactionLog.get(str));
+    }
+    System.out.println("null? 3");
+    try {
+      if(transactionLog.get("CryptoAmount") instanceof Float) {
+        System.out.println("expectedAmountInPennies" + expectedAmountInPennies);
+        System.out.println("Well: " + convertDollarsToPennies((float)transactionLog.get("CryptoAmount") * currentEthPrice ));
+        assertTrue(expectedAmountInPennies < convertDollarsToPennies((((float)transactionLog.get("CryptoAmount")*currentEthPrice) + convertDollarsToPennies(epsilon))));
+        assertTrue(expectedAmountInPennies > convertDollarsToPennies((((float)transactionLog.get("CryptoAmount")*currentEthPrice) - convertDollarsToPennies(epsilon))));
+      }
+      // System.out.println("Well: " + ( transactionLog.get("CryptoAmount")) );
+
+    } catch(Exception e) {
+      e.printStackTrace();
+    }
+    // assertTrue(expectedAmountInPennies < (((float)transactionLog.get("CryptoAmount")*currentEthPrice) + epsilon));
+    System.out.println("null 4");
+
+    // assertTrue(expectedAmountInPennies > (((float)transactionLog.get("CryptoAmount")*currentEthPrice) - epsilon));
+    System.out.println("null 5");
+
     assertEquals(expectedCryptoName, (String)transactionLog.get("CryptoName"));
+    System.out.println("null 6");
 
     // verify that the timestamp for the Deposit is within a reasonable range from when the request was first sent
     LocalDateTime transactionLogTimestamp = (LocalDateTime)transactionLog.get("Timestamp");
+    System.out.println("null 7");
+
     LocalDateTime transactionLogTimestampAllowedUpperBound = timeWhenRequestSent.plusSeconds(MvcControllerIntegTest.REASONABLE_TIMESTAMP_EPSILON_IN_SECONDS);
+    System.out.println("null 8");
+
     assertTrue(transactionLogTimestamp.compareTo(timeWhenRequestSent) >= 0 && transactionLogTimestamp.compareTo(transactionLogTimestampAllowedUpperBound) <= 0);
+    System.out.println("null 9");
+
     System.out.println("Timestamp stored in TransactionHistory table for the request: " + transactionLogTimestamp);
   }
 

@@ -232,7 +232,7 @@ public class MvcController {
   }
 
   // Converts dollar amounts in frontend to penny representation in backend MySQL DB
-  private static int convertDollarsToPennies(double dollarAmount) {
+  public static int convertDollarsToPennies(double dollarAmount) {
     return (int) (dollarAmount * 100);
   }
 
@@ -416,6 +416,8 @@ public class MvcController {
       return "welcome";
     }
 
+
+
     // Negative deposit amount is not allowed
     double userWithdrawAmt = user.getAmountToWithdraw();
     if (userWithdrawAmt < 0) {
@@ -458,7 +460,7 @@ public class MvcController {
       TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_WITHDRAW_ACTION, userWithdrawAmtInPennies);
     }
 
-  
+
     // update Model so that View can access new main balance, overdraft balance, and logs
     updateAccountInfo(user);
     return "account_info";
@@ -662,6 +664,7 @@ public class MvcController {
 
     // Check if in overdraft
     if(user.getBalance() == 0) { return "welcome";}
+
     // Get how much ETH coins they want to buy from the user object
     // initialize variables for buy crypto amount
     double amountToBuyCrypto = user.getAmountToBuyCrypto();
@@ -672,7 +675,8 @@ public class MvcController {
     if(buyCryptoInPennies < 0) {return "welcome";}
     
     // enough money in balance to buy crypto? If not -> return welcome
-    if(buyCryptoInPennies > user.getBalance()) {return "welcome";}
+    if(amountToBuyCrypto > user.getBalance()) {return "welcome";}
+    // if(buyCryptoInPennies > user.getBalance()) {return "welcome";}
 
     // Submit Withdraw request
     user.setAmountToWithdraw(amountToBuyCrypto);
@@ -682,12 +686,14 @@ public class MvcController {
     double currentEthPrice = user.getEthPrice();
     double userEthPurchaseAmt = amountToBuyCrypto/currentEthPrice;
 
-
     // Update CryptoHoldings and CryptoHistory table
     // Add helper methods to TestudoBankRepository.java [insertRow into crypto holdings table && transactions table]
     String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date()); // use same timestamp for all logs created by this transfer
 
     TestudoBankRepository.insertRowToCryptoLogsTable(jdbcTemplate, userID, currentTime, "Buy" , "ETH",  userEthPurchaseAmt);
+    System.out.println("userEthPurchaseAmt" + userEthPurchaseAmt);
+    // TestudoBankRepository.insertRowToCryptoLogsTable(jdbcTemplate, userID, currentTime, "Buy" , "ETH",  userEthPurchaseAmtInt);
+
     TestudoBankRepository.insertRowToCryptoHoldingsTable(jdbcTemplate, userID, "ETH", userEthPurchaseAmt);
     updateAccountInfo(user);
     
