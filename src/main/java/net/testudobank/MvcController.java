@@ -763,7 +763,7 @@ public class MvcController {
     // Manually updating the user's balance in the sql tables
     TestudoBankRepository.setCustomerBalance(jdbcTemplate, user.getUsername(), (int)(userBalance*(100)));
     // call updateAccountInfo(), and edit updateAccountInfo() so that you show ETH price and Crypto Holdings in
-    updateCryptoAccountInfo(user);
+    updateAccountInfo(user);
     // Inserting the transaction into the transaction history
     return "account_info";    
   }

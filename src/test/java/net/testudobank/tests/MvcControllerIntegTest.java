@@ -1136,13 +1136,10 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
     // verify that there are no other logs in the CryptoHistory table before Deposit
     assertEquals(0, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM CryptoHistory;", Integer.class));
 
-    // send request to the BuyCrypto Form's POST handler in MvcController
-    controller.buyCrypto(customer1DepositFormInputs);
-    
     // store timestamp of when Crypto Purchase request sent to verify timestamps in the TransactionHistory table later
     LocalDateTime timeWhenBuyRequestSent = MvcControllerIntegTestHelpers.fetchCurrentTimeAsLocalDateTimeNoMilliseconds();
-    System.out.println("Timestamp when Deposit Request is sent: " + timeWhenBuyRequestSent);
-
+    // send request to the BuyCrypto Form's POST handler in MvcController
+    controller.buyCrypto(customer1DepositFormInputs);
 
     // fetch updated data from the DB
     List<Map<String,Object>> customersTableData = jdbcTemplate.queryForList("SELECT * FROM Customers;");
@@ -1170,10 +1167,10 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
     assertEquals(CRYPTO_TO_BUY, TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, customer1DepositFormInputs.getUsername()));
     
     // verify that the Deposit's details are accurately logged in the TransactionHistory table
-    // Map<String,Object> customer1CryptoTransactionLog = cryptoHistoryData.get(0);
+    //Map<String,Object> customer1CryptoTransactionLog = cryptoHistoryData.get(0);
     // Print customer1CryptoTransactionLog
     // System.out.println("Log: "+ customer1CryptoTransactionLog);
-    // MvcControllerIntegTestHelpers.checkCryptoTransactionLog(customer1CryptoTransactionLog, timeWhenBuyRequestSent, CUSTOMER1_ID, MvcController.TRANSACTION_HISTORY_CRYPTO_BUY, CRYPTO_TO_BUY);
+    //MvcControllerIntegTestHelpers.checkCryptoTransactionLog(customer1CryptoTransactionLog, timeWhenBuyRequestSent, CUSTOMER1_ID, MvcController.TRANSACTION_HISTORY_CRYPTO_BUY, CRYPTO_TO_BUY);
     // Print that test's have all passed for crypto buy
     System.out.println("All tests for crypto buy have passed successfully");
   }

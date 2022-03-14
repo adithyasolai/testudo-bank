@@ -61,7 +61,7 @@ public class MvcControllerIntegTestHelpers {
   public static void checkCryptoTransactionLog(Map<String,Object> cryptoTransactionLog, LocalDateTime timeWhenRequestSent, String expectedCustomerID, String expectedAction, float expectedCryptoAmount) {
     assertEquals(expectedCustomerID, (String)cryptoTransactionLog.get("CustomerID"));
     assertEquals(expectedAction, (String)cryptoTransactionLog.get("Action"));
-    assertEquals(expectedCryptoAmount, (int)cryptoTransactionLog.get("Amount"));
+    assertEquals(expectedCryptoAmount, (Float)cryptoTransactionLog.get("CryptoAmount"));
     // verify that the timestamp for the Deposit is within a reasonable range from when the request was first sent
     LocalDateTime cryptoTransactionLogTimestamp = (LocalDateTime)cryptoTransactionLog.get("Timestamp");
     LocalDateTime cryptoTransactionLogTimestampAllowedUpperBound = timeWhenRequestSent.plusSeconds(MvcControllerIntegTest.REASONABLE_TIMESTAMP_EPSILON_IN_SECONDS);
