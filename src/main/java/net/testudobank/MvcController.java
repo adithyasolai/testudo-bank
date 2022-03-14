@@ -667,7 +667,6 @@ public class MvcController {
     float amountToBuyETH = (float) user.getAmountToBuyCrypto();
     user.setEthPrice(getCurrentEthValue());
     double amountToBuyUSD = user.getAmountToBuyCrypto() * user.getEthPrice();
-    // int userWithdrawAmtInPennies = convertDollarsToPennies(amountToBuyUSD);
     String userPasswordAttempt = user.getPassword();
     String userPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, userId);
 
@@ -683,9 +682,15 @@ public class MvcController {
     if(amountToBuyUSD > user.getBalance() || amountToBuyETH <= 0){
       return "welcome";
     }
-    
-    
- 
+
+    if(user.getOverDraftBalance() > 0){
+      return "welcome";
+    }
+        
+    user.setCryptoBuy(true);
+    user.setAmountToWithdraw(amountToBuyUSD);
+    submitWithdraw(user);
+
     TestudoBankRepository.insertRowToCryptoHistoryTable(jdbcTemplate, userId, currentTime, CRYPTO_HISTORY_BUY_ACTION, CRYPTO_NAME, amountToBuyETH);
     // If it doesn't exist then add it to the table other wise just update the information
     if(TestudoBankRepository.hasCrypto(jdbcTemplate, user.getUsername())){
@@ -694,10 +699,8 @@ public class MvcController {
       TestudoBankRepository.insertRowToCryptoHoldingsTable(jdbcTemplate, userId, CRYPTO_NAME, amountToBuyETH);
     }
     
-    user.setCryptoBuy(true);
-    user.setAmountToWithdraw(amountToBuyUSD);
-    submitWithdraw(user);
     updateAccountInfo(user);
+    
     return "account_info";
   }
 
@@ -733,6 +736,10 @@ public class MvcController {
       return "welcome";
     }
 
+    user.setCryptoSell(true);
+    user.setAmountToDeposit(amountToSellUSD);
+    submitDeposit(user);
+
     TestudoBankRepository.insertRowToCryptoHistoryTable(jdbcTemplate, userId, currentTime, CRYPTO_HISTORY_SELL_ACTION, CRYPTO_NAME, amountToSellETH);
 
     // Checks the amount of crypto user has left after selling
@@ -746,10 +753,6 @@ public class MvcController {
       TestudoBankRepository.decreaseCryptoHoldings(jdbcTemplate, userId, amountToSellETH);
     }
 
-    user.setCryptoSell(true);
-   
-    user.setAmountToDeposit(amountToSellUSD);
-    submitDeposit(user);
     updateAccountInfo(user);
     return "account_info";
 
