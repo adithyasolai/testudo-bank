@@ -124,17 +124,23 @@ public class TestudoBankRepository {
   }
 
   public static void insertRowToCryptoLogsTable(JdbcTemplate jdbcTemplate, String customerID, String timestamp, String action, String cryptoName, double cryptoAmount) { 
-    String cryptoHistoryToSql = String.format("INSERT INTO CryptoHistory VALUES ('%s', '%s', '%s','%s', %d);",
+    try {
+      String cryptoHistoryToSql = String.format("INSERT INTO CryptoHistory VALUES ('%s', '%s', '%s','%s', %f);",
                                                     customerID,
                                                     timestamp,
                                                     action,
                                                     cryptoName,
                                                     cryptoAmount);
-    jdbcTemplate.update(cryptoHistoryToSql);
+                jdbcTemplate.update(cryptoHistoryToSql);
+    } catch(Exception e) {
+      e.printStackTrace();
+    }
+    
+
   }
 
   public static void insertRowToCryptoHoldingsTable(JdbcTemplate jdbcTemplate, String customerID, String cryptoName, double cryptoAmount) { 
-    String cryptoHoldingsToSql = String.format("INSERT INTO CryptoHoldings VALUES ('%s', '%s', %d);",
+    String cryptoHoldingsToSql = String.format("INSERT INTO CryptoHoldings VALUES ('%s', '%s', %f);",
                                                     customerID,
                                                     cryptoName,
                                                     cryptoAmount);
