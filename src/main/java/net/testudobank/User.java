@@ -5,12 +5,14 @@ import javax.validation.constraints.PositiveOrZero;
 
 import lombok.Getter;
 import lombok.Setter;
+import lombok.ToString;
 
+@ToString(onlyExplicitlyIncluded = true)
 public class User {
-  @Setter @Getter
+  @Setter @Getter @ToString.Include
 	private String username;
 
-  @Setter @Getter
+  @Setter @Getter @ToString.Include
 	private String password;
 
   @Setter @Getter
@@ -19,8 +21,15 @@ public class User {
   @Setter @Getter
   private String lastName;
 
-  @Setter  @Getter @PositiveOrZero
+  @Setter  @Getter @PositiveOrZero @ToString.Include
 	private double balance;
+
+  // Currently, this points to Ethereum balance
+  @Setter  @Getter @PositiveOrZero @ToString.Include
+  private double cryptoBalance;
+
+  @Setter  @Getter @PositiveOrZero @ToString.Include
+  private double cryptoBalanceUSD;
 
   @Setter @Getter @PositiveOrZero
 	private double overDraftBalance;
@@ -50,17 +59,21 @@ public class User {
   private boolean isTransfer;
 
   @Setter @Getter
+  private boolean isCryptoTransaction;
+
+  @Setter @Getter
   private String transferHist;
+
+  @Setter @Getter
+  private String cryptoHist;
 
   @Setter @Getter @Positive
   private double amountToBuyCrypto;
 
   @Setter @Getter @Positive
   private double amountToSellCrypto;
-  
-	@Override
-	public String toString() {
-		return "User [username=" + username + ", password=" + password + ", balance=" + balance + "]";
-	}
+
+  @Setter @Getter
+  private double ethPrice;
 
 }

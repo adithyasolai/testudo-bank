@@ -32,9 +32,13 @@
 		<h2><span>${user.firstName}</span> <span>${user.lastName}</span> Bank Account Info</h2>
 		<span>Balance is: $</span><span>${user.balance}</span><br/>
     <span>Overdraft Balance is: $</span><span>${user.overDraftBalance}</span><br/>
+    <span>Ethereum Balance is: </span><span>${user.cryptoBalance}</span><br/>
+    <span>Ethereum Balance in USD is: $</span><span>${user.cryptoBalanceUSD}</span><br/>
+    <span>Current $ETH Price: </span><span>${user.ethPrice}</span><br/>
     <span>Re-payment logs: </span><span>${user.logs}</span><br/>
     <span>Transaction History: </span><span>${user.transactionHist}</span><br/>
-    <span>Transfer History: </span><span>${user.transferHist}</span><br/>
+    <span>Transfer History: </span><span>${user.transferHist}</span><br/
+    <span>Crypto History: </span><span>${user.cryptoHist}</span><br/>
     <br/>
     <a href='/deposit'>Deposit</a>
     <a href='/withdraw'>Withdraw</a>
