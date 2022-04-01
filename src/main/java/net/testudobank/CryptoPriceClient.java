@@ -8,6 +8,8 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import yahoofinance.YahooFinance;
+
 import java.io.IOException;
 
 @Component
@@ -28,25 +30,10 @@ public class CryptoPriceClient {
     @Cacheable("eth-value")
     public double getCurrentEthValue() {
         try {
-            // fetch the document over HTTP
-            // TODO: this should probably be adapted to a Spring way by using a WebClient
-            Document doc = Jsoup.connect("https://ethereumprice.org").userAgent("Mozilla").get();
-
-            Element value = doc.getElementById("coin-price");
-            if (value == null) {
-                return -1;
-            }
-            String valueStr = value.text();
-
-            // Replacing the '$'' and ',' characters from the string
-            valueStr = valueStr.replaceAll("\\$", "").replaceAll("\\,", "");
-
-            return Double.parseDouble(valueStr);
-        } catch (IOException e) {
-            // Print stack trace for debugging
-            e.printStackTrace();
-
-            // Return -1 if there was an error during web scraping
+            return YahooFinance.get("ETH-USD").getQuote().getPrice().doubleValue();
+        } catch (IOException e1) {
+            // Print Stack Trace for Debugging
+            e1.printStackTrace();
             return -1;
         }
     }
