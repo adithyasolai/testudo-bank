@@ -14,8 +14,7 @@ public class CryptoPriceClient {
 
     /**
      * Method which is used to return the current value of Ethereum
-     * in USD. This method uses JSoup to scrape the website "https://ethereumprice.org"
-     * and retrieve the current USD value of 1 ETH.
+     * in USD. This method uses a Yahoo Finance Wrapper API (https://github.com/sstrickx/yahoofinance-api).
      * <p>
      * To avoid frequent calls to the external service, the value is cached.
      * See {@link #clearEthPriceCache()}
