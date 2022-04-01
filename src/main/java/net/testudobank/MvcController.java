@@ -154,6 +154,7 @@ public class MvcController {
 	public String showBuyCryptoForm(Model model) {
     User user = new User();
     user.setEthPrice(cryptoPriceClient.getCurrentEthValue());
+    user.setSolPrice(cryptoPriceClient.getCurrentSolValue());
 		model.addAttribute("user", user);
 		return "buycrypto_form";
 	}
@@ -170,6 +171,7 @@ public class MvcController {
 	public String showSellCryptoForm(Model model) {
     User user = new User();
     user.setEthPrice(cryptoPriceClient.getCurrentEthValue());
+    user.setSolPrice(cryptoPriceClient.getCurrentSolValue());
 		model.addAttribute("user", user);
 		return "sellcrypto_form";
 	}
@@ -225,6 +227,7 @@ public class MvcController {
     user.setTransferHist(transferHistoryOutput);
     user.setCryptoHist(cryptoHistoryOutput.toString());
     user.setEthPrice(cryptoPriceClient.getCurrentEthValue());
+    user.setSolPrice(cryptoPriceClient.getCurrentSolValue());
   }
 
   // Converts dollar amounts in frontend to penny representation in backend MySQL DB

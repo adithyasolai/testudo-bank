@@ -74,6 +74,12 @@ public class User {
   private double amountToSellCrypto;
 
   @Setter @Getter
+  private String whichCryptoToBuy;
+
+  @Setter @Getter
   private double ethPrice;
+
+  @Setter @Getter
+  private double solPrice;
 
 }
