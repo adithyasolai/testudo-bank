@@ -11,6 +11,19 @@ import java.io.IOException;
 
 @Component
 public class CryptoPriceClient {
+    /**
+     * Method to control which supported Cryptocurrency's price should be returned.
+     * @return
+     */
+    public double getCurrentCryptoValue(String cryptoName) {
+      if (cryptoName.equals("ETH")) {
+        return getCurrentEthValue();
+      } else if (cryptoName.equals("SOL")) {
+        return getCurrentSolValue();
+      } else {
+        return -1;
+      }
+    }
 
     /**
      * Method which is used to return the current value of Ethereum

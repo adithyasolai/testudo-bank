@@ -87,9 +87,11 @@ public class User {
   @Setter @Getter
   private double solPrice;
 
-  // Currently, this points to Ethereum balance
   @Setter  @Getter @PositiveOrZero @ToString.Include
-  private double cryptoBalance;
+  private double ethBalance;
+
+  @Setter  @Getter @PositiveOrZero @ToString.Include
+  private double solBalance;
 
   @Setter  @Getter @PositiveOrZero @ToString.Include
   private double cryptoBalanceUSD;
