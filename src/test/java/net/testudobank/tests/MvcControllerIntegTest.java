@@ -1578,4 +1578,56 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
     cryptoTransactionTester.test(cryptoTransaction);
   }
 
+  /**
+   * Test flow of buying and selling multiple different cryptocurrencies.
+   * This tests the scenario that a user with no crypto buys ETH, buys SOL, then sells SOL
+   */
+  @Test
+  public void testCryptoBuySellMultiple() throws ScriptException {
+    CryptoTransactionTester cryptoTransactionTester = CryptoTransactionTester.builder()
+            .initialBalanceInDollars(1000)
+            .build();
+
+    cryptoTransactionTester.initialize();
+
+    CryptoTransaction buyEth = CryptoTransaction.builder()
+            .cryptoName("ETH")
+            .cryptoPrice(1000)
+            .expectedEndingBalanceInDollars(900)
+            .cryptoAmountToTransact(0.1)
+            .expectedEndingCryptoBalance(0.1)
+            .cryptoTransactionTestType(CryptoTransactionTestType.BUY)
+            .shouldSucceed(true)
+            .build();
+
+    // buy ETH
+    cryptoTransactionTester.test(buyEth);
+
+    CryptoTransaction buySol = CryptoTransaction.builder()
+            .cryptoName("SOL")
+            .cryptoPrice(100)
+            .expectedEndingBalanceInDollars(800)
+            .cryptoAmountToTransact(1)
+            .expectedEndingCryptoBalance(1)
+            .cryptoTransactionTestType(CryptoTransactionTestType.BUY)
+            .shouldSucceed(true)
+            .build();
+
+    // then buy SOL
+    cryptoTransactionTester.test(buySol);
+
+    CryptoTransaction sellSol = CryptoTransaction.builder()
+            .cryptoName("SOL")
+            .cryptoPrice(200)
+            .expectedEndingBalanceInDollars(850)
+            .cryptoAmountToTransact(0.25)
+            .expectedEndingCryptoBalance(0.75)
+            .cryptoTransactionTestType(CryptoTransactionTestType.SELL)
+            .shouldSucceed(true)
+            .build();
+
+    // then sell SOL
+    cryptoTransactionTester.test(sellSol);
+  }
+
 }
