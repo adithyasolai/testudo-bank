@@ -1206,6 +1206,7 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
       } else {
         user.setPassword("wrong_password");
       }
+      user.setWhichCryptoToBuy(cryptoName);
       int balanceInPennies = MvcControllerIntegTestHelpers.convertDollarsToPennies(initialBalanceInDollars);
       MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER1_ID, CUSTOMER1_PASSWORD, CUSTOMER1_FIRST_NAME,
               CUSTOMER1_LAST_NAME, balanceInPennies, MvcControllerIntegTestHelpers.convertDollarsToPennies(initialOverdraftBalanceInDollars), 0);
@@ -1214,7 +1215,7 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
       }
 
       // Mock the price of the cryptocurrency
-      Mockito.when(cryptoPriceClient.getCurrentEthValue()).thenReturn(cryptoPrice);
+      Mockito.when(cryptoPriceClient.getCurrentCryptoValue(cryptoName)).thenReturn(cryptoPrice);
 
       // attempt transaction
       LocalDateTime cryptoTransactionTime = MvcControllerIntegTestHelpers.fetchCurrentTimeAsLocalDateTimeNoMilliseconds();

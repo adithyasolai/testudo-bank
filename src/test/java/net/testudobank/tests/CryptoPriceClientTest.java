@@ -9,11 +9,11 @@ public class CryptoPriceClientTest {
     CryptoPriceClient cryptoPriceClient = new CryptoPriceClient();
 
     /**
-     *  Ensure the client is able to get a valid price from the website
+     *  Ensure the client is able to get a valid price from the Yahoo Finance API
      */
     @Test
     public void testBasic() {
-        double val = cryptoPriceClient.getCurrentEthValue();
-        assertTrue(val > 0);
+        assertTrue(cryptoPriceClient.getCurrentEthValue() > 0);
+        assertTrue(cryptoPriceClient.getCurrentSolValue() > 0);
     }
 }
