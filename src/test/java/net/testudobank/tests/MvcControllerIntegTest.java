@@ -1194,6 +1194,12 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
     final CryptoTransactionTestType cryptoTransactionTestType;
 
     /**
+     * If this flag is true, then the test customer is not re-added to the DB at the start of the test.
+     */
+    @Builder.Default
+    final boolean multiTransactionTest = false;
+
+    /**
      * Attempt a transaction with the class fields
      *
      * @throws ScriptException if the script has issues running
@@ -1206,12 +1212,17 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
       } else {
         user.setPassword("wrong_password");
       }
+
       user.setWhichCryptoToBuy(cryptoName);
-      int balanceInPennies = MvcControllerIntegTestHelpers.convertDollarsToPennies(initialBalanceInDollars);
-      MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER1_ID, CUSTOMER1_PASSWORD, CUSTOMER1_FIRST_NAME,
-              CUSTOMER1_LAST_NAME, balanceInPennies, MvcControllerIntegTestHelpers.convertDollarsToPennies(initialOverdraftBalanceInDollars), 0);
-      if (initialCryptoBalance != 0) {
-        MvcControllerIntegTestHelpers.setCryptoBalance(dbDelegate, CUSTOMER1_ID, cryptoName, initialCryptoBalance);
+
+      // only iniitalize customer in MySQL DB if this is the single-transaction test or the first transaction in a multi-transaction test
+      if (multiTransactionTest == false) {
+        int balanceInPennies = MvcControllerIntegTestHelpers.convertDollarsToPennies(initialBalanceInDollars);
+        MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER1_ID, CUSTOMER1_PASSWORD, CUSTOMER1_FIRST_NAME,
+                CUSTOMER1_LAST_NAME, balanceInPennies, MvcControllerIntegTestHelpers.convertDollarsToPennies(initialOverdraftBalanceInDollars), 0);
+        if (initialCryptoBalance != 0) {
+          MvcControllerIntegTestHelpers.setCryptoBalance(dbDelegate, CUSTOMER1_ID, cryptoName, initialCryptoBalance);
+        }
       }
 
       // Mock the price of the cryptocurrency
@@ -1247,38 +1258,32 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
       if (!shouldSucceed) {
         // verify no transaction took place
         assertEquals("welcome", returnedPage);
-        assertEquals(0, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM TransactionHistory;", Integer.class));
-        assertEquals(0, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM CryptoHistory;", Integer.class));
-        assertEquals(0, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM OverdraftLogs;", Integer.class));
       } else {
         assertEquals("account_info", returnedPage);
 
         // check transaction logs
-        assertEquals(1, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM TransactionHistory;", Integer.class));
-        List<Map<String, Object>> transactionHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM TransactionHistory;");
-        Map<String, Object> customer1TransactionLog = transactionHistoryTableData.get(0);
+        assertTrue(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM TransactionHistory;", Integer.class) >= 1); // make sure some transactions exist
+        List<Map<String, Object>> transactionHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM TransactionHistory ORDER BY Timestamp DESC;");
+        Map<String, Object> customer1TransactionLog = transactionHistoryTableData.get(0); // get the most recent transaction
         int expectedCryptoValueInPennies = MvcControllerIntegTestHelpers.convertDollarsToPennies(cryptoPrice * cryptoAmountToTransact);
         MvcControllerIntegTestHelpers.checkTransactionLog(customer1TransactionLog, cryptoTransactionTime, CUSTOMER1_ID, cryptoTransactionTestType.transactionHistoryActionName, expectedCryptoValueInPennies);
 
         // check crypto logs
-        assertEquals(1, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM CryptoHistory;", Integer.class));
-        List<Map<String, Object>> cryptoHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM CryptoHistory;");
+        int numCryptosHeld = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM CryptoHistory;", Integer.class); 
+        assertTrue(numCryptosHeld >= 1); // make sure some crypto exists
+        List<Map<String, Object>> cryptoHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM CryptoHistory WHERE CryptoName=?;", cryptoName);
         Map<String, Object> customer1CryptoLog = cryptoHistoryTableData.get(0);
-        MvcControllerIntegTestHelpers.checkCryptoLog(customer1CryptoLog, cryptoTransactionTime, CUSTOMER1_ID, cryptoTransactionTestType.cryptoHistoryActionName,
-                cryptoName, cryptoAmountToTransact);
-
+        MvcControllerIntegTestHelpers.checkCryptoLog(customer1CryptoLog, cryptoTransactionTime, CUSTOMER1_ID, cryptoTransactionTestType.cryptoHistoryActionName, cryptoName, cryptoAmountToTransact);
+        
         // check overdraft logs (if applicable)
         if (initialOverdraftBalanceInDollars != 0) {
-          assertEquals(1, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM OverdraftLogs;", Integer.class));
-          List<Map<String, Object>> overdraftLogTableData = jdbcTemplate.queryForList("SELECT * FROM OverdraftLogs;");
-          Map<String, Object> customer1OverdraftLog = overdraftLogTableData.get(0);
+          assertTrue(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM OverdraftLogs;", Integer.class) >= 1); // make sure some overdraft logs exist
+          List<Map<String, Object>> overdraftLogTableData = jdbcTemplate.queryForList("SELECT * FROM OverdraftLogs ORDER BY Timestamp DESC;");
+          Map<String, Object> customer1OverdraftLog = overdraftLogTableData.get(0); // get the most recent overdraft re-payment log
           MvcControllerIntegTestHelpers.checkOverdraftLog(customer1OverdraftLog, cryptoTransactionTime, CUSTOMER1_ID, expectedCryptoValueInPennies,
                   MvcControllerIntegTestHelpers.convertDollarsToPennies(initialOverdraftBalanceInDollars),
                   MvcControllerIntegTestHelpers.convertDollarsToPennies(expectedEndingOverdraftBalanceInDollars));
-        } else {
-          assertEquals(0, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM OverdraftLogs;", Integer.class));
         }
-
       }
     }
   }
