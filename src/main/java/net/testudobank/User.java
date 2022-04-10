@@ -78,21 +78,6 @@ public class User {
   @Setter @Getter @Positive
   private double amountToSellCrypto;
 
-<<<<<<< HEAD
-  @Setter @Getter @Positive
-  private float cryptoBalance;
-
-  @Setter @Getter @Positive
-  private String cryptoHistory;
-
-  @Setter @Getter @Positive
-  private double ethPrice;
-  
-	@Override
-	public String toString() {
-		return "User [username=" + username + ", password=" + password + ", balance=" + balance + "]";
-	}
-=======
   @Setter @Getter
   private String whichCryptoToBuy;
 
@@ -110,6 +95,5 @@ public class User {
 
   @Setter  @Getter @PositiveOrZero @ToString.Include
   private double cryptoBalanceUSD;
->>>>>>> 187b9a6bb23f62da2e0176c5b4b5f8beb907a85c
 
 }
