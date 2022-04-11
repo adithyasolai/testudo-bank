@@ -8,15 +8,15 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.Map;
+import java.util.Arrays;
 import java.util.Date;
+import java.util.HashSet;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
 
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import java.io.IOException;
+import java.util.Optional;
+import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -26,6 +26,9 @@ public class MvcController {
   // A simplified JDBC client that is injected with the login credentials
   // specified in /src/main/resources/application.properties
   private JdbcTemplate jdbcTemplate;
+
+  // Client to get crypto price
+  private CryptoPriceClient cryptoPriceClient;
 
   // Formatter for converting Java Dates to SQL-compatible DATETIME Strings
   private static java.text.SimpleDateFormat SQL_DATETIME_FORMATTER = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
@@ -44,14 +47,23 @@ public class MvcController {
   public static String TRANSACTION_HISTORY_WITHDRAW_ACTION = "Withdraw";
   public static String TRANSACTION_HISTORY_TRANSFER_SEND_ACTION = "TransferSend";
   public static String TRANSACTION_HISTORY_TRANSFER_RECEIVE_ACTION = "TransferReceive";
+<<<<<<< HEAD
   public static String TRANSACTION_HISTORY_CRYPTO_BUY_ACTION = "CryptoBuy";
   public static String TRANSACTION_HISTORY_CRYPTO_SELL_ACTION = "CryptoSell";
   public static String CRYPTO_HISTORY_BUY_ACTION = "Buy";
   public static String CRYPTO_HISTORY_SELL_ACTION = "Sell";
   public static String CRYPTO_NAME = "ETH";
+=======
+  public static String TRANSACTION_HISTORY_CRYPTO_SELL_ACTION = "CryptoSell";
+  public static String TRANSACTION_HISTORY_CRYPTO_BUY_ACTION = "CryptoBuy";
+  public static String CRYPTO_HISTORY_SELL_ACTION = "Sell";
+  public static String CRYPTO_HISTORY_BUY_ACTION = "Buy";
+  public static Set<String> SUPPORTED_CRYPTOCURRENCIES = new HashSet<>(Arrays.asList("ETH", "SOL"));
+>>>>>>> 187b9a6bb23f62da2e0176c5b4b5f8beb907a85c
 
-  public MvcController(@Autowired JdbcTemplate jdbcTemplate) {
+  public MvcController(@Autowired JdbcTemplate jdbcTemplate, @Autowired CryptoPriceClient cryptoPriceClient) {
     this.jdbcTemplate = jdbcTemplate;
+    this.cryptoPriceClient = cryptoPriceClient;
   }
 
   //// HTML GET HANDLERS ////
@@ -154,9 +166,16 @@ public class MvcController {
   @GetMapping("/buycrypto")
 	public String showBuyCryptoForm(Model model) {
     User user = new User();
+<<<<<<< HEAD
     user.setEthPrice(getCurrentEthValue());
       model.addAttribute("user", user);
       return "buycrypto_form";
+=======
+    user.setEthPrice(cryptoPriceClient.getCurrentEthValue());
+    user.setSolPrice(cryptoPriceClient.getCurrentSolValue());
+		model.addAttribute("user", user);
+		return "buycrypto_form";
+>>>>>>> 187b9a6bb23f62da2e0176c5b4b5f8beb907a85c
 	}
 
   /**
@@ -170,7 +189,12 @@ public class MvcController {
   @GetMapping("/sellcrypto")
 	public String showSellCryptoForm(Model model) {
     User user = new User();
+<<<<<<< HEAD
     user.setEthPrice(getCurrentEthValue());
+=======
+    user.setEthPrice(cryptoPriceClient.getCurrentEthValue());
+    user.setSolPrice(cryptoPriceClient.getCurrentSolValue());
+>>>>>>> 187b9a6bb23f62da2e0176c5b4b5f8beb907a85c
 		model.addAttribute("user", user);
 		return "sellcrypto_form";
 	}
@@ -202,18 +226,32 @@ public class MvcController {
       transferHistoryOutput += transferLog + HTML_LINE_BREAK;
     }
 
+    List<Map<String, Object>> cryptoLogs = TestudoBankRepository.getCryptoLogs(jdbcTemplate, user.getUsername());
+    StringBuilder cryptoHistoryOutput = new StringBuilder(HTML_LINE_BREAK);
+    for (Map<String, Object> cryptoLog : cryptoLogs) {
+      cryptoHistoryOutput.append(cryptoLog).append(HTML_LINE_BREAK);
+    }
+
     String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance FROM Customers WHERE CustomerID='%s';", user.getUsername());
     List<Map<String,Object>> queryResults = jdbcTemplate.queryForList(getUserNameAndBalanceAndOverDraftBalanceSql);
     Map<String,Object> userData = queryResults.get(0);
+
+    // calculate total Crypto holdings balance by summing balance of each supported cryptocurrency
+    double cryptoBalanceInDollars = 0;
+    for (String cryptoName : MvcController.SUPPORTED_CRYPTOCURRENCIES) {
+      cryptoBalanceInDollars += TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, user.getUsername(), cryptoName).orElse(0.0) * cryptoPriceClient.getCurrentCryptoValue(cryptoName);
+    }
 
     user.setFirstName((String)userData.get("FirstName"));
     user.setLastName((String)userData.get("LastName"));
     user.setBalance((int)userData.get("Balance")/100.0);
     double overDraftBalance = (int)userData.get("OverdraftBalance");
     user.setOverDraftBalance(overDraftBalance/100);
+    user.setCryptoBalanceUSD(cryptoBalanceInDollars);
     user.setLogs(logs);
     user.setTransactionHist(transactionHistoryOutput);
     user.setTransferHist(transferHistoryOutput);
+<<<<<<< HEAD
   
     if(TestudoBankRepository.hasCrypto(jdbcTemplate, user.getUsername())){
         updateCryptoInfo(user);
@@ -237,6 +275,13 @@ public class MvcController {
     user.setEthAmount(EthAmountCalc);
     user.setCryptoHist(cryptoHistoryOutput);
     user.setEthPrice(getCurrentEthValue());
+=======
+    user.setCryptoHist(cryptoHistoryOutput.toString());
+    user.setEthBalance(TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, user.getUsername(), "ETH").orElse(0.0));
+    user.setSolBalance(TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, user.getUsername(), "SOL").orElse(0.0));
+    user.setEthPrice(cryptoPriceClient.getCurrentEthValue());
+    user.setSolPrice(cryptoPriceClient.getCurrentSolValue());
+>>>>>>> 187b9a6bb23f62da2e0176c5b4b5f8beb907a85c
   }
 
   // Converts dollar amounts in frontend to penny representation in backend MySQL DB
@@ -250,6 +295,7 @@ public class MvcController {
     return dateTime;
   }
 
+<<<<<<< HEAD
   /**
    * Public method which is used to return the current value of Ethereum
    * in USD. This method uses JSoup to scrape the website "https://ethereumprice.org"
@@ -281,6 +327,8 @@ public class MvcController {
     }
   }
 
+=======
+>>>>>>> 187b9a6bb23f62da2e0176c5b4b5f8beb907a85c
   // HTML POST HANDLERS ////
 
   /**
@@ -368,21 +416,27 @@ public class MvcController {
       // add any excess deposit amount to main balance in Customers table
       if (userDepositAmtInPennies > userOverdraftBalanceInPennies) {
         int mainBalanceIncreaseAmtInPennies = userDepositAmtInPennies - userOverdraftBalanceInPennies;
-        TestudoBankRepository.increaseCustomerBalance(jdbcTemplate, userID, mainBalanceIncreaseAmtInPennies);
+        TestudoBankRepository.increaseCustomerCashBalance(jdbcTemplate, userID, mainBalanceIncreaseAmtInPennies);
       }
 
     } else { // simple deposit case
-      TestudoBankRepository.increaseCustomerBalance(jdbcTemplate, userID, userDepositAmtInPennies);
+      TestudoBankRepository.increaseCustomerCashBalance(jdbcTemplate, userID, userDepositAmtInPennies);
     }
 
     // only adds deposit to transaction history if is not transfer
     if (user.isTransfer()){
       // Adds transaction recieve to transaction history
       TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_TRANSFER_RECEIVE_ACTION, userDepositAmtInPennies);
+<<<<<<< HEAD
     } else if(user.isCryptoSell()){
       // Adds cryptoSell to transcation history
       TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_CRYPTO_SELL_ACTION, userDepositAmtInPennies);
     } else{
+=======
+    } else if (user.isCryptoTransaction()) {
+      TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_CRYPTO_SELL_ACTION, userDepositAmtInPennies);
+    } else {
+>>>>>>> 187b9a6bb23f62da2e0176c5b4b5f8beb907a85c
       // Adds deposit to transaction history
       TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_DEPOSIT_ACTION, userDepositAmtInPennies);
     }
@@ -435,7 +489,7 @@ public class MvcController {
     //// Complete Withdraw Transaction ////
     int userWithdrawAmtInPennies = convertDollarsToPennies(userWithdrawAmt); // dollar amounts stored as pennies to avoid floating point errors
     String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date()); // use same timestamp for all logs created by this deposit
-    int userBalanceInPennies = TestudoBankRepository.getCustomerBalanceInPennies(jdbcTemplate, userID);
+    int userBalanceInPennies = TestudoBankRepository.getCustomerCashBalanceInPennies(jdbcTemplate, userID);
     int userOverdraftBalanceInPennies = TestudoBankRepository.getCustomerOverdraftBalanceInPennies(jdbcTemplate, userID);
     if (userWithdrawAmtInPennies > userBalanceInPennies) { // if withdraw amount exceeds main balance, withdraw into overdraft with interest fee
       int excessWithdrawAmtInPennies = userWithdrawAmtInPennies - userBalanceInPennies;
@@ -450,23 +504,29 @@ public class MvcController {
 
       // this is a valid withdraw into overdraft, so we can set Balance column to 0.
       // OK to do this even if we were already in overdraft since main balance was already 0 anyways
-      TestudoBankRepository.setCustomerBalance(jdbcTemplate, userID, 0);
+      TestudoBankRepository.setCustomerCashBalance(jdbcTemplate, userID, 0);
 
       // increase overdraft balance by the withdraw amount after interest
       TestudoBankRepository.setCustomerOverdraftBalance(jdbcTemplate, userID, newOverdraftBalanceInPennies);
 
     } else { // simple, non-overdraft withdraw case
-      TestudoBankRepository.decreaseCustomerBalance(jdbcTemplate, userID, userWithdrawAmtInPennies);
+      TestudoBankRepository.decreaseCustomerCashBalance(jdbcTemplate, userID, userWithdrawAmtInPennies);
     }
 
     // only adds withdraw to transaction history if is not transfer
     if (user.isTransfer()){
       // Adds transfer send to transaction history
       TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_TRANSFER_SEND_ACTION, userWithdrawAmtInPennies);
+<<<<<<< HEAD
     } else if(user.isCryptoBuy()){
       // Adds cryptoBuy to transcation history
       TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_CRYPTO_BUY_ACTION, userWithdrawAmtInPennies);
     } else{
+=======
+    } else if (user.isCryptoTransaction()) {
+      TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_CRYPTO_BUY_ACTION, userWithdrawAmtInPennies);
+    } else {
+>>>>>>> 187b9a6bb23f62da2e0176c5b4b5f8beb907a85c
       // Adds withdraw to transaction history
       TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_WITHDRAW_ACTION, userWithdrawAmtInPennies);
     }
@@ -526,7 +586,7 @@ public class MvcController {
     Map<String, Object> logToReverse = transactionLogs.get(user.getNumTransactionsAgo() - 1);
 
     // Get balance and overdraft balance
-    int userBalanceInPennies = TestudoBankRepository.getCustomerBalanceInPennies(jdbcTemplate, userID);
+    int userBalanceInPennies = TestudoBankRepository.getCustomerCashBalanceInPennies(jdbcTemplate, userID);
     int userOverdraftBalanceInPennies = TestudoBankRepository.getCustomerOverdraftBalanceInPennies(jdbcTemplate, userID);
 
     int reversalAmountInPennies = (int) logToReverse.get("Amount");
@@ -656,12 +716,26 @@ public class MvcController {
   }
 
   /**
-   * 
+   * HTML POST request handler for the Buy Crypto Form page.
+   * <p>
+   * The same username+password handling from the login page is used.
+   * <p>
+   * If the password attempt is correct, the user is not in overdraft,
+   * and the purchase amount is a valid amount that does not exceed balance,
+   * the cost of the cryptocurrency in cash will be subtracted from the users balance,
+   * and cryptocurrency will be added to the users account
+   * <p>
+   * If the password attempt is incorrect or the amount to purchase is invalid,
+   * the user is redirected to the "welcome" page.
+   * <p>
+   * Crypto purchase function is implemented by re-using withdraw handler.
+   *
    * @param user
    * @return "account_info" page if buy successful. Otherwise, redirect to "welcome" page.
    */
   @PostMapping("/buycrypto")
   public String buyCrypto(@ModelAttribute("user") User user) {
+<<<<<<< HEAD
     String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date()); // use same timestamp for all logs created by this deposit
     String userId = user.getUsername();
     float amountToBuyETH = (float) user.getAmountToBuyCrypto();
@@ -702,15 +776,104 @@ public class MvcController {
     updateAccountInfo(user);
     
     return "account_info";
+=======
+
+    String userID = user.getUsername();
+    String userPasswordAttempt = user.getPassword();
+    String userPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, userID);
+
+    //// Invalid Input/State Handling ////
+
+    // unsuccessful login
+    if (!userPasswordAttempt.equals(userPassword)) {
+      return "welcome";
+    }
+
+    // must buy a supported cryptocurrency
+    String cryptoToBuy = user.getWhichCryptoToBuy();
+    if (MvcController.SUPPORTED_CRYPTOCURRENCIES.contains(cryptoToBuy) == false) {
+      return "welcome";
+    }
+
+    // must buy a positive amount
+    double cryptoAmountToBuy = user.getAmountToBuyCrypto();
+    if (cryptoAmountToBuy <= 0) {
+      return "welcome";
+    }
+
+    // cannot buy crypto while in overdraft
+    int userOverdraftBalanceInPennies = TestudoBankRepository.getCustomerOverdraftBalanceInPennies(jdbcTemplate, userID);
+    if (userOverdraftBalanceInPennies > 0) {
+      return "welcome";
+    }
+
+    // calculate how much it will cost to buy currently
+    double costOfCryptoPurchaseInDollars = cryptoPriceClient.getCurrentCryptoValue(cryptoToBuy) * cryptoAmountToBuy;
+
+    // possible for web scraper to fail and return a negative value, abort if so
+    if (costOfCryptoPurchaseInDollars < 0) {
+      return "welcome";
+    }
+
+    double costOfCryptoPurchaseInPennies = convertDollarsToPennies(costOfCryptoPurchaseInDollars);
+
+    int userBalanceInPennies = TestudoBankRepository.getCustomerCashBalanceInPennies(jdbcTemplate, userID);
+
+    // check if balance will cover purchase
+    if (costOfCryptoPurchaseInPennies > userBalanceInPennies) {
+      return "welcome";
+    }
+
+    String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date());
+
+    // buy crypto
+    user.setAmountToWithdraw(costOfCryptoPurchaseInDollars);
+    user.setCryptoTransaction(true);
+
+    // TODO: I don't like how this is dependent on a string return value. Withdraw logic should probably be extracted
+    String withdrawResponse = submitWithdraw(user);
+
+    if (withdrawResponse.equals("account_info")) {
+
+      // create an entry in CryptoHoldings table if customer is buying this Crypto for the first time.
+      if (!TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, userID, cryptoToBuy).isPresent()) {
+        TestudoBankRepository.initCustomerCryptoBalance(jdbcTemplate, userID, cryptoToBuy);
+      }
+
+      TestudoBankRepository.increaseCustomerCryptoBalance(jdbcTemplate, userID, cryptoToBuy, cryptoAmountToBuy);
+      TestudoBankRepository.insertRowToCryptoLogsTable(jdbcTemplate, userID, cryptoToBuy, CRYPTO_HISTORY_BUY_ACTION, currentTime, cryptoAmountToBuy);
+
+      updateAccountInfo(user);
+
+      return "account_info";
+    } else {
+      return "welcome";
+    }
+
+>>>>>>> 187b9a6bb23f62da2e0176c5b4b5f8beb907a85c
   }
 
   /**
-   * 
+   * HTML POST request handler for the Sell Crypto Form page.
+   * <p>
+   * The same username+password handling from the login page is used.
+   * <p>
+   * If the password attempt is correct, and the purchase amount is a valid amount
+   * that does not exceed crypto balance, the cost of the cryptocurrency in cash will be
+   * added to the users cash balance, and cryptocurrency will be subtracted from the users account
+   * <p>
+   * If the password attempt is incorrect or the amount to purchase is invalid,
+   * the user is redirected to the "welcome" page.
+   * <p>
+   * Crypto purchase function is implemented by re-using deposit handler.
+   * Logic of deposit (applying to overdraft, adding to balance, etc.) is delegated to this handler.
+   *
    * @param user
    * @return "account_info" page if sell successful. Otherwise, redirect to "welcome" page.
    */
   @PostMapping("/sellcrypto")
   public String sellCrypto(@ModelAttribute("user") User user) {
+<<<<<<< HEAD
     String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date()); // use same timestamp for all logs created by this deposit
     String userId = user.getUsername();
     float amountToSellETH = (float) user.getAmountToSellCrypto();
@@ -757,6 +920,64 @@ public class MvcController {
     return "account_info";
 
     // I need to fix crypto Holding so that it updates the current amount of cryto intead having multiple lines
+=======
+    String userID = user.getUsername();
+    String userPasswordAttempt = user.getPassword();
+    String userPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, userID);
+
+    //// Invalid Input/State Handling ////
+
+    // unsuccessful login
+    if (!userPasswordAttempt.equals(userPassword)) {
+      return "welcome";
+    }
+
+    // must buy a supported cryptocurrency
+    String cryptoToBuy = user.getWhichCryptoToBuy();
+    if (MvcController.SUPPORTED_CRYPTOCURRENCIES.contains(cryptoToBuy) == false) {
+      return "welcome";
+    }
+
+    // must sell a positive amount
+    double cryptoAmountToSell = user.getAmountToSellCrypto();
+    if (cryptoAmountToSell <= 0) {
+      return "welcome";
+    }
+
+    // possible for user to not have any crypto
+    Optional<Double> cryptoBalance = TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, userID, cryptoToBuy);
+    if (!cryptoBalance.isPresent()) {
+      return "welcome";
+    }
+
+    // check if user has required crypto balance
+    // TODO: comparing doubles like this is probably not a good idea
+    if (cryptoBalance.get() < cryptoAmountToSell) {
+      return "welcome";
+    }
+
+    double cryptoValueInDollars = cryptoPriceClient.getCurrentCryptoValue(cryptoToBuy) * cryptoAmountToSell;
+
+    String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date());
+
+    user.setAmountToDeposit(cryptoValueInDollars);
+    user.setCryptoTransaction(true);
+
+    // TODO: I don't like how this is dependent on a string return value. Deposit logic should probably be extracted
+    String depositResponse = submitDeposit(user);
+
+    if (depositResponse.equals("account_info")) {
+
+      TestudoBankRepository.decreaseCustomerCryptoBalance(jdbcTemplate, userID, cryptoToBuy, cryptoAmountToSell);
+      TestudoBankRepository.insertRowToCryptoLogsTable(jdbcTemplate, userID, cryptoToBuy, CRYPTO_HISTORY_SELL_ACTION, currentTime, cryptoAmountToSell);
+
+      updateAccountInfo(user);
+
+      return "account_info";
+    } else {
+      return "welcome";
+    }
+>>>>>>> 187b9a6bb23f62da2e0176c5b4b5f8beb907a85c
   }
 
 }
