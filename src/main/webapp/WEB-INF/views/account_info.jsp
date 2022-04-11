@@ -30,17 +30,6 @@
 <body>
 	<div align="center">
 		<h2><span>${user.firstName}</span> <span>${user.lastName}</span> Bank Account Info</h2>
-<<<<<<< HEAD
-		<span>Balance is: $</span><span>${user.balance}</span><br/>
-    <span>Overdraft Balance is: $</span><span>${user.overDraftBalance}</span><br/>
-    <span>Current $ETH Price: </span><span>${user.ethPrice}</span><br/>
-    <span>ETH Amount: </span><span>${user.ethAmount}</span><br/>
-    <span>ETH Value $</span><span>${user.ethValue}</span><br/>
-    <span>Re-payment logs: </span><span>${user.logs}</span><br/>
-    <span>Transaction History: </span><span>${user.transactionHist}</span><br/>
-    <span>Transfer History: </span><span>${user.transferHist}</span><br/>
-    <span>Crypto History: </span><span>${user.cryptoHist}</span>
-=======
     <span>Username: </span><span>${user.username}</span><br/>
 		<span>Balance: $</span><span>${user.balance}</span><br/>
     <span>Overdraft Balance: $</span><span>${user.overDraftBalance}</span><br/>
@@ -53,7 +42,6 @@
     <span>Transaction History: </span><span>${user.transactionHist}</span><br/>
     <span>Transfer History: </span><span>${user.transferHist}</span><br/>
     <span>Crypto History: </span><span>${user.cryptoHist}</span><br/>
->>>>>>> 187b9a6bb23f62da2e0176c5b4b5f8beb907a85c
     <br/>
     <a href='/deposit'>Deposit</a>
     <a href='/withdraw'>Withdraw</a>

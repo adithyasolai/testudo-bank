@@ -195,35 +195,9 @@ public class TestudoBankRepository {
     jdbcTemplate.update(transferHistoryToSql);
   }
 
-<<<<<<< HEAD
-  public static void insertRowToCryptoHoldingsTable(JdbcTemplate jdbcTemplate, String customerID, String CryptoName, float CryptoAmount) {
-    String insertRowToCryptoHoldingsSql = String.format("INSERT INTO CryptoHoldings VALUES ('%s', '%s', %f);",
-                                                              customerID,
-                                                              CryptoName,
-                                                              CryptoAmount);
-    jdbcTemplate.update(insertRowToCryptoHoldingsSql);
-  }
-
-  // // I will hold on to this for now
-  // public static void deleteRowToCryptoHoldingsTable(JdbcTemplate jdbcTemplate, String customerID) {
-  //   String deleteRowToCryptoHoldingsSql = String.format("DELETE from CryptoHoldings where CustomerID='%s';",
-  //                                                             customerID);
-  //   jdbcTemplate.update(deleteRowToCryptoHoldingsSql);
-  // }
-  
-  public static void insertRowToCryptoHistoryTable(JdbcTemplate jdbcTemplate, String customerID, String Timestamp, String action, String CryptoName, float CryptoAmount) {
-    String insertRowToCryptoHistorySql = String.format("INSERT INTO CryptoHistory VALUES ('%s', '%s', '%s', '%s', %f);",
-                                                              customerID,
-                                                              Timestamp,
-                                                              action,
-                                                              CryptoName,
-                                                              CryptoAmount);
-    jdbcTemplate.update(insertRowToCryptoHistorySql);
-=======
   public static void insertRowToCryptoLogsTable(JdbcTemplate jdbcTemplate, String customerID, String cryptoName, String action, String timestamp, double cryptoAmount) {
     String cryptoHistorySql = "INSERT INTO CryptoHistory (CustomerID, Timestamp, Action, CryptoName, CryptoAmount) VALUES (?, ?, ?, ?, ?)";
     jdbcTemplate.update(cryptoHistorySql, customerID, timestamp, action, cryptoName, cryptoAmount);
->>>>>>> 187b9a6bb23f62da2e0176c5b4b5f8beb907a85c
   }
   
   public static boolean doesCustomerExist(JdbcTemplate jdbcTemplate, String customerID) { 

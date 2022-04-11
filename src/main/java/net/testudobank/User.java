@@ -35,17 +35,12 @@ public class User {
   @Setter @Getter
   private String transactionHist;
 
-<<<<<<< HEAD
-  @Setter @Getter
-  private String cryptoHist;
-=======
   //// Dispute Fields ////
 
   @Setter @Getter
   private int numTransactionsAgo;
 
   //// Deposit Fields ////
->>>>>>> 187b9a6bb23f62da2e0176c5b4b5f8beb907a85c
 
   @Setter @Getter @Positive
   private double amountToDeposit;
@@ -89,21 +84,6 @@ public class User {
   @Setter @Getter @Positive
   private double amountToSellCrypto;
 
-<<<<<<< HEAD
-  @Setter @Getter 
-  private double ethPrice;
-
-  @Setter @Getter 
-  private float ethAmount;
-
-  @Setter @Getter 
-  private float ethValue;
-  
-	@Override
-	public String toString() {
-		return "User [username=" + username + ", password=" + password + ", balance=" + balance + "]";
-	}
-=======
   @Setter @Getter
   private String whichCryptoToBuy;
 
@@ -121,6 +101,5 @@ public class User {
 
   @Setter  @Getter @PositiveOrZero @ToString.Include
   private double cryptoBalanceUSD;
->>>>>>> 187b9a6bb23f62da2e0176c5b4b5f8beb907a85c
 
 }

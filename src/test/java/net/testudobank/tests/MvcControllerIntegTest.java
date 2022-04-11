@@ -29,8 +29,6 @@ import org.testcontainers.jdbc.JdbcDatabaseDelegate;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
 import net.testudobank.MvcController;
 import net.testudobank.User;
 import net.testudobank.helpers.MvcControllerIntegTestHelpers;
@@ -138,371 +136,6 @@ public class MvcControllerIntegTest {
     Map<String,Object> customer1TransactionLog = transactionHistoryTableData.get(0);
     int CUSTOMER1_AMOUNT_TO_DEPOSIT_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_AMOUNT_TO_DEPOSIT);
     MvcControllerIntegTestHelpers.checkTransactionLog(customer1TransactionLog, timeWhenDepositRequestSent, CUSTOMER1_ID, MvcController.TRANSACTION_HISTORY_DEPOSIT_ACTION, CUSTOMER1_AMOUNT_TO_DEPOSIT_IN_PENNIES);
-  }
-
-  /*
-   * Verifies the simplest buyCryptocase.
-   * The customer's Balance in the Customers table should be decreased,
-   * and the cryptoBuy should be logged in the TransactionHistory table as a cryptoBuy.
-   * 
-   * Assumes that the customer's account is in the simplest state
-   * (not in overdraft, account is not frozen due to too many transaction disputes, etc.)
-   * 
-   * @throws SQLException
-   * @throws ScriptException
-  */
-  @Test
-  public void testSimpleBuyCrypto() throws SQLException, ScriptException {
-    // User starts with $1230.45  
-    float CUSTOMER1_BALANCE = 1230.45f;
-    int CUSTOMER1_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_BALANCE);
-    MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER1_ID, CUSTOMER1_PASSWORD, CUSTOMER1_FIRST_NAME, CUSTOMER1_LAST_NAME, CUSTOMER1_BALANCE_IN_PENNIES);
-
-    
-    float CUSTOMER1_CRYPTO_AMOUNT_TO_BUY = 0.3f; // user input amount of crypto that they want to buy (Fraction or whole)
-    float currentETHValue = (float)controller.getCurrentEthValue();
-    float ethToBuyInUSD = (float) CUSTOMER1_CRYPTO_AMOUNT_TO_BUY * currentETHValue; // Calculates the value of eth in USD
-    String CRYPTO_NAME = "ETH";
-    
-    // Creating the user
-    User customer1CryptoBuyFormInputs = new User();
-    customer1CryptoBuyFormInputs.setUsername(CUSTOMER1_ID);
-    customer1CryptoBuyFormInputs.setPassword(CUSTOMER1_PASSWORD);
-    customer1CryptoBuyFormInputs.setAmountToBuyCrypto(CUSTOMER1_CRYPTO_AMOUNT_TO_BUY);
-
-    // verify that there are no logs in TransactionHistory table before cyrptoBuy
-    assertEquals(0, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM TransactionHistory;", Integer.class));
-
-    // store timestamp of when cryptoBuy request is sent to verify timestamps in the TransactionHistory table later
-    LocalDateTime timeWhenCryptoBuyRequestSent = MvcControllerIntegTestHelpers.fetchCurrentTimeAsLocalDateTimeNoMilliseconds();
-    System.out.println("Timestamp when CryptoBuy Request is sent: " + timeWhenCryptoBuyRequestSent);
-
-    // send request to the CryptoBuy Form's POST handler in MvcController
-    controller.buyCrypto(customer1CryptoBuyFormInputs);
-
-    // fetch updated data from the DB
-    List<Map<String,Object>> customersTableData = jdbcTemplate.queryForList("SELECT * FROM Customers;");
-    List<Map<String,Object>> transactionHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM TransactionHistory;");
-    List<Map<String,Object>> cryptoHoldingsTableData = jdbcTemplate.queryForList("SELECT * FROM CryptoHoldings;");
-    List<Map<String,Object>> cryptoHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM CryptoHistory;");
-  
-    // verify that customer1's data is still the only data populated in Customers table
-    assertEquals(1, customersTableData.size());
-    Map<String,Object> customer1Data = customersTableData.get(0);
-    assertEquals(CUSTOMER1_ID, (String)customer1Data.get("CustomerID"));
-    System.out.println("Customer before balance " + CUSTOMER1_BALANCE + "ETH_USD" + ethToBuyInUSD + "current eth_price " + currentETHValue);
-    // verify customer balance decreased by currentETHprice*0.3
-    float CUSTOMER1_EXPECTED_FINAL_BALANCE = CUSTOMER1_BALANCE - ethToBuyInUSD;
-   
-    int CUSTOMER1_EXPECTED_FINAL_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_EXPECTED_FINAL_BALANCE);
-    System.out.println("Expected balance: " + CUSTOMER1_EXPECTED_FINAL_BALANCE_IN_PENNIES + "Actual Balance " +  (int)customer1Data.get("Balance"));
-    assertEquals(CUSTOMER1_EXPECTED_FINAL_BALANCE_IN_PENNIES, (int)customer1Data.get("Balance"));
-   
-    // // verify that the cryptoBuy is the only log in TransactionHistory, cryptoHistory, and cryptoHoldings table
-    assertEquals(1, transactionHistoryTableData.size());
-    assertEquals(1, cryptoHistoryTableData.size());
-    assertEquals(1, cryptoHoldingsTableData.size());
-    
-    // // verify that the cryptoBuy's details are accurately logged in the TransactionHistory, cryptoHistory, and cryptoHoldings
-    Map<String,Object> customer1TransactionLog = transactionHistoryTableData.get(0);
-    Map<String,Object> customer1CryptoHoldingsLog = cryptoHoldingsTableData.get(0);
-    Map<String,Object> customer1CryptoHistoryLog = cryptoHistoryTableData.get(0);
-    int CUSTOMER1_AMOUNT_TO_BUY_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(ethToBuyInUSD);
-
-    // Checking each entry in the cryptoHistory cryptoHoldings, and TransactionLogs to make sure they work properly
-    MvcControllerIntegTestHelpers.checkTransactionLog(customer1TransactionLog, timeWhenCryptoBuyRequestSent, CUSTOMER1_ID, MvcController.TRANSACTION_HISTORY_CRYPTO_BUY_ACTION, CUSTOMER1_AMOUNT_TO_BUY_IN_PENNIES);
-    MvcControllerIntegTestHelpers.checkCryptoHistoryLog(customer1CryptoHistoryLog, timeWhenCryptoBuyRequestSent, CUSTOMER1_ID, MvcController.CRYPTO_HISTORY_BUY_ACTION, CRYPTO_NAME, CUSTOMER1_CRYPTO_AMOUNT_TO_BUY);
-    MvcControllerIntegTestHelpers.checkCryptoHoldingLog(customer1CryptoHoldingsLog, CUSTOMER1_ID, CRYPTO_NAME, CUSTOMER1_CRYPTO_AMOUNT_TO_BUY);
-  }
-
-  /*
-   * Verifies that the customer should not be able to buy crypto if
-   * the US Dollar amount for the buy exceeds their main balance.
-   * 
-   * @throws SQLException
-   * @throws ScriptException
-  */
-  @Test
-  public void testErrorBuyCrypto() throws SQLException, ScriptException {
-  // User starts with $1230.45  
-  float CUSTOMER1_BALANCE = 1230.45f;
-  int CUSTOMER1_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_BALANCE);
-  MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER1_ID, CUSTOMER1_PASSWORD, CUSTOMER1_FIRST_NAME, CUSTOMER1_LAST_NAME, CUSTOMER1_BALANCE_IN_PENNIES);
-
-  float CUSTOMER1_CRYPTO_AMOUNT_TO_BUY = 1f; // user input amount of crypto that they want to buy (Fraction or whole)
-  float currentETHValue = (float)controller.getCurrentEthValue();
-  float ethToBuyInUSD = (float) CUSTOMER1_CRYPTO_AMOUNT_TO_BUY * currentETHValue; // Calculates the value of eth in USD
-
-  // Creating the user
-  User customer1CryptoBuyFormInputs = new User();
-  customer1CryptoBuyFormInputs.setUsername(CUSTOMER1_ID);
-  customer1CryptoBuyFormInputs.setPassword(CUSTOMER1_PASSWORD);
-  customer1CryptoBuyFormInputs.setAmountToBuyCrypto(CUSTOMER1_CRYPTO_AMOUNT_TO_BUY);
-
-  // send request to the CryptoBuy Form's POST handler in MvcController
-  controller.buyCrypto(customer1CryptoBuyFormInputs);
-
-   // fetch updated data from the DB
-  List<Map<String,Object>> customersTableData = jdbcTemplate.queryForList("SELECT * FROM Customers;");
-  List<Map<String,Object>> transactionHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM TransactionHistory;");
-  List<Map<String,Object>> cryptoHoldingsTableData = jdbcTemplate.queryForList("SELECT * FROM CryptoHoldings;");
-  List<Map<String,Object>> cryptoHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM CryptoHistory;");
-
-  // verify that customer1's data is still the only data populated in Customers table
-  assertEquals(1, customersTableData.size());
-  Map<String,Object> customer1Data = customersTableData.get(0);
-  assertEquals(CUSTOMER1_ID, (String)customer1Data.get("CustomerID"));
-  System.out.println("Customer before balance " + CUSTOMER1_BALANCE + "ETH_USD" + ethToBuyInUSD + "current eth_price " + currentETHValue);
-  
-  // verify customer balance remained the same
-  float CUSTOMER1_EXPECTED_FINAL_BALANCE = CUSTOMER1_BALANCE;
-
-  int CUSTOMER1_EXPECTED_FINAL_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_EXPECTED_FINAL_BALANCE);
-  System.out.println("Expected balance: " + CUSTOMER1_EXPECTED_FINAL_BALANCE_IN_PENNIES + "Actual Balance " +  (int)customer1Data.get("Balance"));
-  assertEquals(CUSTOMER1_EXPECTED_FINAL_BALANCE_IN_PENNIES, (int)customer1Data.get("Balance"));
-   
-   // // verify that their is nothing in the TransactionHistory, cryptoHistory, and cryptoHoldings table
-   assertEquals(0, transactionHistoryTableData.size());
-   assertEquals(0, cryptoHistoryTableData.size());
-   assertEquals(0, cryptoHoldingsTableData.size());
-
-}
-
-
-  /*
-   * Verifies that the customer should not be able to buy crypto if
-   * they are in overdraft.
-   * 
-   * @throws SQLException
-   * @throws ScriptException
-  */
-  @Test
-  public void testErrorOverDraftCryptoBuy() throws SQLException, ScriptException {
-  
-  // I made this case a little unrealistic (we have money in the account, but are also in overdraft)
-  float CUSTOMER1_BALANCE = 20000; //Dollars amount
-  float OVERDRAFT_BALANCE = 648;
-  int CUSTOMER1_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_BALANCE);
-  int CUSTOMER1_OVERDRAFT_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(OVERDRAFT_BALANCE);
-  MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER1_ID, CUSTOMER1_PASSWORD, CUSTOMER1_FIRST_NAME, CUSTOMER1_LAST_NAME, CUSTOMER1_BALANCE_IN_PENNIES);
-
-  float CUSTOMER1_CRYPTO_AMOUNT_TO_BUY = 1f; // user input amount of crypto that they want to buy (Fraction or whole)
-  float currentETHValue = (float)controller.getCurrentEthValue();
-  float ethToBuyInUSD = (float) CUSTOMER1_CRYPTO_AMOUNT_TO_BUY * currentETHValue; // Calculates the value of eth in USD
-
-  // Creating the user
-  User customer1CryptoBuyFormInputs = new User();
-  customer1CryptoBuyFormInputs.setUsername(CUSTOMER1_ID);
-  customer1CryptoBuyFormInputs.setPassword(CUSTOMER1_PASSWORD);
-  customer1CryptoBuyFormInputs.setAmountToBuyCrypto(CUSTOMER1_CRYPTO_AMOUNT_TO_BUY);
-  customer1CryptoBuyFormInputs.setOverDraftBalance(CUSTOMER1_OVERDRAFT_BALANCE_IN_PENNIES);
-
-  // send request to the CryptoBuy Form's POST handler in MvcController
-  controller.buyCrypto(customer1CryptoBuyFormInputs);
-
-   // fetch updated data from the DB
-  List<Map<String,Object>> customersTableData = jdbcTemplate.queryForList("SELECT * FROM Customers;");
-  List<Map<String,Object>> transactionHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM TransactionHistory;");
-  List<Map<String,Object>> cryptoHoldingsTableData = jdbcTemplate.queryForList("SELECT * FROM CryptoHoldings;");
-  List<Map<String,Object>> cryptoHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM CryptoHistory;");
-
-  // verify that customer1's data is still the only data populated in Customers table
-  assertEquals(1, customersTableData.size());
-  Map<String,Object> customer1Data = customersTableData.get(0);
-  assertEquals(CUSTOMER1_ID, (String)customer1Data.get("CustomerID"));
-  System.out.println("Customer before balance " + CUSTOMER1_BALANCE + "ETH_USD" + ethToBuyInUSD + "current eth_price " + currentETHValue);
-  
-  // verify customer balance remained the same
-  float CUSTOMER1_EXPECTED_FINAL_BALANCE = CUSTOMER1_BALANCE;
-
-  int CUSTOMER1_EXPECTED_FINAL_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_EXPECTED_FINAL_BALANCE);
-  System.out.println("Expected balance: " + CUSTOMER1_EXPECTED_FINAL_BALANCE_IN_PENNIES + "Actual Balance " +  (int)customer1Data.get("Balance"));
-  assertEquals(CUSTOMER1_EXPECTED_FINAL_BALANCE_IN_PENNIES, (int)customer1Data.get("Balance"));
-   
-   // // verify that their is nothing in the TransactionHistory, cryptoHistory, and cryptoHoldings table
-   assertEquals(0, transactionHistoryTableData.size());
-   assertEquals(0, cryptoHistoryTableData.size());
-   assertEquals(0, cryptoHoldingsTableData.size());
-
-}
-
- /*
-   * Verifies that the customer should be able to sell crypto if
-   * they are in overdraft. The overdraft balance should be paid in full
-   * before they receive the rest of their money.
-   * 
-   * @throws SQLException
-   * @throws ScriptException
-  */
-  @Test
-  public void testOverDraftSell() throws SQLException, ScriptException {
- 
-    // User starts with $2,500  
-    // The customer balance must be a double or the answer will be off by a couple cents
-    double CUSTOMER1_BALANCE = 2500;
-    int CUSTOMER1_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_BALANCE);
-    MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER1_ID, CUSTOMER1_PASSWORD, CUSTOMER1_FIRST_NAME, CUSTOMER1_LAST_NAME, CUSTOMER1_BALANCE_IN_PENNIES);
-
-     //Initialize customer2 with a balance of $500. Balance will be represented as pennies in DB. 
-     float CUSTOMER2_BALANCE = 500;
-     int CUSTOMER2_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER2_BALANCE);
-     MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER2_ID, CUSTOMER2_PASSWORD, CUSTOMER2_FIRST_NAME, CUSTOMER2_LAST_NAME, CUSTOMER2_BALANCE_IN_PENNIES);
- 
-     //Amount to transfer
-     float TRANSFER_AMOUNT = 1800;
-     int TRANSFER_AMOUNT_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(TRANSFER_AMOUNT);
-
-    float CUSTOMER1_CRYPTO_AMOUNT_TO_SELL = 0.3f; // user input amount of crypto that they want to buy (Fraction or whole)
-    float currentETHValue = (float)controller.getCurrentEthValue();
-    float CUSTOMER1_CRYPTO_AMOUNT_TO_BUY = 0.3f;
-    double ethToBuyInUSD = CUSTOMER1_CRYPTO_AMOUNT_TO_BUY * currentETHValue;
-    double ethToSellInUSD = (float) CUSTOMER1_CRYPTO_AMOUNT_TO_SELL * currentETHValue;// Calculates the value of eth in USD
-    int ethToSellInPennies = MvcControllerIntegTestHelpers.convertDollarsToPennies(ethToSellInUSD);
-    
-    // Creating the user
-    User customer1CryptoSellFormInputs = new User();
-    customer1CryptoSellFormInputs.setUsername(CUSTOMER1_ID);
-    customer1CryptoSellFormInputs.setPassword(CUSTOMER1_PASSWORD);
-
-    // Buys Crypto before selling it
-    customer1CryptoSellFormInputs.setAmountToBuyCrypto(CUSTOMER1_CRYPTO_AMOUNT_TO_BUY);
-    customer1CryptoSellFormInputs.setEthPrice(currentETHValue);
-    controller.buyCrypto(customer1CryptoSellFormInputs);
-    
-
-    // Preparing the transfer to send user to overdraft
-    customer1CryptoSellFormInputs.setTransferRecipientID(CUSTOMER2_ID);
-    customer1CryptoSellFormInputs.setAmountToTransfer(TRANSFER_AMOUNT);
-    controller.submitTransfer(customer1CryptoSellFormInputs); // Sending the user to overdraft
-
-    customer1CryptoSellFormInputs.setAmountToSellCrypto(CUSTOMER1_CRYPTO_AMOUNT_TO_SELL);
-
-     // send request to sell the crypto that the user has (the overdraft balance should be paid before the account balance increases)
-     controller.sellCrypto(customer1CryptoSellFormInputs);
-
-    // fetch updated data from the DB
-    List<Map<String, Object>> customersTableData = jdbcTemplate.queryForList(String.format("SELECT * FROM Customers WHERE CustomerID='%s';", CUSTOMER1_ID));
-    Map<String, Object> customer1Data = customersTableData.get(0);
-
-    List<Map<String, Object>> customers2TableData = jdbcTemplate.queryForList(String.format("SELECT * FROM Customers WHERE CustomerID='%s';", CUSTOMER2_ID));
-    Map<String, Object> customer2Data = customers2TableData.get(0);
-
-    // The user's balance will decrease after a crypto buy
-    double BALANCE_AFTER_CRYPTOBUY = CUSTOMER1_BALANCE - ethToBuyInUSD;
-
-    // Calculating the user's overdraft balance before considering interest
-    double CUSTOMER1_EXPECTED_OVERDRAFT_BALANCE_BEFORE_INTEREST = TRANSFER_AMOUNT - BALANCE_AFTER_CRYPTOBUY;
-    int CUSTOMER1_EXPECTED_OVERDRAFT_BALANCE_BEFORE_INTEREST_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_EXPECTED_OVERDRAFT_BALANCE_BEFORE_INTEREST);
-    int CUSTOMER1_EXPECTED_OVERDRAFT_BALANCE_AFTER_INTEREST_IN_PENNIES = MvcControllerIntegTestHelpers.applyOverdraftInterest(CUSTOMER1_EXPECTED_OVERDRAFT_BALANCE_BEFORE_INTEREST_IN_PENNIES);
-
-    // First I calculate the value of the ETH that they sell and subtract the overdraft balance before considering adding the rest of the money to the main balance
-    int CUSTOMER1_EXPECTED_FINAL_BALANCE = ethToSellInPennies - CUSTOMER1_EXPECTED_OVERDRAFT_BALANCE_AFTER_INTEREST_IN_PENNIES;
-
-    // Calculation for the customer who received the transfer money
-    int CUSTOMER2_EXPECTED_FINAL_BALANCE = CUSTOMER2_BALANCE_IN_PENNIES + TRANSFER_AMOUNT_IN_PENNIES;
-
-    System.out.println("Interest + overdraft (pennies): " + CUSTOMER1_EXPECTED_OVERDRAFT_BALANCE_AFTER_INTEREST_IN_PENNIES + "Balance after cryptoBuy USD: " + BALANCE_AFTER_CRYPTOBUY);
-    System.out.println("Expected balance: " + CUSTOMER1_EXPECTED_FINAL_BALANCE + "Actual Balance " +  (int)customer1Data.get("Balance"));
-
-    // Overdraft should be zero at this point
-    int CUSTOMER1_EXPECTED_FINAL_OVERDRAFT_BALANCE_IN_PENNIES = 0;
-
-    // This checks that the customers balance checks out
-    assertEquals(CUSTOMER1_EXPECTED_FINAL_BALANCE, (int)customer1Data.get("Balance"));
-    //This checks that the second user's balance increases
-    assertEquals(CUSTOMER2_EXPECTED_FINAL_BALANCE, (int)customer2Data.get("Balance"));
-    assertEquals(CUSTOMER1_EXPECTED_FINAL_OVERDRAFT_BALANCE_IN_PENNIES, (int)customer1Data.get("OverdraftBalance"));
-  
-  }
-
-  /*
-   * Verifies the simplest sellCrypto case.
-   * The customer's Balance in the Customers table should be increased,
-   * and the cryptoSell should be logged in the TransactionHistory table as a cryptoSell.
-   * 
-   * Assumes that the customer's account is in the simplest state
-   * (not in overdraft, account is not frozen due to too many transaction disputes, etc.)
-   * 
-   * @throws SQLException
-   * @throws ScriptException
-  */
-  @Test
-  public void testSimpleSellCrypto() throws SQLException, ScriptException {
-    // User starts with $20000  
-    float CUSTOMER1_BALANCE = 20000;
-    int CUSTOMER1_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_BALANCE);
-    MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER1_ID, CUSTOMER1_PASSWORD, CUSTOMER1_FIRST_NAME, CUSTOMER1_LAST_NAME, CUSTOMER1_BALANCE_IN_PENNIES);
-
-    // // Prepare Deposit Form to Deposit $12.34 to customer 1's account.
-    // double CUSTOMER1_AMOUNT_TO_DEPOSIT = 12.34; // user input is in dollar amount, not pennies.
-    
-    float CUSTOMER1_CRYPTO_AMOUNT_TO_SELL = 0.3f; // user input amount of crypto that they want to buy (Fraction or whole)
-    float currentETHValue = (float)controller.getCurrentEthValue();
-    String CRYPTO_NAME = "ETH";
-    float CUSTOMER1_CRYPTO_AMOUNT_TO_BUY = 1;
-
-    
-    
-    // Creating the user
-    User customer1CryptoSellFormInputs = new User();
-    customer1CryptoSellFormInputs.setUsername(CUSTOMER1_ID);
-    customer1CryptoSellFormInputs.setPassword(CUSTOMER1_PASSWORD);
-    // Buys Crypto before selling it
-    customer1CryptoSellFormInputs.setAmountToBuyCrypto(CUSTOMER1_CRYPTO_AMOUNT_TO_BUY);
-    customer1CryptoSellFormInputs.setEthPrice(currentETHValue);
-    controller.buyCrypto(customer1CryptoSellFormInputs);
-    // System.out.println("I have this much crypto " + M);
-
-
-   
-    customer1CryptoSellFormInputs.setAmountToSellCrypto(CUSTOMER1_CRYPTO_AMOUNT_TO_SELL);
-    
-    // store timestamp of when cryptoBuy request is sent to verify timestamps in the TransactionHistory table later
-    LocalDateTime timeWhenCryptoSellRequestSent = MvcControllerIntegTestHelpers.fetchCurrentTimeAsLocalDateTimeNoMilliseconds();
-    System.out.println("Timestamp when CryptoBuy Request is sent: " + timeWhenCryptoSellRequestSent);
- 
-    // The value of currentETH might have changed
-    
-    // send request to sell the crypto that the user has 
-    controller.sellCrypto(customer1CryptoSellFormInputs);
-    currentETHValue = (float)controller.getCurrentEthValue();
-    float ethToBuyInUSD = (float) CUSTOMER1_CRYPTO_AMOUNT_TO_BUY * (float)customer1CryptoSellFormInputs.getEthPrice();
-    float ethToSellInUSD = (float) CUSTOMER1_CRYPTO_AMOUNT_TO_SELL * (float)customer1CryptoSellFormInputs.getEthPrice();// Calculates the value of eth in USD
-    // fetch updated data from the DB
-    List<Map<String,Object>> customersTableData = jdbcTemplate.queryForList("SELECT * FROM Customers;");
-    List<Map<String,Object>> transactionHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM TransactionHistory;");
-    List<Map<String,Object>> cryptoHoldingsTableData = jdbcTemplate.queryForList("SELECT * FROM CryptoHoldings;");
-    List<Map<String,Object>> cryptoHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM CryptoHistory;");
-  
-    // verify that customer1's data is still the only data populated in Customers table
-    assertEquals(1, customersTableData.size());
-    Map<String,Object> customer1Data = customersTableData.get(0);
-    assertEquals(CUSTOMER1_ID, (String)customer1Data.get("CustomerID"));
-    System.out.println("Customer before balance " + CUSTOMER1_BALANCE + "ETH_USD" + ethToSellInUSD + "current eth_price " + currentETHValue);
-    // verify customer balance decreased by currentETHprice*0.3
-    float CUSTOMER1_EXPECTED_FINAL_BALANCE = (CUSTOMER1_BALANCE - ethToBuyInUSD) + ethToSellInUSD;
-   
-    int CUSTOMER1_EXPECTED_FINAL_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_EXPECTED_FINAL_BALANCE);
-    System.out.println("Expected balance: " + CUSTOMER1_EXPECTED_FINAL_BALANCE_IN_PENNIES + "Actual Balance " +  (int)customer1Data.get("Balance"));
-    assertEquals(CUSTOMER1_EXPECTED_FINAL_BALANCE_IN_PENNIES, (int)customer1Data.get("Balance"));
-   
-    // // verify that the cryptoBuy is the only log in TransactionHistory, cryptoHistory, and cryptoHoldings table
-    assertEquals(2, transactionHistoryTableData.size());
-    assertEquals(2, cryptoHistoryTableData.size());
-    assertEquals(1, cryptoHoldingsTableData.size());
-    
-    // // verify that the cryptoBuy's details are accurately logged in the TransactionHistory, cryptoHistory, and cryptoHoldings
-    Map<String,Object> customer1TransactionLog = transactionHistoryTableData.get(1); // i = 0 is the cryptoBuy process
-    Map<String,Object> customer1CryptoHoldingsLog = cryptoHoldingsTableData.get(0);
-    Map<String,Object> customer1CryptoHistoryLog = cryptoHistoryTableData.get(1); //i = 0 is the cryptoBuy process
-    int CUSTOMER1_AMOUNT_TO_SELL_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(ethToSellInUSD);
-
-    float AMOUNT_LEFT = CUSTOMER1_CRYPTO_AMOUNT_TO_BUY - CUSTOMER1_CRYPTO_AMOUNT_TO_SELL;
-
-    // Checking each entry in the cryptoHistory cryptoHoldings, and TransactionLogs to make sure they work properly
-    MvcControllerIntegTestHelpers.checkTransactionLog(customer1TransactionLog, timeWhenCryptoSellRequestSent, CUSTOMER1_ID, MvcController.TRANSACTION_HISTORY_CRYPTO_SELL_ACTION, CUSTOMER1_AMOUNT_TO_SELL_IN_PENNIES);
-    MvcControllerIntegTestHelpers.checkCryptoHistoryLog(customer1CryptoHistoryLog, timeWhenCryptoSellRequestSent, CUSTOMER1_ID, MvcController.CRYPTO_HISTORY_SELL_ACTION, CRYPTO_NAME, CUSTOMER1_CRYPTO_AMOUNT_TO_SELL);
-    MvcControllerIntegTestHelpers.checkCryptoHoldingLog(customer1CryptoHoldingsLog, CUSTOMER1_ID, CRYPTO_NAME, AMOUNT_LEFT);
   }
 
   /**
@@ -1704,6 +1337,52 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
             .build();
     cryptoTransactionTester.test(cryptoTransaction);
   }
+  
+  /**
+   * Test that no BTC buy transaction occurs when we haven't implemented this functionality
+   */
+  @Test
+  public void testInvalidBTCBuy() throws ScriptException {
+    CryptoTransactionTester cryptoTransactionTester = CryptoTransactionTester.builder()
+            .initialBalanceInDollars(1000)
+            .build();
+
+    cryptoTransactionTester.initialize();
+
+    CryptoTransaction cryptoTransaction = CryptoTransaction.builder()
+            .expectedEndingBalanceInDollars(1000)
+            .cryptoPrice(1000)
+            .cryptoAmountToTransact(0.1)
+            .cryptoName("BTC")
+            .validPassword(true)
+            .cryptoTransactionTestType(CryptoTransactionTestType.BUY)
+            .shouldSucceed(false)
+            .build();
+    cryptoTransactionTester.test(cryptoTransaction);
+  }
+
+  /**
+   * Test that no BTC sell transaction occurs when we haven't implemented this functionality
+   */
+  @Test
+  public void testInvalidBTCSell() throws ScriptException {
+    CryptoTransactionTester cryptoTransactionTester = CryptoTransactionTester.builder()
+            .initialBalanceInDollars(1000)
+            .build();
+
+    cryptoTransactionTester.initialize();
+
+    CryptoTransaction cryptoTransaction = CryptoTransaction.builder()
+            .expectedEndingBalanceInDollars(1000)
+            .cryptoPrice(1000)
+            .cryptoAmountToTransact(0.1)
+            .cryptoName("BTC")
+            .validPassword(true)
+            .cryptoTransactionTestType(CryptoTransactionTestType.SELL)
+            .shouldSucceed(false)
+            .build();
+    cryptoTransactionTester.test(cryptoTransaction);
+  }
 
   /**
    * Test that no crypto sell transaction occurs when the user password is incorrect
@@ -1726,6 +1405,54 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
             .shouldSucceed(false)
             .build();
     cryptoTransactionTester.test(cryptoTransaction);
+  }
+
+  /**
+   * Test the situation in which a customer with no pre-existing Crypto buys ETH, buys SOL, and then sells some of their SOL.
+   */
+  @Test
+  public void testSimpleBuyAndSellSOL() throws ScriptException {
+    CryptoTransactionTester cryptoTransactionTester = CryptoTransactionTester.builder()
+            .initialBalanceInDollars(1000)
+            .initialCryptoBalance(Collections.singletonMap("ETH", 0.0))
+            .initialCryptoBalance(Collections.singletonMap("SOL", 0.0))
+            .build();
+
+    cryptoTransactionTester.initialize();
+
+    CryptoTransaction buySOL = CryptoTransaction.builder()
+            .expectedEndingBalanceInDollars(900)
+            .expectedEndingCryptoBalance(0.1)
+            .cryptoPrice(1000)
+            .cryptoAmountToTransact(0.1)
+            .cryptoName("SOL")
+            .cryptoTransactionTestType(CryptoTransactionTestType.BUY)
+            .shouldSucceed(true)
+            .build();
+    
+    CryptoTransaction buyETH = CryptoTransaction.builder()
+            .expectedEndingBalanceInDollars(800)
+            .expectedEndingCryptoBalance(0.1)
+            .cryptoPrice(1000)
+            .cryptoAmountToTransact(0.1)
+            .cryptoName("ETH")
+            .cryptoTransactionTestType(CryptoTransactionTestType.BUY)
+            .shouldSucceed(true)
+            .build();
+    
+    CryptoTransaction sellSOL = CryptoTransaction.builder()
+            .expectedEndingBalanceInDollars(850)
+            .expectedEndingCryptoBalance(0.05)
+            .cryptoPrice(1000)
+            .cryptoAmountToTransact(0.05)
+            .cryptoName("SOL")
+            .cryptoTransactionTestType(CryptoTransactionTestType.SELL)
+            .shouldSucceed(true)
+            .build();
+    
+    cryptoTransactionTester.test(buySOL);
+    cryptoTransactionTester.test(buyETH);
+    cryptoTransactionTester.test(sellSOL);
   }
 
   /**
@@ -1946,4 +1673,3 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
   }
 
 }
-
