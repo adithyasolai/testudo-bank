@@ -1805,26 +1805,26 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
     The user balance should not change
     The "welcome" page should be returned as a result.
   */
-  // @Test void testSellInvalidCoinBTC() throws ScriptException {
-  //   CryptoTransactionTester cryptoTransactionTester = CryptoTransactionTester.builder()
-  //             .initialBalanceInDollars(1000)
-  //             .initialCryptoBalance(Collections.singletonMap("ETH", 0.0))
-  //             .build();
+  @Test void testSellInvalidCoinBTC() throws ScriptException {
+    CryptoTransactionTester cryptoTransactionTester = CryptoTransactionTester.builder()
+              .initialBalanceInDollars(1000)
+              .initialCryptoBalance(Collections.singletonMap("ETH", 0.0))
+              .build();
     
-  //   cryptoTransactionTester.initialize();
+    cryptoTransactionTester.initialize();
 
-  //   CryptoTransaction transactionSellBtc = CryptoTransaction.builder()
-  //             .expectedEndingBalanceInDollars(1000)
-  //             .expectedEndingCryptoBalance(0.0)
-  //             .cryptoPrice(1000)
-  //             .cryptoAmountToTransact(0.1)
-  //             .cryptoName("BTC")
-  //             .cryptoTransactionTestType(CryptoTransactionTestType.SELL)
-  //             .shouldSucceed(false)
-  //             .build();
+    CryptoTransaction transactionSellBtc = CryptoTransaction.builder()
+              .expectedEndingBalanceInDollars(1000)
+              .expectedEndingCryptoBalance(0.0)
+              .cryptoPrice(1000)
+              .cryptoAmountToTransact(0.1)
+              .cryptoName("BTC")
+              .cryptoTransactionTestType(CryptoTransactionTestType.SELL)
+              .shouldSucceed(false)
+              .build();
 
-  //   cryptoTransactionTester.test(transactionSellBtc);
-  // }
+    cryptoTransactionTester.test(transactionSellBtc);
+  }
 
   /**
    * Verifies the simplest crypto sell case.
