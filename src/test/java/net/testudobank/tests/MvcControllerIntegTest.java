@@ -1580,4 +1580,54 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
             .build();
     cryptoTransactionTester.test(cryptoTransaction);
   }
+
+  /**
+   * Test for when a customer with no pre-existing Crypto buys ETH, buys SOL, and then sells some of their SOL.
+   * 
+   */
+  @Test
+  public void testBuyEthSolSellSol() throws Exception
+  {
+    // Initialize new CryptoTransactionTester object with no pre-existing Crypto
+    CryptoTransactionTester cryptoTransactionTester = CryptoTransactionTester.builder()
+            .initialBalanceInDollars(1000)
+            .build();
+    
+    cryptoTransactionTester.initialize();
+
+    // Buy ETH
+    CryptoTransaction cryptoTransactionBuyEth = CryptoTransaction.builder()
+            .expectedEndingBalanceInDollars(700)
+            .expectedEndingCryptoBalance(0.1)
+            .cryptoPrice(3000)
+            .cryptoAmountToTransact(0.1)
+            .cryptoName("ETH")
+            .cryptoTransactionTestType(CryptoTransactionTestType.BUY)
+            .shouldSucceed(true)
+            .build();
+    cryptoTransactionTester.test(cryptoTransactionBuyEth);
+
+    // Buy SOL
+    CryptoTransaction cryptoTransactionBuySol = CryptoTransaction.builder()
+            .expectedEndingBalanceInDollars(600)
+            .expectedEndingCryptoBalance(0.2)
+            .cryptoPrice(1000)
+            .cryptoAmountToTransact(0.1)
+            .cryptoName("SOL")
+            .cryptoTransactionTestType(CryptoTransactionTestType.BUY)
+            .shouldSucceed(true)
+            .build();
+
+    // Sell some of SOL
+    CryptoTransaction cryptoTransactionSellSol = CryptoTransaction.builder()
+            .expectedEndingBalanceInDollars(700)
+            .expectedEndingCryptoBalance(0.15)
+            .cryptoPrice(1000)
+            .cryptoAmountToTransact(0.05)
+            .cryptoName("SOL")
+            .cryptoTransactionTestType(CryptoTransactionTestType.SELL)
+            .shouldSucceed(true)
+            .build();
+
+  }
 }
