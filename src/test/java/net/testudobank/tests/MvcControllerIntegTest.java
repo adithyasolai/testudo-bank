@@ -1759,16 +1759,16 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
     .build();
     cryptoTransactionTester.test(transactionBuySol);
 
-    // CryptoTransaction transactionSellSol = CryptoTransaction.builder()
-    // .expectedEndingBalanceInDollars(900)
-    // .expectedEndingCryptoBalance(0.0)
-    // .cryptoPrice(1000)
-    // .cryptoAmountToTransact(0.1)
-    // .cryptoName("SOL")
-    // .cryptoTransactionTestType(CryptoTransactionTestType.SELL)
-    // .shouldSucceed(true)
-    // .build();
-    // cryptoTransactionTester.test(transactionSellSol);
+    CryptoTransaction transactionSellSol = CryptoTransaction.builder()
+    .expectedEndingBalanceInDollars(900)
+    .expectedEndingCryptoBalance(0.0)
+    .cryptoPrice(1000)
+    .cryptoAmountToTransact(0.1)
+    .cryptoName("SOL")
+    .cryptoTransactionTestType(CryptoTransactionTestType.SELL)
+    .shouldSucceed(true)
+    .build();
+    cryptoTransactionTester.test(transactionSellSol);
 
   }
 
