@@ -1735,7 +1735,7 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
     
     cryptoTransactionTester.initialize();
 
-    CryptoTransaction transactionEth = CryptoTransaction.builder()
+    CryptoTransaction transactionBuyEth = CryptoTransaction.builder()
               .expectedEndingBalanceInDollars(900)
               .expectedEndingCryptoBalance(0.1)
               .cryptoPrice(1000)
@@ -1745,19 +1745,30 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
               .shouldSucceed(true)
               .build();
 
-    cryptoTransactionTester.test(transactionEth);
-    cryptoTransactionTester.test(transactionEth);
+    cryptoTransactionTester.test(transactionBuyEth);
+    // cryptoTransactionTester.test(transactionEth);
 
-    // CryptoTransaction transactionSol = CryptoTransaction.builder()
-    // .expectedEndingBalanceInDollars(800)
-    // .expectedEndingCryptoBalance(0.1)
+    CryptoTransaction transactionBuySol = CryptoTransaction.builder()
+    .expectedEndingBalanceInDollars(800)
+    .expectedEndingCryptoBalance(0.1)
+    .cryptoPrice(1000)
+    .cryptoAmountToTransact(0.1)
+    .cryptoName("SOL")
+    .cryptoTransactionTestType(CryptoTransactionTestType.BUY)
+    .shouldSucceed(true)
+    .build();
+    cryptoTransactionTester.test(transactionBuySol);
+
+    // CryptoTransaction transactionSellSol = CryptoTransaction.builder()
+    // .expectedEndingBalanceInDollars(900)
+    // .expectedEndingCryptoBalance(0.0)
     // .cryptoPrice(1000)
     // .cryptoAmountToTransact(0.1)
     // .cryptoName("SOL")
-    // .cryptoTransactionTestType(CryptoTransactionTestType.BUY)
+    // .cryptoTransactionTestType(CryptoTransactionTestType.SELL)
     // .shouldSucceed(true)
     // .build();
-    // cryptoTransactionTester.test(transactionSol);
+    // cryptoTransactionTester.test(transactionSellSol);
 
   }
 
