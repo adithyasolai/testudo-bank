@@ -1769,8 +1769,62 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
     .shouldSucceed(true)
     .build();
     cryptoTransactionTester.test(transactionSellSol);
-
   }
+
+  /*
+    Verifies that a type of cryptocurrency that does not exist fails to be bought.
+    Here BTC is used. 
+    The user balance should not change
+    The "welcome" page should be returned as a result.
+  */
+  @Test void testBuyInvalidCoinBTC() throws ScriptException {
+    CryptoTransactionTester cryptoTransactionTester = CryptoTransactionTester.builder()
+              .initialBalanceInDollars(1000)
+              .initialCryptoBalance(Collections.singletonMap("ETH", 0.0))
+              .build();
+    
+    cryptoTransactionTester.initialize();
+
+    CryptoTransaction transactionBuyBtc = CryptoTransaction.builder()
+              .expectedEndingBalanceInDollars(1000)
+              .expectedEndingCryptoBalance(0.0)
+              .cryptoPrice(1000)
+              .cryptoAmountToTransact(0.1)
+              .cryptoName("BTC")
+              .cryptoTransactionTestType(CryptoTransactionTestType.BUY)
+              .shouldSucceed(false)
+              .build();
+
+    cryptoTransactionTester.test(transactionBuyBtc);
+  
+  }
+
+  /*
+    Verifies that a type of cryptocurrency that does not exist fails to be sold.
+    Here BTC is used. 
+    The user balance should not change
+    The "welcome" page should be returned as a result.
+  */
+  // @Test void testSellInvalidCoinBTC() throws ScriptException {
+  //   CryptoTransactionTester cryptoTransactionTester = CryptoTransactionTester.builder()
+  //             .initialBalanceInDollars(1000)
+  //             .initialCryptoBalance(Collections.singletonMap("ETH", 0.0))
+  //             .build();
+    
+  //   cryptoTransactionTester.initialize();
+
+  //   CryptoTransaction transactionSellBtc = CryptoTransaction.builder()
+  //             .expectedEndingBalanceInDollars(1000)
+  //             .expectedEndingCryptoBalance(0.0)
+  //             .cryptoPrice(1000)
+  //             .cryptoAmountToTransact(0.1)
+  //             .cryptoName("BTC")
+  //             .cryptoTransactionTestType(CryptoTransactionTestType.SELL)
+  //             .shouldSucceed(false)
+  //             .build();
+
+  //   cryptoTransactionTester.test(transactionSellBtc);
+  // }
 
   /**
    * Verifies the simplest crypto sell case.
