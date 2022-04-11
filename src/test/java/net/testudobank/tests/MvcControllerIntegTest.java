@@ -1745,9 +1745,19 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
               .shouldSucceed(true)
               .build();
 
-    // CryptoTransaction transactionEth = new CryptoTransaction(cryptoName, cryptoPrice, expectedEndingBalanceInDollars, initialOverdraftBalanceInDollars, expectedEndingOverdraftBalanceInDollars, expectedEndingCryptoBalance, cryptoAmountToTransact, validPassword, shouldSucceed, overdraftTransaction, cryptoTransactionTestType);
     cryptoTransactionTester.test(transactionEth);
-    // cryptoTransactionTester.test(transaction);
+    cryptoTransactionTester.test(transactionEth);
+
+    // CryptoTransaction transactionSol = CryptoTransaction.builder()
+    // .expectedEndingBalanceInDollars(800)
+    // .expectedEndingCryptoBalance(0.1)
+    // .cryptoPrice(1000)
+    // .cryptoAmountToTransact(0.1)
+    // .cryptoName("SOL")
+    // .cryptoTransactionTestType(CryptoTransactionTestType.BUY)
+    // .shouldSucceed(true)
+    // .build();
+    // cryptoTransactionTester.test(transactionSol);
 
   }
 
