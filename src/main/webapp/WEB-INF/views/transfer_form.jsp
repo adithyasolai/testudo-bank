@@ -36,11 +36,6 @@
 <body>
 	<div align="center">
 		<form:form action="transfer" method="post" modelAttribute="user">
-			<form:label path="username">Username:</form:label>
-			<form:input path="username"/><br/>
-			
-			<form:label path="password">Password:</form:label>
-			<form:password path="password"/><br/>		
 
       <form:label path="transferRecipientID">Username of Recipient:</form:label>
 			<form:input path="transferRecipientID"/><br/>
@@ -50,7 +45,8 @@
 				
 			<form:button>Transfer</form:button>
 		</form:form>
-    <a href='/'>Home</a>
+        <a href='/'>Home</a>
+        <a href='/logout'>Logout</a>
 	</div>
 </body>
 </html>

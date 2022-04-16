@@ -36,18 +36,13 @@
 <body>
 	<div align="center">
 		<form:form action="dispute" method="post" modelAttribute="user">
-			<form:label path="username">Username:</form:label>
-			<form:input path="username"/><br/>
-			
-			<form:label path="password">Password:</form:label>
-			<form:password path="password"/><br/>		
-
       <form:label path="numTransactionsAgo">Transaction to Reverse (1=Most Recent, 2=2 Transactions Ago, Max = 3):</form:label>
 			<form:input path="numTransactionsAgo"/><br/>	
 				
 			<form:button>Reverse</form:button>
 		</form:form>
-    <a href='/'>Home</a>
+        <a href='/'>Home</a>
+        <a href='/logout'>Logout</a>
 	</div>
 </body>
 </html>

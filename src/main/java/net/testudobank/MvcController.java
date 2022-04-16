@@ -1,5 +1,7 @@
 package net.testudobank;
 
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -69,21 +71,15 @@ public class MvcController {
 		return "welcome";
 	}
 
-  /**
-   * HTML GET request handler that serves the "login_form" page to the user.
-   * An empty `User` object is also added to the Model as an Attribute to store
-   * the user's login form input.
-   * 
-   * @param model
-   * @return "login_form" page
-   */
-  @GetMapping("/login")
-	public String showLoginForm(Model model) {
-		User user = new User();
-		model.addAttribute("user", user);
-		
-		return "login_form";
-	}
+    @GetMapping("/account")
+    public String showAccount(Model model) {
+      User user = new User();
+      Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+      user.setUsername(auth.getName());
+      updateAccountInfo(user);
+      model.addAttribute("user", user);
+      return "account_info";
+    }
 
   /**
    * HTML GET request handler that serves the "deposit_form" page to the user.
@@ -188,6 +184,8 @@ public class MvcController {
    * @param user
    */
   private void updateAccountInfo(User user) {
+    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+    user.setUsername(auth.getName());
     List<Map<String,Object>> overdraftLogs = TestudoBankRepository.getOverdraftLogs(jdbcTemplate, user.getUsername());
     String logs = HTML_LINE_BREAK;
     for(Map<String, Object> overdraftLog : overdraftLogs){
@@ -252,42 +250,6 @@ public class MvcController {
   // HTML POST HANDLERS ////
 
   /**
-   * HTML POST request handler that uses user input from Login Form page to determine 
-   * login success or failure.
-   * 
-   * Queries 'passwords' table in MySQL DB for the correct password associated with the
-   * username ID given by the user. Compares the user's password attempt with the correct
-   * password.
-   * 
-   * If the password attempt is correct, the "account_info" page is served to the customer
-   * with all account details retrieved from the MySQL DB.
-   * 
-   * If the password attempt is incorrect, the user is redirected to the "welcome" page.
-   * 
-   * @param user
-   * @return "account_info" page if login successful. Otherwise, redirect to "welcome" page.
-   */
-  @PostMapping("/login")
-	public String submitLoginForm(@ModelAttribute("user") User user) {
-    // Print user's existing fields for debugging
-		System.out.println(user);
-
-    String userID = user.getUsername();
-    String userPasswordAttempt = user.getPassword();
-
-    // Retrieve correct password for this customer.
-    String userPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, userID);
-
-    if (userPasswordAttempt.equals(userPassword)) {
-      updateAccountInfo(user);
-
-      return "account_info";
-    } else {
-      return "welcome";
-    }
-	}
-
-  /**
    * HTML POST request handler for the Deposit Form page.
    * 
    * If the user is currently not in overdraft, the deposit amount is simply
@@ -301,16 +263,10 @@ public class MvcController {
    */
   @PostMapping("/deposit")
   public String submitDeposit(@ModelAttribute("user") User user) {
-    String userID = user.getUsername();
-    String userPasswordAttempt = user.getPassword();
-    String userPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, userID);
+    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+    String userID = auth.getName();
 
     //// Invalid Input/State Handling ////
-
-    // unsuccessful login
-    if (userPasswordAttempt.equals(userPassword) == false) {
-      return "welcome";
-    }
 
     // If customer already has too many reversals, their account is frozen. Don't complete deposit.
     int numOfReversals = TestudoBankRepository.getCustomerNumberOfReversals(jdbcTemplate, userID);
@@ -377,16 +333,11 @@ public class MvcController {
    */
   @PostMapping("/withdraw")
   public String submitWithdraw(@ModelAttribute("user") User user) {
-    String userID = user.getUsername();
-    String userPasswordAttempt = user.getPassword();
-    String userPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, userID);
+
+    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+    String userID = auth.getName();
 
     //// Invalid Input/State Handling ////
-
-    // unsuccessful login
-    if (userPasswordAttempt.equals(userPassword) == false) {
-      return "welcome";
-    }
 
     // If customer already has too many reversals, their account is frozen. Don't complete deposit.
     int numOfReversals = TestudoBankRepository.getCustomerNumberOfReversals(jdbcTemplate, userID);
@@ -465,15 +416,8 @@ public class MvcController {
       return "welcome";
     }
 
-    String userID = user.getUsername();
-    String userPasswordAttempt = user.getPassword();
-    
-    String userPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, userID);
-
-    // unsuccessful login
-    if (userPasswordAttempt.equals(userPassword) == false) {
-      return "welcome";
-    }
+    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+    String userID = auth.getName();
 
     // check if customer account is frozen
     int numOfReversals = TestudoBankRepository.getCustomerNumberOfReversals(jdbcTemplate, userID);
@@ -564,27 +508,19 @@ public class MvcController {
       return "welcome";
     }
 
-    String senderUserID = sender.getUsername();
-    String senderPasswordAttempt = sender.getPassword();
-    String senderPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, senderUserID);
+    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+    String senderUserID = auth.getName();
 
     // creates new user for recipient
     User recipient = new User();
     String recipientUserID = sender.getTransferRecipientID();
-    String recipientPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, recipientUserID);
     recipient.setUsername(recipientUserID);
-    recipient.setPassword(recipientPassword);
 
     // sets isTransfer to true for sender and recipient
     sender.setTransfer(true);
     recipient.setTransfer(true);
 
     /// Invalid Input/State Handling ///
-
-    // unsuccessful login
-    if (senderPasswordAttempt.equals(senderPassword) == false) {
-      return "welcome";
-    }
 
     // case where customer already has too many reversals
     int numOfReversals = TestudoBankRepository.getCustomerNumberOfReversals(jdbcTemplate, senderUserID);
@@ -643,16 +579,10 @@ public class MvcController {
   @PostMapping("/buycrypto")
   public String buyCrypto(@ModelAttribute("user") User user) {
 
-    String userID = user.getUsername();
-    String userPasswordAttempt = user.getPassword();
-    String userPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, userID);
+    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+    String userID = auth.getName();
 
     //// Invalid Input/State Handling ////
-
-    // unsuccessful login
-    if (!userPasswordAttempt.equals(userPassword)) {
-      return "welcome";
-    }
 
     // must buy a supported cryptocurrency
     String cryptoToBuy = user.getWhichCryptoToBuy();
@@ -737,16 +667,10 @@ public class MvcController {
    */
   @PostMapping("/sellcrypto")
   public String sellCrypto(@ModelAttribute("user") User user) {
-    String userID = user.getUsername();
-    String userPasswordAttempt = user.getPassword();
-    String userPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, userID);
+    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+    String userID = auth.getName();
 
     //// Invalid Input/State Handling ////
-
-    // unsuccessful login
-    if (!userPasswordAttempt.equals(userPassword)) {
-      return "welcome";
-    }
 
     // must buy a supported cryptocurrency
     String cryptoToBuy = user.getWhichCryptoToBuy();

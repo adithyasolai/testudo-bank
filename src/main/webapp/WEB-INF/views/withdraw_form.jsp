@@ -36,18 +36,14 @@
 <body>
 	<div align="center">
 		<form:form action="withdraw" method="post" modelAttribute="user">
-			<form:label path="username">Username:</form:label>
-			<form:input path="username"/><br/>
-			
-			<form:label path="password">Password:</form:label>
-			<form:password path="password"/><br/>		
 
       <form:label path="amountToWithdraw">Amount to Withdraw ($):</form:label>
 			<form:input path="amountToWithdraw"/><br/>	
 				
 			<form:button>Withdraw</form:button>
-		</form:form>
-    <a href='/'>Home</a>
-	</div>
+        </form:form>
+        <a href='/'>Home</a>+
+        <a href='/logout'>Logout</a>
+    </div>
 </body>
 </html>

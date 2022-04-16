@@ -36,18 +36,13 @@
 <body>
 	<div align="center">
 		<form:form action="deposit" method="post" modelAttribute="user">
-			<form:label path="username">Username:</form:label>
-			<form:input path="username"/><br/>
-			
-			<form:label path="password">Password:</form:label>
-			<form:password path="password"/><br/>		
-
       <form:label path="amountToDeposit">Amount to Deposit ($):</form:label>
 			<form:input path="amountToDeposit"/><br/>	
 				
 			<form:button>Deposit</form:button>
 		</form:form>
-    <a href='/'>Home</a>
+        <a href='/'>Home</a>
+        <a href='/logout'>Logout</a>
 	</div>
 </body>
 </html>

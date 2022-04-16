@@ -36,12 +36,6 @@
 <body>
 	<div align="center">
 		<form:form action="sellcrypto" method="post" modelAttribute="user">
-			<form:label path="username">Username:</form:label>
-			<form:input path="username"/><br/>
-
-			<form:label path="password">Password:</form:label>
-			<form:password path="password"/><br/>		
-
       <form:label path="whichCryptoToBuy">Which Crypto to buy (Type 'ETH' or 'SOL'):</form:label>
 			<form:input path="whichCryptoToBuy"/><br/>
 
@@ -53,7 +47,8 @@
 
 			<form:button>Sell Crypto</form:button>
 		</form:form>
-    <a href='/'>Home</a>
+        <a href='/'>Home</a>
+        <a href='/logout'>Logout</a>
 	</div>
 </body>
 </html>
