@@ -24,14 +24,33 @@ create_customer_table_sql = '''
   '''
 cursor.execute(create_customer_table_sql)
 
-# Make empty Passwords table
-create_password_table_sql = '''
-CREATE TABLE Passwords (
+# Make empty Authentication tables
+create_user_table_sql = '''
+CREATE TABLE Users (
   CustomerID varchar(255),
-  Password varchar(255)
+  Password varchar(255),
+  Enabled bool,
+  PRIMARY KEY (CustomerID)
 );
 '''
-cursor.execute(create_password_table_sql)
+cursor.execute(create_user_table_sql)
+
+create_auth_table_sql = '''
+CREATE TABLE Authorities (
+  CustomerID varchar(255),
+  Authority varchar(255),
+  FOREIGN KEY (CustomerID) REFERENCES Users(CustomerID)
+);
+'''
+
+cursor.execute(create_auth_table_sql)
+
+create_unique_index_sql = '''
+CREATE UNIQUE INDEX ix_auth_username
+  on Authorities (CustomerID,Authority);
+'''
+cursor.execute(create_unique_index_sql)
+
 
 # Make empty OverdraftLogs table
 create_overdraftlogs_table_sql = '''
@@ -136,14 +155,20 @@ for i in range(num_customers_to_add):
                 0,
                 0)
     cursor.execute(insert_customer_sql)
-    
-    # add customer ID and password to Passwords table
+
+    # add customer ID and password to Users table
     insert_password_sql = '''
-    INSERT INTO Passwords
-    VALUES  ({0},{1});
+    INSERT INTO Users
+    VALUES  ({0},{1},true);
     '''.format("'" + customer_id + "'",
-                "'" + customer_password + "'")
+               "'" + customer_password + "'")
     cursor.execute(insert_password_sql)
+
+    # add to Authorities table
+    insert_auth_sql = '''
+    INSERT INTO Authorities VALUES ({0}, 'ROLE_USER');
+    '''.format("'" + customer_id + "'")
+    cursor.execute(insert_auth_sql)
     
     # add this customer's randomly-generated ID to the set
     # to ensure this ID is not re-used by accident.

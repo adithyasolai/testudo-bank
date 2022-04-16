@@ -7,10 +7,20 @@ CREATE TABLE Customers (
   NumFraudReversals int
 );
 
-CREATE TABLE Passwords (
+CREATE TABLE Users (
   CustomerID varchar(255),
-  Password varchar(255)
+  Password varchar(255),
+  Enabled bool
 );
+
+CREATE TABLE Authorities (
+    CustomerID varchar(255),
+    Authority  varchar(255),
+    FOREIGN KEY (CustomerID) REFERENCES Users (CustomerID)
+);
+
+CREATE UNIQUE INDEX ix_auth_username
+    on Authorities (CustomerID, Authority);
 
 CREATE TABLE OverdraftLogs (
   CustomerID varchar(255),
