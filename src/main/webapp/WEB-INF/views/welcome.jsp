@@ -1,53 +1,44 @@
+<%--@elvariable id="user" type="net.testudobank.User"--%>
 <%@ page language="java" contentType="text/html; charset=ISO-8859-1"
-    pageEncoding="ISO-8859-1"%>
+         pageEncoding="ISO-8859-1" %>
 <%@ taglib prefix="form" uri="http://www.springframework.org/tags/form" %>
-<!DOCTYPE html>
-<html>
-<head>
-  <link rel="icon" href="https://fanapeel.com/wp-content/uploads/logo_-university-of-maryland-terrapins-testudo-turtle-hold-red-white-m.png">
-  <meta charset="ISO-8859-1">
-  <title>Welcome Page</title>
-  <style type="text/css">
-    label {
-      display: inline-block;
-      width: 200px;
-      margin: 5px;
-      text-align: left;
-    }
-    input[type=text], input[type=password], select {
-      width: 200px;
-    }
-    input[type=radio] {
-      display: inline-block;
-      margin-left: 45px;
-    }
+<%@ taglib prefix="t" tagdir="/WEB-INF/tags" %>
+<t:genericpage>
+    <jsp:attribute name="header">
+        <title>Welcome Page</title>
+          <style type="text/css">
+              label {
+                  display: inline-block;
+                  width: 200px;
+                  margin: 5px;
+                  text-align: left;
+              }
 
-    input[type=checkbox] {
-      display: inline-block;
-      margin-right: 190px;
-    }
+              input[type=text], input[type=password], select {
+                  width: 200px;
+              }
 
-    button {
-      padding: 10px;
-      margin: 10px;
-    }
-  </style>
-</head>
+              input[type=radio] {
+                  display: inline-block;
+                  margin-left: 45px;
+              }
 
-<body>
-<div align="center">
-    <h2>Welcome to Testudo Bank!</h2>
-    <img src="https://fanapeel.com/wp-content/uploads/logo_-university-of-maryland-terrapins-testudo-turtle-hold-red-white-m.png"
-         style="float:left;width:100px;height:100px;">
-    <a href='/account'>View Account</a> <br/>
-    <a href='/deposit'>Deposit</a> <br/>
-    <a href='/withdraw'>Withdraw</a> <br/>
-    <a href='/dispute'>Dispute</a> <br/>
-    <a href='/transfer'>Transfer</a> <br/>
-    <a href='/buycrypto'>Buy Cryptocurrency</a>
-    <a href='/sellcrypto'>Sell Cryptocurrency</a> <br/>
-    <a href='/logout'>Logout</a>
-</div>
-</body>
+              input[type=checkbox] {
+                  display: inline-block;
+                  margin-right: 190px;
+              }
 
-</html>
+              button {
+                  padding: 10px;
+                  margin: 10px;
+              }
+          </style>
+    </jsp:attribute>
+    <jsp:body>
+        <div align="center">
+            <h2>Welcome to Testudo Bank!</h2>
+            <img src="https://fanapeel.com/wp-content/uploads/logo_-university-of-maryland-terrapins-testudo-turtle-hold-red-white-m.png"
+                 style="float:left;width:100px;height:100px;">
+        </div>
+    </jsp:body>
+</t:genericpage>
