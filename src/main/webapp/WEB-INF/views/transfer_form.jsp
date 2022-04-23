@@ -35,14 +35,14 @@
         </style>
     </jsp:attribute>
     <jsp:body>
-        <div align="center">
+        <div class="container text-center">
             <form:form action="transfer" method="post" modelAttribute="user">
 
                 <form:label path="transferRecipientID">Username of Recipient:</form:label>
-                <form:input path="transferRecipientID"/><br/>
+                <form:input path="transferRecipientID"/><br>
 
                 <form:label path="amountToTransfer">Amount to Transfer ($):</form:label>
-                <form:input path="amountToTransfer"/><br/>
+                <form:input path="amountToTransfer"/><br>
 
                 <form:button type="submit" class="btn btn-primary">Transfer</form:button>
             </form:form>

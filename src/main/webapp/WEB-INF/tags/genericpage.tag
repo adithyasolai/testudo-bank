@@ -1,5 +1,6 @@
 <%@tag description="Overall Page template" pageEncoding="UTF-8" %>
 <%@attribute name="header" fragment="true" %>
+<!DOCTYPE html>
 <html>
 <head>
     <!-- CSS only -->

@@ -35,7 +35,7 @@
           </style>
     </jsp:attribute>
     <jsp:body>
-        <div align="center">
+        <div class="container text-center">
             <h2>Welcome to Testudo Bank!</h2>
             <img src="https://fanapeel.com/wp-content/uploads/logo_-university-of-maryland-terrapins-testudo-turtle-hold-red-white-m.png"
                  style="float:left;width:100px;height:100px;">

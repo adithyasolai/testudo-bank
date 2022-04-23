@@ -35,7 +35,7 @@
     </style>
     </jsp:attribute>
     <jsp:body>
-        <div align="center">
+        <div class="container text-center">
             <form:form action="buycrypto" method="post" modelAttribute="user">
 
                 <div class="form-check">
@@ -48,10 +48,10 @@
                 </div>
 
                 <form:label path="amountToBuyCrypto">Amount to buy (# of Coins, Fractional Allowed):</form:label>
-                <form:input path="amountToBuyCrypto"/><br/>
+                <form:input path="amountToBuyCrypto"/><br>
 
-                <span>Current $ETH Price: </span><span>${user.ethPrice}</span><br/>
-                <span>Current $SOL Price: </span><span>${user.solPrice}</span><br/>
+                <span>Current $ETH Price: </span><span>${user.ethPrice}</span><br>
+                <span>Current $SOL Price: </span><span>${user.solPrice}</span><br>
 
                 <form:button type="submit" class="btn btn-primary">Buy Crypto</form:button>
             </form:form>

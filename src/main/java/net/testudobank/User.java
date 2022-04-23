@@ -7,6 +7,8 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 
+import java.util.List;
+
 @ToString(onlyExplicitlyIncluded = true)
 public class User {
   //// General Customer Fields ////
@@ -33,7 +35,7 @@ public class User {
 	private String logs;
 
   @Setter @Getter
-  private String transactionHist;
+  private List<TransactionHistoryEntry> transactionHist;
 
   //// Dispute Fields ////
 

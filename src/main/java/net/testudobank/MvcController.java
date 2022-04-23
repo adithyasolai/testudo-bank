@@ -1,5 +1,7 @@
 package net.testudobank;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
@@ -7,20 +9,12 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.jdbc.core.JdbcTemplate;
 
-import java.util.Map;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.HashSet;
+import java.text.NumberFormat;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.List;
-
-import java.util.Optional;
-import java.util.Set;
-
-import org.springframework.beans.factory.annotation.Autowired;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Controller
 public class MvcController {
@@ -193,10 +187,16 @@ public class MvcController {
     }
 
     List<Map<String,Object>> transactionLogs = TestudoBankRepository.getRecentTransactions(jdbcTemplate, user.getUsername(), MAX_NUM_TRANSACTIONS_DISPLAYED);
-    String transactionHistoryOutput = HTML_LINE_BREAK;
-    for(Map<String, Object> transactionLog : transactionLogs){
-      transactionHistoryOutput += transactionLog + HTML_LINE_BREAK;
-    }
+
+    List<TransactionHistoryEntry> transactionHistoryEntries = transactionLogs.stream()
+            .map(transactionLog ->
+                    TransactionHistoryEntry.builder()
+                            .amount(Optional.ofNullable(transactionLog.get("Amount")).map(amount -> NumberFormat.getCurrencyInstance().format((Integer) amount / 100.0)).orElse(null))
+                            .action(Optional.ofNullable(transactionLog.get("Action")).map(Object::toString).orElse(null))
+                            .time(Optional.ofNullable(transactionLog.get("Timestamp")).map(Object::toString).orElse(null))
+                            .build()
+            )
+            .collect(Collectors.toList());
 
     List<Map<String,Object>> transferLogs = TestudoBankRepository.getTransferLogs(jdbcTemplate, user.getUsername(), MAX_NUM_TRANSFERS_DISPLAYED);
     String transferHistoryOutput = HTML_LINE_BREAK;
@@ -227,7 +227,7 @@ public class MvcController {
     user.setOverDraftBalance(overDraftBalance/100);
     user.setCryptoBalanceUSD(cryptoBalanceInDollars);
     user.setLogs(logs);
-    user.setTransactionHist(transactionHistoryOutput);
+    user.setTransactionHist(transactionHistoryEntries);
     user.setTransferHist(transferHistoryOutput);
     user.setCryptoHist(cryptoHistoryOutput.toString());
     user.setEthBalance(TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, user.getUsername(), "ETH").orElse(0.0));

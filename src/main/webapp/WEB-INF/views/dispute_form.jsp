@@ -34,7 +34,7 @@
       </style>
     </jsp:attribute>
     <jsp:body>
-        <div align="center">
+        <div class="container text-center">
             <form:form action="dispute" method="post" modelAttribute="user">
                 <form:label
                         path="numTransactionsAgo">Transaction to Reverse (1=Most Recent, 2=2 Transactions Ago, Max = 3):</form:label>

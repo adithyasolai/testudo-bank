@@ -35,7 +35,7 @@
     </style>
     </jsp:attribute>
     <jsp:body>
-        <div align="center">
+        <div class="container text-center">
             <form:form action="withdraw" method="post" modelAttribute="user">
 
                 <form:label path="amountToWithdraw">Amount to Withdraw ($):</form:label>

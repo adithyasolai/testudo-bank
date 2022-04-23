@@ -33,7 +33,7 @@
     </style>
     </jsp:attribute>
     <jsp:body>
-        <div align="center">
+        <div class="container text-center">
             <form:form action="deposit" method="post" modelAttribute="user">
                 <div class="mb-3">
                     <form:label path="amountToDeposit">Amount to Deposit ($):</form:label>
