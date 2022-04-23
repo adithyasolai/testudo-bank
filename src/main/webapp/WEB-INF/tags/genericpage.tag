@@ -21,33 +21,33 @@
                 aria-controls="navbarText" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
         </button>
-        <a class="navbar-brand" href="#">Testudo Bank</a>
+        <a class="navbar-brand" href="${pageContext.request.contextPath}/">Testudo Bank</a>
         <div class="collapse navbar-collapse" id="navbarText">
             <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                 <li class="nav-item">
-                    <a class="nav-link" href="/account">View Account</a>
+                    <a class="nav-link" href="${pageContext.request.contextPath}/account">View Account</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="/deposit">Deposit</a>
+                    <a class="nav-link" href="${pageContext.request.contextPath}/deposit">Deposit</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="/withdraw">Withdraw</a>
+                    <a class="nav-link" href="${pageContext.request.contextPath}/withdraw">Withdraw</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="/dispute">Dispute</a>
+                    <a class="nav-link" href="${pageContext.request.contextPath}/dispute">Dispute</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="/transfer">Transfer</a>
+                    <a class="nav-link" href="${pageContext.request.contextPath}/transfer">Transfer</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="/buycrypto">Buy Crypto</a>
+                    <a class="nav-link" href="${pageContext.request.contextPath}/buycrypto">Buy Crypto</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="/sellcrypto">Sell Crypto</a>
+                    <a class="nav-link" href="${pageContext.request.contextPath}/sellcrypto">Sell Crypto</a>
                 </li>
             </ul>
         </div>
-        <a class="nav-link" href="/logout">Logout</a>
+        <a class="nav-link" href="${pageContext.request.contextPath}/logout">Logout</a>
     </div>
 </nav>
 <jsp:doBody/>
