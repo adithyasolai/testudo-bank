@@ -38,8 +38,14 @@
         <div align="center">
             <form:form action="buycrypto" method="post" modelAttribute="user">
 
-                <form:label path="whichCryptoToBuy">Which Crypto to buy (Type 'ETH' or 'SOL'):</form:label>
-                <form:input path="whichCryptoToBuy"/><br/>
+                <div class="form-check">
+                    <form:radiobutton path="whichCryptoToBuy" value="ETH" required="required" checked="checked"/>
+                    <form:label path="whichCryptoToBuy">ETH</form:label>
+                </div>
+                <div class="form-check">
+                    <form:radiobutton path="whichCryptoToBuy" value="SOL" required="required"/>
+                    <form:label path="whichCryptoToBuy">SOL</form:label>
+                </div>
 
                 <form:label path="amountToBuyCrypto">Amount to buy (# of Coins, Fractional Allowed):</form:label>
                 <form:input path="amountToBuyCrypto"/><br/>
