@@ -1,12 +1,11 @@
 package net.testudobank;
 
-import javax.validation.constraints.Positive;
-import javax.validation.constraints.PositiveOrZero;
-
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 
+import javax.validation.constraints.Positive;
+import javax.validation.constraints.PositiveOrZero;
 import java.util.List;
 
 @ToString(onlyExplicitlyIncluded = true)
@@ -14,10 +13,7 @@ public class User {
   //// General Customer Fields ////
 
   @Setter @Getter @ToString.Include
-	private String username;
-
-  @Setter @Getter @ToString.Include
-	private String password;
+  private String username;
 
   @Setter @Getter
   private String firstName;
@@ -25,14 +21,14 @@ public class User {
   @Setter @Getter
   private String lastName;
 
-  @Setter  @Getter @PositiveOrZero @ToString.Include
-	private double balance;
+  @Setter  @Getter @ToString.Include
+  private String balance;
 
   @Setter @Getter @PositiveOrZero
-	private double overDraftBalance;
+  private String overDraftBalance;
 
   @Setter @Getter
-	private String logs;
+  private List<OverdraftHistoryEntry> overdraftHist;
 
   @Setter @Getter
   private List<TransactionHistoryEntry> transactionHist;
@@ -64,15 +60,14 @@ public class User {
   private boolean isTransfer;
 
   @Setter @Getter
-  private String transferHist;
-
+  private List<TransferHistoryEntry> transferHist;
   //// Crypto Fields ////
 
   @Setter @Getter
   private boolean isCryptoTransaction;
 
   @Setter @Getter
-  private String cryptoHist;
+  private List<CryptoTransactionHistoryEntry> cryptoHist;
 
   @Setter @Getter @Positive
   private double amountToBuyCrypto;
@@ -84,10 +79,10 @@ public class User {
   private String whichCryptoToBuy;
 
   @Setter @Getter
-  private double ethPrice;
+  private String ethPrice;
 
   @Setter @Getter
-  private double solPrice;
+  private String solPrice;
 
   @Setter  @Getter @PositiveOrZero @ToString.Include
   private double ethBalance;
@@ -96,6 +91,6 @@ public class User {
   private double solBalance;
 
   @Setter  @Getter @PositiveOrZero @ToString.Include
-  private double cryptoBalanceUSD;
+  private String cryptoBalanceUSD;
 
 }

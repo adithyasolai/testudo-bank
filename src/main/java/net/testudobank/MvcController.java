@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
 
 @Controller
 public class MvcController {
-  
+
   // A simplified JDBC client that is injected with the login credentials
   // specified in /src/main/resources/application.properties
   private JdbcTemplate jdbcTemplate;
@@ -146,8 +146,8 @@ public class MvcController {
   @GetMapping("/buycrypto")
 	public String showBuyCryptoForm(Model model) {
     User user = new User();
-    user.setEthPrice(cryptoPriceClient.getCurrentEthValue());
-    user.setSolPrice(cryptoPriceClient.getCurrentSolValue());
+    user.setEthPrice(dollarsToDollarString(cryptoPriceClient.getCurrentEthValue()));
+    user.setSolPrice(dollarsToDollarString(cryptoPriceClient.getCurrentSolValue()));
 		model.addAttribute("user", user);
 		return "buycrypto_form";
 	}
@@ -163,8 +163,8 @@ public class MvcController {
   @GetMapping("/sellcrypto")
 	public String showSellCryptoForm(Model model) {
     User user = new User();
-    user.setEthPrice(cryptoPriceClient.getCurrentEthValue());
-    user.setSolPrice(cryptoPriceClient.getCurrentSolValue());
+    user.setEthPrice(dollarsToDollarString(cryptoPriceClient.getCurrentEthValue()));
+    user.setSolPrice(dollarsToDollarString(cryptoPriceClient.getCurrentSolValue()));
 		model.addAttribute("user", user);
 		return "sellcrypto_form";
 	}
@@ -180,39 +180,59 @@ public class MvcController {
   private void updateAccountInfo(User user) {
     Authentication auth = SecurityContextHolder.getContext().getAuthentication();
     user.setUsername(auth.getName());
-    List<Map<String,Object>> overdraftLogs = TestudoBankRepository.getOverdraftLogs(jdbcTemplate, user.getUsername());
-    String logs = HTML_LINE_BREAK;
-    for(Map<String, Object> overdraftLog : overdraftLogs){
-      logs += overdraftLog + HTML_LINE_BREAK;
-    }
+    List<Map<String, Object>> overdraftLogs = TestudoBankRepository.getOverdraftLogs(jdbcTemplate, user.getUsername());
 
-    List<Map<String,Object>> transactionLogs = TestudoBankRepository.getRecentTransactions(jdbcTemplate, user.getUsername(), MAX_NUM_TRANSACTIONS_DISPLAYED);
-
-    List<TransactionHistoryEntry> transactionHistoryEntries = transactionLogs.stream()
-            .map(transactionLog ->
-                    TransactionHistoryEntry.builder()
-                            .amount(Optional.ofNullable(transactionLog.get("Amount")).map(amount -> NumberFormat.getCurrencyInstance().format((Integer) amount / 100.0)).orElse(null))
-                            .action(Optional.ofNullable(transactionLog.get("Action")).map(Object::toString).orElse(null))
-                            .time(Optional.ofNullable(transactionLog.get("Timestamp")).map(Object::toString).orElse(null))
+    List<OverdraftHistoryEntry> overdraftHistoryEntries = overdraftLogs.stream()
+            .map(overdraftEntry ->
+                    OverdraftHistoryEntry.builder()
+                            .amount(Optional.ofNullable(overdraftEntry.get("DepositAmt")).map(amount -> penniesToDollarString((int) amount)).orElse(null))
+                            .time(Optional.ofNullable(overdraftEntry.get("Timestamp")).map(Object::toString).orElse(null))
+                            .oldBalance(Optional.ofNullable(overdraftEntry.get("OldOverBalance")).map(amount -> penniesToDollarString((int) amount)).orElse(null))
+                            .newBalance(Optional.ofNullable(overdraftEntry.get("NewOverBalance")).map(amount -> penniesToDollarString((int) amount)).orElse(null))
                             .build()
             )
             .collect(Collectors.toList());
 
-    List<Map<String,Object>> transferLogs = TestudoBankRepository.getTransferLogs(jdbcTemplate, user.getUsername(), MAX_NUM_TRANSFERS_DISPLAYED);
-    String transferHistoryOutput = HTML_LINE_BREAK;
-    for(Map<String, Object> transferLog : transferLogs){
-      transferHistoryOutput += transferLog + HTML_LINE_BREAK;
-    }
+    List<Map<String, Object>> transactionLogs = TestudoBankRepository.getRecentTransactions(jdbcTemplate, user.getUsername(), MAX_NUM_TRANSACTIONS_DISPLAYED);
+
+    List<TransactionHistoryEntry> transactionHistoryEntries = transactionLogs.stream()
+            .map(transactionEntry ->
+                    TransactionHistoryEntry.builder()
+                            .amount(Optional.ofNullable(transactionEntry.get("Amount")).map(amount -> penniesToDollarString((int) amount)).orElse(null))
+                            .action(Optional.ofNullable(transactionEntry.get("Action")).map(Object::toString).orElse(null))
+                            .time(Optional.ofNullable(transactionEntry.get("Timestamp")).map(Object::toString).orElse(null))
+                            .build()
+            )
+            .collect(Collectors.toList());
+
+    List<Map<String, Object>> transferLogs = TestudoBankRepository.getTransferLogs(jdbcTemplate, user.getUsername(), MAX_NUM_TRANSFERS_DISPLAYED);
+
+    List<TransferHistoryEntry> transferHistoryEntries = transferLogs.stream()
+            .map(transferEntry ->
+                    TransferHistoryEntry.builder()
+                            .amount(Optional.ofNullable(transferEntry.get("Amount")).map(amount -> penniesToDollarString((int) amount)).orElse(null))
+                            .time(Optional.ofNullable(transferEntry.get("Timestamp")).map(Object::toString).orElse(null))
+                            .to(Optional.ofNullable(transferEntry.get("TransferTo")).map(Object::toString).orElse(null))
+                            .from(Optional.ofNullable(transferEntry.get("TransferFrom")).map(Object::toString).orElse(null))
+                            .build()
+            )
+            .collect(Collectors.toList());
 
     List<Map<String, Object>> cryptoLogs = TestudoBankRepository.getCryptoLogs(jdbcTemplate, user.getUsername());
-    StringBuilder cryptoHistoryOutput = new StringBuilder(HTML_LINE_BREAK);
-    for (Map<String, Object> cryptoLog : cryptoLogs) {
-      cryptoHistoryOutput.append(cryptoLog).append(HTML_LINE_BREAK);
-    }
 
-    String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance FROM Customers WHERE CustomerID='%s';", user.getUsername());
-    List<Map<String,Object>> queryResults = jdbcTemplate.queryForList(getUserNameAndBalanceAndOverDraftBalanceSql);
-    Map<String,Object> userData = queryResults.get(0);
+    List<CryptoTransactionHistoryEntry> cryptoTransactionHistoryEntries = cryptoLogs.stream()
+            .map(cryptoEntry ->
+                    CryptoTransactionHistoryEntry.builder()
+                            .amount(Optional.ofNullable(cryptoEntry.get("CryptoAmount")).map(Object::toString).orElse(null))
+                            .action(Optional.ofNullable(cryptoEntry.get("Action")).map(Object::toString).orElse(null))
+                            .time(Optional.ofNullable(cryptoEntry.get("Timestamp")).map(Object::toString).orElse(null))
+                            .cryptoName(Optional.ofNullable(cryptoEntry.get("CryptoName")).map(Object::toString).orElse(null))
+                            .build()
+            )
+            .collect(Collectors.toList());
+
+    List<Map<String, Object>> queryResults = jdbcTemplate.queryForList("SELECT FirstName, LastName, Balance, OverdraftBalance FROM Customers WHERE CustomerID= ?", user.getUsername());
+    Map<String, Object> userData = queryResults.get(0);
 
     // calculate total Crypto holdings balance by summing balance of each supported cryptocurrency
     double cryptoBalanceInDollars = 0;
@@ -220,20 +240,19 @@ public class MvcController {
       cryptoBalanceInDollars += TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, user.getUsername(), cryptoName).orElse(0.0) * cryptoPriceClient.getCurrentCryptoValue(cryptoName);
     }
 
-    user.setFirstName((String)userData.get("FirstName"));
-    user.setLastName((String)userData.get("LastName"));
-    user.setBalance((int)userData.get("Balance")/100.0);
-    double overDraftBalance = (int)userData.get("OverdraftBalance");
-    user.setOverDraftBalance(overDraftBalance/100);
-    user.setCryptoBalanceUSD(cryptoBalanceInDollars);
-    user.setLogs(logs);
+    user.setFirstName((String) userData.get("FirstName"));
+    user.setLastName((String) userData.get("LastName"));
+    user.setBalance(penniesToDollarString((int) userData.get("Balance")));
+    user.setOverDraftBalance(penniesToDollarString((int) userData.get("OverdraftBalance")));
+    user.setCryptoBalanceUSD(dollarsToDollarString(cryptoBalanceInDollars));
+    user.setOverdraftHist(overdraftHistoryEntries);
     user.setTransactionHist(transactionHistoryEntries);
-    user.setTransferHist(transferHistoryOutput);
-    user.setCryptoHist(cryptoHistoryOutput.toString());
+    user.setTransferHist(transferHistoryEntries);
+    user.setCryptoHist(cryptoTransactionHistoryEntries);
     user.setEthBalance(TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, user.getUsername(), "ETH").orElse(0.0));
     user.setSolBalance(TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, user.getUsername(), "SOL").orElse(0.0));
-    user.setEthPrice(cryptoPriceClient.getCurrentEthValue());
-    user.setSolPrice(cryptoPriceClient.getCurrentSolValue());
+    user.setEthPrice(dollarsToDollarString(cryptoPriceClient.getCurrentEthValue()));
+    user.setSolPrice(dollarsToDollarString(cryptoPriceClient.getCurrentSolValue()));
   }
 
   // Converts dollar amounts in frontend to penny representation in backend MySQL DB
@@ -243,8 +262,15 @@ public class MvcController {
 
   // Converts LocalDateTime to Date variable
   private static Date convertLocalDateTimeToDate(LocalDateTime ldt){
-    Date dateTime = Date.from(ldt.atZone(ZoneId.systemDefault()).toInstant());
-    return dateTime;
+    return Date.from(ldt.atZone(ZoneId.systemDefault()).toInstant());
+  }
+
+  private static String penniesToDollarString(int amount) {
+    return NumberFormat.getCurrencyInstance().format(amount / 100.0);
+  }
+
+  private static String dollarsToDollarString(double amount) {
+    return NumberFormat.getCurrencyInstance().format(amount);
   }
 
   // HTML POST HANDLERS ////

@@ -50,8 +50,8 @@
                 <form:label path="amountToSellCrypto">Amount to sell (# of Coins, Fractional Allowed):</form:label>
                 <form:input path="amountToSellCrypto"/><br>
 
-                <span>Current $ETH Price: </span><span>${user.ethPrice}</span><br>
-                <span>Current $SOL Price: </span><span>${user.solPrice}</span><br>
+                <span>Current ETH Price: </span><span>${user.ethPrice}</span><br>
+                <span>Current SOL Price: </span><span>${user.solPrice}</span><br>
 
                 <form:button type="submit" class="btn btn-primary">Sell Crypto</form:button>
             </form:form>
