@@ -47,6 +47,7 @@
     <a href='/withdraw'>Withdraw</a>
     <a href='/dispute'>Dispute</a>
     <a href='/transfer'>Transfer</a>
+    <a href="/changepassword">Change Password</a>
     <a href='/'>Logout</a>
 	</div>
 </body>
