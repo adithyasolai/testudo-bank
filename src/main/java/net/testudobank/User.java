@@ -96,4 +96,8 @@ public class User {
   @Setter  @Getter @PositiveOrZero @ToString.Include
   private double cryptoBalanceUSD;
 
+  //// Change Password Fields ////
+
+  @Setter @Getter
+  private String changePassword;
 }
