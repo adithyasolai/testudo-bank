@@ -57,14 +57,8 @@ public class User {
   private String transferRecipientID;
 
   @Setter @Getter
-  private boolean isTransfer;
-
-  @Setter @Getter
   private List<TransferHistoryEntry> transferHist;
   //// Crypto Fields ////
-
-  @Setter @Getter
-  private boolean isCryptoTransaction;
 
   @Setter @Getter
   private List<CryptoTransactionHistoryEntry> cryptoHist;

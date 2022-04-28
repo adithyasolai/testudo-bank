@@ -14,9 +14,8 @@ CREATE TABLE Users (
 );
 
 CREATE TABLE Authorities (
-    CustomerID varchar(255),
-    Authority  varchar(255),
-    FOREIGN KEY (CustomerID) REFERENCES Users (CustomerID)
+  CustomerID varchar(255),
+  Authority varchar(255)
 );
 
 CREATE UNIQUE INDEX ix_auth_username

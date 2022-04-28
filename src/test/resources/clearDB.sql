@@ -1,5 +1,6 @@
 TRUNCATE Customers;
-TRUNCATE Passwords;
+TRUNCATE Users;
+TRUNCATE Authorities;
 TRUNCATE OverdraftLogs;
 TRUNCATE TransactionHistory;
 TRUNCATE TransferHistory;
