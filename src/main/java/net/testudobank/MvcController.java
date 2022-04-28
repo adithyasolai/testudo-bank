@@ -795,4 +795,76 @@ public class MvcController {
     }
   }
 
+ /*
+  * HTML GET request handler that serves the "changepassword_form" page to the user.
+  * An empty `User` object is also added to the Model as an Attribute to store
+  * the user's input for selling cryptocurrency.
+  * 
+  * @param model
+  * @return "changepassword_form" page
+  */
+ @GetMapping("/changepassword")
+   public String showChangePasswordForm(Model model) {
+    User user = new User();
+    model.addAttribute("user", user);
+    return "changepassword_form";
+   }
+
+
+   /**
+ * HTML POST request handler for the Change Passoword Form page.
+ * <p>
+ * The same username+password handling from the login page is used.
+ * <p>
+ * If the password attempt is correct and the new desired password is not empty,
+ * the user's password will change to the new inputted password and the user
+ * is then redirected to the "welcome" page.
+ * <p>
+ * If the password attempt is incorrect or the amount to purchase is invalid,
+ * the user is redirected to the "welcome" page.
+ *
+ * @param user
+ * @return "account_info" page if sell successful. Otherwise, redirect to "welcome" page.
+ */
+@PostMapping("/changepassword")
+public String changePassword(@ModelAttribute("user") User user) {
+  String userID = user.getUsername();
+  String userPasswordAttempt = user.getPassword();
+  String userPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, userID);
+  String changePassword = user.getChangePassword();
+
+  // successful change
+  if (userPasswordAttempt.equals(userPassword) && isStrongPasswordStrength(changePassword)) {
+    TestudoBankRepository.setCustomerPassword(jdbcTemplate, userID, changePassword);
+  }
+
+  return "welcome";
+}
+
+
+    /*
+        A password is defined to have strong strength if it contains one uppercase letter, 
+        one lowercase letter, one number, and has a length of at least eight.
+
+        @param password String
+        @return true if password strong and false if password not strong
+
+    */  
+    public boolean isStrongPasswordStrength(String password) {
+        if (password == null) return false;
+
+        boolean containUppercase, containLowercase, containNumber;
+        containUppercase = containLowercase = containNumber = false;
+
+        for (int x = 0; x < password.length(); x++) {
+            char ch = password.charAt(x);
+            if (Character.isUpperCase(ch)) containUppercase = true;
+            else if (Character.isLowerCase(ch)) containLowercase = true;
+            else if (Character.isDigit(ch)) containNumber = true;
+        }
+
+        return containUppercase && containLowercase && containNumber && password.length() >= 8;
+    }
+
+
 }

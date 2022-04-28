@@ -20,6 +20,7 @@ import org.testcontainers.delegate.DatabaseDelegate;
 import org.testcontainers.ext.ScriptUtils;
 
 import net.testudobank.MvcController;
+import net.testudobank.TestudoBankRepository;
 import net.testudobank.tests.MvcControllerIntegTest;
 
 public class MvcControllerIntegTestHelpers {

@@ -6,7 +6,7 @@
 <head>
   <link rel="icon" href="https://fanapeel.com/wp-content/uploads/logo_-university-of-maryland-terrapins-testudo-turtle-hold-red-white-m.png">
   <meta charset="ISO-8859-1">
-  <title>Welcome Page</title>
+  <title>Change Password Form</title>
   <style type="text/css">
     label {
       display: inline-block;
@@ -14,7 +14,7 @@
       margin: 5px;
       text-align: left;
     }
-    input[type=text], input[type=password], select {
+    input[type=text], input[type=password], input[type=password], select {
       width: 200px;	
     }
     input[type=radio] {
@@ -33,20 +33,24 @@
     }
   </style>
 </head>
-
 <body>
 	<div align="center">
-		<h2>Welcome to Testudo Bank!</h2>
+		<h2>Please Put Credentials: </h2>
+        <h3>Note: New password must contain at least one number, one uppercase letter, one lowercase letter, and be a length of at least eight. </h3>
         <img src="https://fanapeel.com/wp-content/uploads/logo_-university-of-maryland-terrapins-testudo-turtle-hold-red-white-m.png" style="float:left;width:100px;height:100px;">
-		<a href='/login'>View Account</a> <br/>
-    <a href='/deposit'>Deposit</a> <br/>
-    <a href='/withdraw'>Withdraw</a> <br/>
-    <a href='/dispute'>Dispute</a> <br/>
-    <a href='/transfer'>Transfer</a> <br/>
-    <a href='/buycrypto'>Buy Cryptocurrency</a>
-    <a href='/sellcrypto'>Sell Cryptocurrency</a> <br/>
-    <a href="/changepassword">Change Password</a> <br/>
+		<form:form action="changepassword" method="post" modelAttribute="user">
+			<form:label path="username">Username:</form:label>
+			<form:input path="username"/><br/>
+			
+			<form:label path="password">Password:</form:label>
+			<form:password path="password"/><br/>
+            
+            <form:label path="changePassword">New Password:</form:label>
+			<form:password path="changePassword"/><br/>
+				
+			<form:button>Submit</form:button>
+		</form:form>
+    <a href='/'>Home</a>
 	</div>
 </body>
-
 </html>

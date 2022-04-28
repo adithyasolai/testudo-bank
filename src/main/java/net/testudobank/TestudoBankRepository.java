@@ -103,6 +103,11 @@ public class TestudoBankRepository {
     jdbcTemplate.update(overdraftBalanceUpdateSql);
   }
 
+  public static void setCustomerPassword(JdbcTemplate jdbcTemplate, String customerID, String customerPassword) {
+    String customerPasswordUpdateSql = String.format("UPDATE Passwords SET Password = '%s' WHERE CustomerID='%s';", customerPassword, customerID);
+    jdbcTemplate.update(customerPasswordUpdateSql);
+  }
+
   public static void increaseCustomerOverdraftBalance(JdbcTemplate jdbcTemplate, String customerID, int increaseAmtInPennies) {
     String overdraftBalanceIncreaseSql = String.format("UPDATE Customers SET OverdraftBalance = OverdraftBalance + %d WHERE CustomerID='%s';", increaseAmtInPennies, customerID);
     jdbcTemplate.update(overdraftBalanceIncreaseSql);
