@@ -27,6 +27,9 @@ import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.testcontainers.containers.MySQLContainer;
@@ -69,6 +72,14 @@ public class MvcControllerIntegTest {
 
   @Autowired
   private MockMvc mockMvc;
+
+  // set Spring properties to point to the test containers database
+  @DynamicPropertySource
+  static void setupDB(DynamicPropertyRegistry registry) {
+    registry.add("spring.datasource.url", db::getJdbcUrl);
+    registry.add("spring.datasource.username", db::getUsername);
+    registry.add("spring.datasource.password", db::getPassword);
+  }
 
   @BeforeAll
   public static void init() throws SQLException {
@@ -1639,16 +1650,54 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
   @Test
   public void testUnauthenticated() throws Exception {
     mockMvc.perform(MockMvcRequestBuilders.get("/account")
-                    .accept(MediaType.ALL))
+                    .accept(MediaType.ALL)
+                    .with(SecurityMockMvcRequestPostProcessors.csrf()))
             .andExpect(status().isUnauthorized());
 
     mockMvc.perform(MockMvcRequestBuilders.post("/buycrypto")
-                    .accept(MediaType.ALL))
-            .andExpect(status().isForbidden());
+                    .accept(MediaType.ALL)
+                    .with(SecurityMockMvcRequestPostProcessors.csrf()))
+
+            .andExpect(status().isUnauthorized());
 
     mockMvc.perform(MockMvcRequestBuilders.post("/sellcrypto")
+                    .accept(MediaType.ALL)
+                    .with(SecurityMockMvcRequestPostProcessors.csrf())
+            )
+
+            .andExpect(status().isUnauthorized());
+  }
+
+  /**
+   * Test that restricted endpoints work when authenticated
+   */
+  @WithMockUser(username = "123456789")
+  @Test
+  public void testAuthenticated() throws Exception {
+
+    MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER1_ID, CUSTOMER1_FIRST_NAME, CUSTOMER1_LAST_NAME, 100000);
+
+    mockMvc.perform(MockMvcRequestBuilders.get("/account")
                     .accept(MediaType.ALL))
-            .andExpect(status().isForbidden());
+            .andExpect(status().isOk());
+
+    User user = new User();
+    user.setAmountToBuyCrypto(1);
+    user.setAmountToSellCrypto(0.1);
+    user.setWhichCryptoToBuy("ETH");
+
+    mockMvc.perform(MockMvcRequestBuilders.post("/buycrypto")
+                    .param("whichCryptoToBuy", "ETH")
+                    .param("amountToBuyCrypto", "0.1")
+                    .with(SecurityMockMvcRequestPostProcessors.csrf())
+                    .accept(MediaType.ALL))
+            .andExpect(status().isOk());
+
+    mockMvc.perform(MockMvcRequestBuilders.post("/sellcrypto")
+                    .flashAttr("user", user)
+                    .with(SecurityMockMvcRequestPostProcessors.csrf())
+                    .accept(MediaType.ALL))
+            .andExpect(status().isOk());
   }
 
 }
