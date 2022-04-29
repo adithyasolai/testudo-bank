@@ -2,7 +2,7 @@ package net.testudobank.tests;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import java.math.BigDecimal;
 import java.sql.SQLException;
@@ -23,6 +23,9 @@ import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -69,6 +72,16 @@ public class MvcControllerIntegTest {
   private static JdbcTemplate jdbcTemplate;
   private static DatabaseDelegate dbDelegate;
   private static final CryptoPriceClient cryptoPriceClient = Mockito.mock(CryptoPriceClient.class);
+
+  // override bean in Spring Test context to the one that is mocked
+  @TestConfiguration
+  static class TestConfig {
+    @Bean
+    @Primary
+    public CryptoPriceClient mockedCryptoPriceClient() {
+      return cryptoPriceClient;
+    }
+  }
 
   @Autowired
   private MockMvc mockMvc;
@@ -1219,6 +1232,8 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
     @Builder.Default
     final Map<String, Double> initialCryptoBalance = Collections.emptyMap();
 
+    final MockMvc mockMvc;
+
     void initialize() throws ScriptException {
       int balanceInPennies = MvcControllerIntegTestHelpers.convertDollarsToPennies(initialBalanceInDollars);
       MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER1_ID, CUSTOMER1_FIRST_NAME,
@@ -1237,7 +1252,7 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
     /**
      * Attempts a transaction
      */
-    void test(CryptoTransaction transaction) {
+    void test(CryptoTransaction transaction) throws Exception {
       User user = new User();
       user.setUsername(CUSTOMER1_ID);
       user.setWhichCryptoToBuy(transaction.cryptoName);
@@ -1248,14 +1263,19 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
 
       // attempt transaction
       LocalDateTime cryptoTransactionTime = MvcControllerIntegTestHelpers.fetchCurrentTimeAsLocalDateTimeNoMilliseconds();
-      String returnedPage;
+
       if (transaction.cryptoTransactionTestType == CryptoTransactionTestType.BUY) {
         user.setAmountToBuyCrypto(transaction.cryptoAmountToTransact);
-        returnedPage = controller.buyCrypto(user);
       } else {
         user.setAmountToSellCrypto(transaction.cryptoAmountToTransact);
-        returnedPage = controller.sellCrypto(user);
       }
+
+      mockMvc.perform(MockMvcRequestBuilders.post(transaction.cryptoTransactionTestType == CryptoTransactionTestType.BUY ? "/buycrypto" : "/sellcrypto")
+                      .accept(MediaType.ALL)
+                      .flashAttr("user", user)
+                      .with(SecurityMockMvcRequestPostProcessors.csrf()))
+              .andExpect(status().isOk())
+              .andExpect(forwardedUrl("/WEB-INF/views" + (transaction.shouldSucceed ? "/account_info" : "/welcome") + ".jsp"));
 
       // check the crypto balance
       try {
@@ -1275,13 +1295,10 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
 
       if (!transaction.shouldSucceed) {
         // verify no transaction took place
-        assertEquals("welcome", returnedPage);
         assertEquals(numTransactions, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM TransactionHistory;", Integer.class));
         assertEquals(numTransactions, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM CryptoHistory;", Integer.class));
         assertEquals(numOverdraftTransactions, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM OverdraftLogs;", Integer.class));
       } else {
-        assertEquals("account_info", returnedPage);
-
         // check transaction logs
         assertEquals(numTransactions + 1, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM TransactionHistory;", Integer.class));
         List<Map<String, Object>> transactionHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM TransactionHistory ORDER BY Timestamp DESC;");
@@ -1320,8 +1337,9 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
    */
   @WithMockUser(username = "123456789")
   @Test
-  public void testCryptoBuySimple() throws ScriptException {
+  public void testCryptoBuySimple() throws Exception {
     CryptoTransactionTester cryptoTransactionTester = CryptoTransactionTester.builder()
+            .mockMvc(mockMvc)
             .initialBalanceInDollars(1000)
             .initialCryptoBalance(Collections.singletonMap("ETH", 0.0))
             .build();
@@ -1345,8 +1363,9 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
    */
   @WithMockUser(username = "123456789")
   @Test
-  public void testCryptoSellSimple() throws ScriptException {
+  public void testCryptoSellSimple() throws Exception {
     CryptoTransactionTester cryptoTransactionTester = CryptoTransactionTester.builder()
+            .mockMvc(mockMvc)
             .initialBalanceInDollars(1000)
             .initialCryptoBalance(Collections.singletonMap("ETH", 0.1))
             .build();
@@ -1370,8 +1389,9 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
    */
   @WithMockUser(username = "123456789")
   @Test
-  public void testCryptoBuyInsufficientBalance() throws ScriptException {
+  public void testCryptoBuyInsufficientBalance() throws Exception {
     CryptoTransactionTester cryptoTransactionTester = CryptoTransactionTester.builder()
+            .mockMvc(mockMvc)
             .initialBalanceInDollars(1000)
             .build();
 
@@ -1393,8 +1413,9 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
    */
   @WithMockUser(username = "123456789")
   @Test
-  public void testCryptoBuyNegativeAmount() throws ScriptException {
+  public void testCryptoBuyNegativeAmount() throws Exception {
     CryptoTransactionTester cryptoTransactionTester = CryptoTransactionTester.builder()
+            .mockMvc(mockMvc)
             .initialBalanceInDollars(1000)
             .build();
 
@@ -1416,8 +1437,9 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
    */
   @WithMockUser(username = "123456789")
   @Test
-  public void testCryptoSellNegativeAmount() throws ScriptException {
+  public void testCryptoSellNegativeAmount() throws Exception {
     CryptoTransactionTester cryptoTransactionTester = CryptoTransactionTester.builder()
+            .mockMvc(mockMvc)
             .initialBalanceInDollars(1000)
             .initialCryptoBalance(Collections.singletonMap("ETH", 0.1))
             .build();
@@ -1441,8 +1463,9 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
    */
   @WithMockUser(username = "123456789")
   @Test
-  public void testCryptoBuyOverdraft() throws ScriptException {
+  public void testCryptoBuyOverdraft() throws Exception {
     CryptoTransactionTester cryptoTransactionTester = CryptoTransactionTester.builder()
+            .mockMvc(mockMvc)
             .initialBalanceInDollars(1000)
             .initialOverdraftBalanceInDollars(100)
             .build();
@@ -1467,8 +1490,9 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
    */
   @WithMockUser(username = "123456789")
   @Test
-  public void testCryptoSellOverdraft() throws ScriptException {
+  public void testCryptoSellOverdraft() throws Exception {
     CryptoTransactionTester cryptoTransactionTester = CryptoTransactionTester.builder()
+            .mockMvc(mockMvc)
             .initialBalanceInDollars(1000)
             .initialOverdraftBalanceInDollars(50)
             .initialCryptoBalance(Collections.singletonMap("ETH", 0.15))
@@ -1496,8 +1520,9 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
    */
   @WithMockUser(username = "123456789")
   @Test
-  public void testCryptoBuyInvalidPrice() throws ScriptException {
+  public void testCryptoBuyInvalidPrice() throws Exception {
     CryptoTransactionTester cryptoTransactionTester = CryptoTransactionTester.builder()
+            .mockMvc(mockMvc)
             .initialBalanceInDollars(1000)
             .initialCryptoBalance(Collections.singletonMap("ETH", 0.0))
             .build();
@@ -1521,8 +1546,9 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
    */
   @WithMockUser(username = "123456789")
   @Test
-  public void testCryptoSellInvalidPrice() throws ScriptException {
+  public void testCryptoSellInvalidPrice() throws Exception {
     CryptoTransactionTester cryptoTransactionTester = CryptoTransactionTester.builder()
+            .mockMvc(mockMvc)
             .initialBalanceInDollars(1000)
             .initialCryptoBalance(Collections.singletonMap("ETH", 0.1))
             .build();
@@ -1547,8 +1573,9 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
    */
   @WithMockUser(username = "123456789")
   @Test
-  public void testCryptoBuySellMultiple() throws ScriptException {
+  public void testCryptoBuySellMultiple() throws Exception {
     CryptoTransactionTester cryptoTransactionTester = CryptoTransactionTester.builder()
+            .mockMvc(mockMvc)
             .initialBalanceInDollars(1000)
             .build();
 
@@ -1580,6 +1607,9 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
     // then buy SOL
     cryptoTransactionTester.test(buySol);
 
+    // wait a second so the timestamp is always different for the next transaction
+    Thread.sleep(1000);
+
     CryptoTransaction sellSol = CryptoTransaction.builder()
             .cryptoName("SOL")
             .cryptoPrice(200)
@@ -1599,8 +1629,9 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
    */
   @WithMockUser(username = "123456789")
   @Test
-  public void testCryptoBuyInvalidCrypto() throws ScriptException {
+  public void testCryptoBuyInvalidCrypto() throws Exception {
     CryptoTransactionTester cryptoTransactionTester = CryptoTransactionTester.builder()
+            .mockMvc(mockMvc)
             .initialBalanceInDollars(1000)
             .build();
 
@@ -1624,8 +1655,9 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
    */
   @WithMockUser(username = "123456789")
   @Test
-  public void testCryptoSellInvalidCrypto() throws ScriptException {
+  public void testCryptoSellInvalidCrypto() throws Exception {
     CryptoTransactionTester cryptoTransactionTester = CryptoTransactionTester.builder()
+            .mockMvc(mockMvc)
             .initialBalanceInDollars(1000)
             .build();
 
@@ -1666,38 +1698,6 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
             )
 
             .andExpect(status().isUnauthorized());
-  }
-
-  /**
-   * Test that restricted endpoints work when authenticated
-   */
-  @WithMockUser(username = "123456789")
-  @Test
-  public void testAuthenticated() throws Exception {
-
-    MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER1_ID, CUSTOMER1_FIRST_NAME, CUSTOMER1_LAST_NAME, 100000);
-
-    mockMvc.perform(MockMvcRequestBuilders.get("/account")
-                    .accept(MediaType.ALL))
-            .andExpect(status().isOk());
-
-    User user = new User();
-    user.setAmountToBuyCrypto(1);
-    user.setAmountToSellCrypto(0.1);
-    user.setWhichCryptoToBuy("ETH");
-
-    mockMvc.perform(MockMvcRequestBuilders.post("/buycrypto")
-                    .param("whichCryptoToBuy", "ETH")
-                    .param("amountToBuyCrypto", "0.1")
-                    .with(SecurityMockMvcRequestPostProcessors.csrf())
-                    .accept(MediaType.ALL))
-            .andExpect(status().isOk());
-
-    mockMvc.perform(MockMvcRequestBuilders.post("/sellcrypto")
-                    .flashAttr("user", user)
-                    .with(SecurityMockMvcRequestPostProcessors.csrf())
-                    .accept(MediaType.ALL))
-            .andExpect(status().isOk());
   }
 
 }
