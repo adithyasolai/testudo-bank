@@ -146,8 +146,8 @@ public class MvcController {
   @GetMapping("/buycrypto")
 	public String showBuyCryptoForm(Model model) {
     User user = new User();
-    user.setEthPrice(dollarsToDollarString(cryptoPriceClient.getCurrentEthValue()));
-    user.setSolPrice(dollarsToDollarString(cryptoPriceClient.getCurrentSolValue()));
+    user.setEthPrice(dollarsToDollarString(cryptoPriceClient.getCurrentCryptoValue("ETH")));
+    user.setSolPrice(dollarsToDollarString(cryptoPriceClient.getCurrentCryptoValue("SOL")));
 		model.addAttribute("user", user);
 		return "buycrypto_form";
 	}
@@ -163,8 +163,8 @@ public class MvcController {
   @GetMapping("/sellcrypto")
 	public String showSellCryptoForm(Model model) {
     User user = new User();
-    user.setEthPrice(dollarsToDollarString(cryptoPriceClient.getCurrentEthValue()));
-    user.setSolPrice(dollarsToDollarString(cryptoPriceClient.getCurrentSolValue()));
+    user.setEthPrice(dollarsToDollarString(cryptoPriceClient.getCurrentCryptoValue("ETH")));
+    user.setSolPrice(dollarsToDollarString(cryptoPriceClient.getCurrentCryptoValue("SOL")));
 		model.addAttribute("user", user);
 		return "sellcrypto_form";
 	}
@@ -251,8 +251,8 @@ public class MvcController {
     user.setCryptoHist(cryptoTransactionHistoryEntries);
     user.setEthBalance(TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, user.getUsername(), "ETH").orElse(0.0));
     user.setSolBalance(TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, user.getUsername(), "SOL").orElse(0.0));
-    user.setEthPrice(dollarsToDollarString(cryptoPriceClient.getCurrentEthValue()));
-    user.setSolPrice(dollarsToDollarString(cryptoPriceClient.getCurrentSolValue()));
+    user.setEthPrice(dollarsToDollarString(cryptoPriceClient.getCurrentCryptoValue("ETH")));
+    user.setSolPrice(dollarsToDollarString(cryptoPriceClient.getCurrentCryptoValue("SOL")));
   }
 
   // Converts dollar amounts in frontend to penny representation in backend MySQL DB

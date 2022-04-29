@@ -92,6 +92,7 @@ public class MvcControllerIntegTest {
     registry.add("spring.datasource.url", db::getJdbcUrl);
     registry.add("spring.datasource.username", db::getUsername);
     registry.add("spring.datasource.password", db::getPassword);
+    registry.add("spring.cache.type", "NONE"::toString);
   }
 
   @BeforeAll
@@ -1607,8 +1608,8 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
     // then buy SOL
     cryptoTransactionTester.test(buySol);
 
-    // wait a second so the timestamp is always different for the next transaction
-    Thread.sleep(1000);
+    // wait so the timestamp is always different for the next transaction
+    Thread.sleep(2000);
 
     CryptoTransaction sellSol = CryptoTransaction.builder()
             .cryptoName("SOL")
