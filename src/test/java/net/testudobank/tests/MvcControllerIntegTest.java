@@ -113,7 +113,7 @@ public class MvcControllerIntegTest {
     System.out.println("Timestamp when Deposit Request is sent: " + timeWhenDepositRequestSent);
 
     // send request to the Deposit Form's POST handler in MvcController
-    controller.submitDeposit(customer1DepositFormInputs);
+    controller.submitDeposit(customer1DepositFormInputs, 2);
 
     // fetch updated data from the DB
     List<Map<String,Object>> customersTableData = jdbcTemplate.queryForList("SELECT * FROM Customers;");
@@ -172,7 +172,7 @@ public class MvcControllerIntegTest {
     System.out.println("Timestamp when Withdraw Request is sent: " + timeWhenWithdrawRequestSent);
 
     // send request to the Withdraw Form's POST handler in MvcController
-    controller.submitWithdraw(customer1WithdrawFormInputs);
+    controller.submitWithdraw(customer1WithdrawFormInputs, 2);
 
     // fetch updated data from the DB
     List<Map<String,Object>> customersTableData = jdbcTemplate.queryForList("SELECT * FROM Customers;");
@@ -196,6 +196,107 @@ public class MvcControllerIntegTest {
     int CUSTOMER1_AMOUNT_TO_WITHDRAW_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_AMOUNT_TO_WITHDRAW);
     MvcControllerIntegTestHelpers.checkTransactionLog(customer1TransactionLog, timeWhenWithdrawRequestSent, CUSTOMER1_ID, MvcController.TRANSACTION_HISTORY_WITHDRAW_ACTION, CUSTOMER1_AMOUNT_TO_WITHDRAW_IN_PENNIES);
   }
+
+  /**
+   * Verifies the simplest Interest case.
+   * The customer's Balance in the Customers table should be increased,
+   * and the Deposit should be logged in the TransactionHistory table along with the Interest.
+   * 
+   * Assumes that the customer's account is in the simplest state
+   * (not in overdraft, account is not frozen due to too many transaction disputes, etc.)
+   * 
+   * @throws SQLException
+   * @throws ScriptException
+   */
+  @Test
+  public void testSimpleInterest() throws SQLException, ScriptException {
+    // initialize customer1 with a balance of $100.00 (to make sure this works for non-whole dollar amounts). represented as pennies in the DB.
+    double CUSTOMER1_BALANCE = 100.00;
+    int firstDayOfTheMonth = 1;
+    int CUSTOMER1_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_BALANCE);
+    MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER1_ID, CUSTOMER1_PASSWORD, CUSTOMER1_FIRST_NAME, CUSTOMER1_LAST_NAME, CUSTOMER1_BALANCE_IN_PENNIES);
+
+    // Prepare Deposit Form to Deposit $1.00 to customer 1's account.
+    double CUSTOMER1_AMOUNT_TO_DEPOSIT = 1.00; // user input is in dollar amount, not pennies.
+    User customer1DepositFormInputs = new User();
+    customer1DepositFormInputs.setUsername(CUSTOMER1_ID);
+    customer1DepositFormInputs.setPassword(CUSTOMER1_PASSWORD);
+    customer1DepositFormInputs.setAmountToDeposit(CUSTOMER1_AMOUNT_TO_DEPOSIT); 
+
+    // verify that there are no logs in TransactionHistory table before Deposit
+    assertEquals(0, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM TransactionHistory;", Integer.class));
+
+    // store timestamp of when Deposit request is sent to verify timestamps in the TransactionHistory table later
+    LocalDateTime timeWhenDepositRequestSent = MvcControllerIntegTestHelpers.fetchCurrentTimeAsLocalDateTimeNoMilliseconds();
+    System.out.println("Timestamp when Deposit Request is sent: " + timeWhenDepositRequestSent);
+
+    // send request to the Deposit Form's POST handler in MvcController
+    controller.submitDeposit(customer1DepositFormInputs, firstDayOfTheMonth);
+
+    // fetch updated data from the DB
+    List<Map<String,Object>> customersTableData = jdbcTemplate.queryForList("SELECT * FROM Customers;");
+  
+    // verify that customer1's data is still the only data populated in Customers table
+    assertEquals(1, customersTableData.size());
+    Map<String,Object> customer1Data = customersTableData.get(0);
+    assertEquals(CUSTOMER1_ID, (String)customer1Data.get("CustomerID"));
+
+    
+    //Check to see that Interest is correct
+    assertEquals(((101+(101 * 1.02)) * 100), (int)customer1Data.get("Balance"));
+
+  }
+
+  /**
+   * Verifies the Interest case where customer has no money.
+   * The customer's Balance in the Customers table should 0,
+   * and the Deposit should be logged in the TransactionHistory table along with the Interest.
+   * 
+   * Assumes that the customer's account is negative and does not add interest since balance is now 0.
+   * (not in overdraft, account is not frozen due to too many transaction disputes, etc.)
+   * 
+   * @throws SQLException
+   * @throws ScriptException
+   */
+  @Test
+  public void testInterestZeroMoney() throws SQLException, ScriptException {
+    // initialize customer1 with a balance of $-1.00 (to make sure this works for non-whole dollar amounts). represented as pennies in the DB.
+    double CUSTOMER1_BALANCE = -1.00;
+    int firstDayOfTheMonth = 1;
+    int CUSTOMER1_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_BALANCE);
+    MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER1_ID, CUSTOMER1_PASSWORD, CUSTOMER1_FIRST_NAME, CUSTOMER1_LAST_NAME, CUSTOMER1_BALANCE_IN_PENNIES);
+
+    // Prepare Deposit Form to Deposit $1.00 to customer 1's account.
+    double CUSTOMER1_AMOUNT_TO_DEPOSIT = 1.00; // user input is in dollar amount, not pennies.
+    User customer1DepositFormInputs = new User();
+    customer1DepositFormInputs.setUsername(CUSTOMER1_ID);
+    customer1DepositFormInputs.setPassword(CUSTOMER1_PASSWORD);
+    customer1DepositFormInputs.setAmountToDeposit(CUSTOMER1_AMOUNT_TO_DEPOSIT); 
+
+    // verify that there are no logs in TransactionHistory table before Deposit
+    assertEquals(0, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM TransactionHistory;", Integer.class));
+
+    // store timestamp of when Deposit request is sent to verify timestamps in the TransactionHistory table later
+    LocalDateTime timeWhenDepositRequestSent = MvcControllerIntegTestHelpers.fetchCurrentTimeAsLocalDateTimeNoMilliseconds();
+    System.out.println("Timestamp when Deposit Request is sent: " + timeWhenDepositRequestSent);
+
+    // send request to the Deposit Form's POST handler in MvcController
+    controller.submitDeposit(customer1DepositFormInputs, firstDayOfTheMonth);
+
+    // fetch updated data from the DB
+    List<Map<String,Object>> customersTableData = jdbcTemplate.queryForList("SELECT * FROM Customers;");
+    
+    // verify that customer1's data is still the only data populated in Customers table
+    assertEquals(1, customersTableData.size());
+    Map<String,Object> customer1Data = customersTableData.get(0);
+    assertEquals(CUSTOMER1_ID, (String)customer1Data.get("CustomerID"));
+
+    
+    //Check to see that Interest is correct
+    assertEquals(0, (int)customer1Data.get("Balance"));
+
+  }
+  
 
   /**
    * Verifies the case where a customer withdraws more than their available balance.
@@ -229,7 +330,7 @@ public class MvcControllerIntegTest {
     System.out.println("Timestamp when Withdraw Request is sent: " + timeWhenWithdrawRequestSent);
 
     // send request to the Withdraw Form's POST handler in MvcController
-    controller.submitWithdraw(customer1WithdrawFormInputs);
+    controller.submitWithdraw(customer1WithdrawFormInputs, 2);
 
     // fetch updated customer1 data from the DB
     List<Map<String,Object>> customersTableData = jdbcTemplate.queryForList("SELECT * FROM Customers;");
@@ -284,7 +385,7 @@ public class MvcControllerIntegTest {
     System.out.println("Timestamp when withdraw request sent: " + timeWhenWithdrawRequestSent);
 
     //Check the response when the withdraw request is submitted. This should return the user back to the home screen due to an invalid request
-    String responsePage = controller.submitWithdraw(customer1WithdrawFormInputs);
+    String responsePage = controller.submitWithdraw(customer1WithdrawFormInputs, 2);
     assertEquals("welcome", responsePage);
 
     //Fetch customer1's data from DB
@@ -340,7 +441,7 @@ public class MvcControllerIntegTest {
     System.out.println("Timestamp when Deposit Request is sent: " + timeWhenDepositRequestSent);
 
     // send request to the Deposit Form's POST handler in MvcController
-    controller.submitDeposit(customer1DepositFormInputs);
+    controller.submitDeposit(customer1DepositFormInputs, 2);
 
     // fetch updated data from the DB
     List<Map<String,Object>> customersTableData = jdbcTemplate.queryForList("SELECT * FROM Customers;");
@@ -403,7 +504,7 @@ public class MvcControllerIntegTest {
     System.out.println("Timestamp when Deposit Request is sent: " + timeWhenDepositRequestSent);
 
     // send request to the Deposit Form's POST handler in MvcController
-    controller.submitDeposit(customer1DepositFormInputs);
+    controller.submitDeposit(customer1DepositFormInputs, 2);
 
     // fetch updated data from the DB
     List<Map<String,Object>> customersTableData = jdbcTemplate.queryForList("SELECT * FROM Customers;");
@@ -468,7 +569,7 @@ public class MvcControllerIntegTest {
     System.out.println("Timestamp when Deposit Request is sent: " + timeWhenDepositRequestSent);
 
     // send request to the Deposit Form's POST handler in MvcController
-    controller.submitDeposit(customer1DepositFormInputs);
+    controller.submitDeposit(customer1DepositFormInputs, 2);
 
     // verify customer1's balance after the deposit
     List<Map<String,Object>> customersTableData = jdbcTemplate.queryForList("SELECT * FROM Customers;");
@@ -489,7 +590,7 @@ public class MvcControllerIntegTest {
     System.out.println("Timestamp when Reversal Request is sent: " + timeWhenReversalRequestSent);
 
     // send Dispute request
-    controller.submitDispute(customer1ReversalFormInputs);
+    controller.submitDispute(customer1ReversalFormInputs, 2);
 
     // re-fetch updated customer data from the DB
     customersTableData = jdbcTemplate.queryForList("SELECT * FROM Customers;");
@@ -555,7 +656,7 @@ public class MvcControllerIntegTest {
     System.out.println("Timestamp when Withdraw Request is sent: " + timeWhenWithdrawRequestSent);
 
     // send request to the Withdraw Form's POST handler in MvcController
-    controller.submitWithdraw(customer1WithdrawFormInputs);
+    controller.submitWithdraw(customer1WithdrawFormInputs, 2);
 
     // verify customer1's balance after the withdraw
     List<Map<String,Object>> customersTableData = jdbcTemplate.queryForList("SELECT * FROM Customers;");
@@ -576,7 +677,7 @@ public class MvcControllerIntegTest {
     System.out.println("Timestamp when Reversal Request is sent: " + timeWhenReversalRequestSent);
 
     // send Dispute request
-    controller.submitDispute(customer1ReversalFormInputs);
+    controller.submitDispute(customer1ReversalFormInputs, 2);
 
     // re-fetch updated customer data from the DB
     customersTableData = jdbcTemplate.queryForList("SELECT * FROM Customers;");
@@ -650,7 +751,7 @@ public class MvcControllerIntegTest {
     customer1DepositFormInputs.setAmountToDeposit(CUSTOMER1_AMOUNT_TO_DEPOSIT);
 
     // send Deposit request to the Deposit Form's POST handler in MvcController
-    controller.submitDeposit(customer1DepositFormInputs);
+    controller.submitDeposit(customer1DepositFormInputs, 2);
 
     // verify customer1's balance after the deposit
     List<Map<String,Object>> customersTableData = jdbcTemplate.queryForList("SELECT * FROM Customers;");
@@ -664,7 +765,7 @@ public class MvcControllerIntegTest {
     customer1ReversalFormInputs.setNumTransactionsAgo(1); // reverse the most recent transaction
 
     // send Dispute request
-    controller.submitDispute(customer1ReversalFormInputs);
+    controller.submitDispute(customer1ReversalFormInputs, 2);
 
     // re-fetch updated customer data from the DB
     customersTableData = jdbcTemplate.queryForList("SELECT * FROM Customers;");
@@ -688,22 +789,22 @@ public class MvcControllerIntegTest {
     // customer should still be able to view account info with the Login Form
     customer1FrozenFormInputs.setUsername(CUSTOMER1_ID);
     customer1FrozenFormInputs.setPassword(CUSTOMER1_PASSWORD);
-    String responsePage = controller.submitLoginForm(customer1FrozenFormInputs);
+    String responsePage = controller.submitLoginForm(customer1FrozenFormInputs, 2);
     assertEquals("account_info", responsePage);
 
     // customer should not be able to Deposit
     customer1FrozenFormInputs.setAmountToDeposit(MvcControllerIntegTestHelpers.convertDollarsToPennies(50));
-    responsePage = controller.submitDeposit(customer1FrozenFormInputs);
+    responsePage = controller.submitDeposit(customer1FrozenFormInputs, 2);
     assertEquals("welcome", responsePage);
 
     // customer should not be able to Withdraw
     customer1FrozenFormInputs.setAmountToWithdraw(MvcControllerIntegTestHelpers.convertDollarsToPennies(50));
-    responsePage = controller.submitWithdraw(customer1FrozenFormInputs);
+    responsePage = controller.submitWithdraw(customer1FrozenFormInputs, 2);
     assertEquals("welcome", responsePage);
 
     // customer should not be able to Dispute/Reverse a Transaction
     customer1FrozenFormInputs.setNumTransactionsAgo(1);
-    responsePage = controller.submitDispute(customer1FrozenFormInputs);
+    responsePage = controller.submitDispute(customer1FrozenFormInputs, 2);
     assertEquals("welcome", responsePage);
 
     // verify customer's data and # of transactions is unchanged
@@ -751,7 +852,7 @@ public class MvcControllerIntegTest {
     System.out.println("Timestamp when Deposit Request is sent: " + timeWhenDepositRequestSent);
 
     // send request to the Deposit Form's POST handler in MvcController
-    controller.submitDeposit(customer1DepositFormInputs);
+    controller.submitDeposit(customer1DepositFormInputs, 2);
  
      // sleep for 1 second to ensure the timestamps of Deposit, Withdraw, and Reversal are different (and sortable) in TransactionHistory table
      Thread.sleep(1000);
@@ -768,7 +869,7 @@ public class MvcControllerIntegTest {
     System.out.println("Timestamp when Withdraw Request is sent: " + timeWhenWithdrawRequestSent);
 
     // send request to the Withdraw Form's POST handler in MvcController
-    controller.submitWithdraw(customer1WithdrawFormInputs);
+    controller.submitWithdraw(customer1WithdrawFormInputs, 2);
 
     // sleep for 1 second to ensure the timestamps of Deposit, Withdraw, and Reversal are different (and sortable) in TransactionHistory table
     Thread.sleep(1000);
@@ -784,7 +885,7 @@ public class MvcControllerIntegTest {
     customer1ReversalFormInputs.setNumTransactionsAgo(2); // reverse the first transaction
 
     // send Dispute request
-    String responsePage = controller.submitDispute(customer1ReversalFormInputs);
+    String responsePage = controller.submitDispute(customer1ReversalFormInputs, 2);
     assertEquals("welcome", responsePage);
 
     // re-fetch transaction data from the DB in chronological order
@@ -835,7 +936,7 @@ public class MvcControllerIntegTest {
     customer1DepositFormInputs.setAmountToDeposit(CUSTOMER1_AMOUNT_TO_DEPOSIT);
 
     // send request to the Deposit Form's POST handler in MvcController
-    controller.submitDeposit(customer1DepositFormInputs);
+    controller.submitDeposit(customer1DepositFormInputs, 2);
 
     // sleep for 1 second to ensure the timestamps of Withdraw and Reversal are different (and sortable) in TransactionHistory table
     Thread.sleep(1000);
@@ -848,7 +949,7 @@ public class MvcControllerIntegTest {
     customer1WithdrawFormInputs.setAmountToWithdraw(CUSTOMER1_AMOUNT_TO_WITHDRAW);
 
     // send request to the Withdraw Form's POST handler in MvcController
-    controller.submitWithdraw(customer1WithdrawFormInputs);
+    controller.submitWithdraw(customer1WithdrawFormInputs, 2);
 
     // sleep for 1 second to ensure the timestamps of Withdraw and Reversal are different (and sortable) in TransactionHistory table
     Thread.sleep(1000);
@@ -861,7 +962,7 @@ public class MvcControllerIntegTest {
     customer1ReversalFormInputs.setNumTransactionsAgo(2); // reverse the first transaction
 
     // send Dispute request
-    controller.submitDispute(customer1ReversalFormInputs);
+    controller.submitDispute(customer1ReversalFormInputs, 2);
 
     // fetch updated customer1 data from the DB
     customersTableData = jdbcTemplate.queryForList("SELECT * FROM Customers;");
@@ -921,7 +1022,7 @@ public class MvcControllerIntegTest {
     customer1DepositFormInputs.setAmountToDeposit(CUSTOMER1_AMOUNT_TO_DEPOSIT);
 
     // send request to the Deposit Form's POST handler in MvcController
-    controller.submitDeposit(customer1DepositFormInputs);
+    controller.submitDeposit(customer1DepositFormInputs, 2);
  
     // sleep for 1 second to ensure the timestamps of Deposit, Withdraw, and Reversal are different (and sortable) in TransactionHistory table
     Thread.sleep(1000);
@@ -931,7 +1032,7 @@ public class MvcControllerIntegTest {
     customer1ReversalFormInputs.setNumTransactionsAgo(1); // reverse the first transaction
 
     // send Dispute request
-    controller.submitDispute(customer1ReversalFormInputs);
+    controller.submitDispute(customer1ReversalFormInputs, 2);
 
     // fetch updated customer1 data from the DB
      List<Map<String,Object>> customersTableData = jdbcTemplate.queryForList("SELECT * FROM Customers;");
@@ -975,7 +1076,7 @@ public class MvcControllerIntegTest {
     CUSTOMER1.setAmountToTransfer(TRANSFER_AMOUNT);
     
     //Send the transfer request.
-    String returnedPage = controller.submitTransfer(CUSTOMER1);
+    String returnedPage = controller.submitTransfer(CUSTOMER1, 2);
     
     //Fetch customer1 & customer2's data from DB
     List<Map<String, Object>> customer1SqlResult = jdbcTemplate.queryForList(String.format("SELECT * FROM Customers WHERE CustomerID='%s';", CUSTOMER1_ID));
@@ -1031,7 +1132,7 @@ public class MvcControllerIntegTest {
     CUSTOMER1.setAmountToTransfer(TRANSFER_AMOUNT);
 
     //Send the transfer request.
-    String returnedPage = controller.submitTransfer(CUSTOMER1);
+    String returnedPage = controller.submitTransfer(CUSTOMER1, 2);
 
     //fetch customer1 & customer2's data from DB
     List<Map<String,Object>> customer1SqlResult = jdbcTemplate.queryForList(String.format("SELECT * FROM Customers WHERE CustomerID='%s';", CUSTOMER1_ID));
@@ -1089,7 +1190,7 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
     CUSTOMER1.setAmountToTransfer(TRANSFER_AMOUNT);
 
     //Send the transfer request.
-    String returnedPage = controller.submitTransfer(CUSTOMER1);
+    String returnedPage = controller.submitTransfer(CUSTOMER1, 2);
 
     //fetch customer1 & customer2's data from DB
     List<Map<String,Object>> customer1SqlResult = jdbcTemplate.queryForList(String.format("SELECT * FROM Customers WHERE CustomerID='%s';", CUSTOMER1_ID));
@@ -1251,10 +1352,10 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
       String returnedPage;
       if (transaction.cryptoTransactionTestType == CryptoTransactionTestType.BUY) {
         user.setAmountToBuyCrypto(transaction.cryptoAmountToTransact);
-        returnedPage = controller.buyCrypto(user);
+        returnedPage = controller.buyCrypto(user, 2);
       } else {
         user.setAmountToSellCrypto(transaction.cryptoAmountToTransact);
-        returnedPage = controller.sellCrypto(user);
+        returnedPage = controller.sellCrypto(user, 2);
       }
 
       // check the crypto balance

@@ -9,7 +9,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.Map;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.Date;
+import java.util.GregorianCalendar;
 import java.util.HashSet;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -18,6 +20,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+import org.apache.catalina.realm.UserDatabaseRealm;
 import org.springframework.beans.factory.annotation.Autowired;
 
 @Controller
@@ -33,8 +36,14 @@ public class MvcController {
   // Formatter for converting Java Dates to SQL-compatible DATETIME Strings
   private static java.text.SimpleDateFormat SQL_DATETIME_FORMATTER = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
+  //Todays date for Interest Function
+  private Calendar calendar = new GregorianCalendar(); 
+  private int todaysDate = calendar.get(Calendar.DAY_OF_MONTH);
+  
+
   //// CONSTANT LITERALS ////
   public final static double INTEREST_RATE = 1.02;
+  public final static int FIRST_DAY_OF_THE_MONTH = 1;
   private final static int MAX_OVERDRAFT_IN_PENNIES = 100000;
   public final static int MAX_DISPUTES = 2;
   private final static int MAX_NUM_TRANSACTIONS_DISPLAYED = 3;
@@ -43,6 +52,7 @@ public class MvcController {
   private final static String HTML_LINE_BREAK = "<br/>";
   public static String TRANSACTION_HISTORY_DEPOSIT_ACTION = "Deposit";
   public static String TRANSACTION_HISTORY_WITHDRAW_ACTION = "Withdraw";
+  public static String TRANSACTION_HISTORY_INTEREST_ACTION = "Interest";
   public static String TRANSACTION_HISTORY_TRANSFER_SEND_ACTION = "TransferSend";
   public static String TRANSACTION_HISTORY_TRANSFER_RECEIVE_ACTION = "TransferReceive";
   public static String TRANSACTION_HISTORY_CRYPTO_SELL_ACTION = "CryptoSell";
@@ -184,10 +194,11 @@ public class MvcController {
   /**
    * Helper method that queries the MySQL DB for the customer account info (First Name, Last Name, and Balance)
    * and adds these values to the `user` Model Attribute so that they can be displayed in the "account_info" page.
+   * Also handles Interest on User Accounts.
    * 
    * @param user
    */
-  private void updateAccountInfo(User user) {
+  public void updateAccountInfo(User user, int todaysDate) {
     List<Map<String,Object>> overdraftLogs = TestudoBankRepository.getOverdraftLogs(jdbcTemplate, user.getUsername());
     String logs = HTML_LINE_BREAK;
     for(Map<String, Object> overdraftLog : overdraftLogs){
@@ -236,7 +247,20 @@ public class MvcController {
     user.setSolBalance(TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, user.getUsername(), "SOL").orElse(0.0));
     user.setEthPrice(cryptoPriceClient.getCurrentEthValue());
     user.setSolPrice(cryptoPriceClient.getCurrentSolValue());
+
+    //Interest on Account Balance if it is the first of the month then adding it to the transaction history table
+
+    if(todaysDate == FIRST_DAY_OF_THE_MONTH && overDraftBalance == 0 && ((int)userData.get("Balance")/100.0) > 0){
+      int userBalanceInPennies = TestudoBankRepository.getCustomerCashBalanceInPennies(jdbcTemplate, user.getUsername());
+      int totalInterest = (int) (userBalanceInPennies * INTEREST_RATE);
+      String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date()); 
+      user.setBalance(userBalanceInPennies + totalInterest);
+      TestudoBankRepository.increaseCustomerCashBalance(jdbcTemplate, user.getUsername(), totalInterest);
+      TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, user.getUsername(), currentTime, TRANSACTION_HISTORY_INTEREST_ACTION ,totalInterest);
+    }
+
   }
+  
 
   // Converts dollar amounts in frontend to penny representation in backend MySQL DB
   private static int convertDollarsToPennies(double dollarAmount) {
@@ -268,7 +292,7 @@ public class MvcController {
    * @return "account_info" page if login successful. Otherwise, redirect to "welcome" page.
    */
   @PostMapping("/login")
-	public String submitLoginForm(@ModelAttribute("user") User user) {
+	public String submitLoginForm(@ModelAttribute("user") User user, int todaysDate) {
     // Print user's existing fields for debugging
 		System.out.println(user);
 
@@ -279,7 +303,7 @@ public class MvcController {
     String userPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, userID);
 
     if (userPasswordAttempt.equals(userPassword)) {
-      updateAccountInfo(user);
+      updateAccountInfo(user,todaysDate);
 
       return "account_info";
     } else {
@@ -300,7 +324,7 @@ public class MvcController {
    * @return "account_info" page if valid deposit request. Otherwise, redirect to "welcome" page.
    */
   @PostMapping("/deposit")
-  public String submitDeposit(@ModelAttribute("user") User user) {
+  public String submitDeposit(@ModelAttribute("user") User user, int todaysDate) {
     String userID = user.getUsername();
     String userPasswordAttempt = user.getPassword();
     String userPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, userID);
@@ -356,7 +380,7 @@ public class MvcController {
     }
 
     // update Model so that View can access new main balance, overdraft balance, and logs
-    updateAccountInfo(user);
+    updateAccountInfo(user,todaysDate);
     return "account_info";
   }
 	
@@ -376,7 +400,7 @@ public class MvcController {
    * @return "account_info" page if withdraw request is valid. Otherwise, redirect to "welcome" page.
    */
   @PostMapping("/withdraw")
-  public String submitWithdraw(@ModelAttribute("user") User user) {
+  public String submitWithdraw(@ModelAttribute("user") User user, int todaysDate) {
     String userID = user.getUsername();
     String userPasswordAttempt = user.getPassword();
     String userPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, userID);
@@ -440,7 +464,7 @@ public class MvcController {
 
   
     // update Model so that View can access new main balance, overdraft balance, and logs
-    updateAccountInfo(user);
+    updateAccountInfo(user,todaysDate);
     return "account_info";
 
   }
@@ -459,7 +483,7 @@ public class MvcController {
    * @return "account_info" page if login successful. Otherwise, redirect to "welcome" page.
    */
   @PostMapping("/dispute")
-  public String submitDispute(@ModelAttribute("user") User user) {
+  public String submitDispute(@ModelAttribute("user") User user, int todaysDate) {
     // Ensure that requested transaction to reverse is within acceptable range
     if (user.getNumTransactionsAgo() <= 0 || user.getNumTransactionsAgo() > MAX_REVERSABLE_TRANSACTIONS_AGO) {
       return "welcome";
@@ -506,7 +530,7 @@ public class MvcController {
         return "welcome";
       }
       user.setAmountToWithdraw(reversalAmount);
-      submitWithdraw(user);
+      submitWithdraw(user, todaysDate);
 
       // If reversing a deposit puts customer back in overdraft
       if (reversalAmountInPennies > userBalanceInPennies){
@@ -528,14 +552,14 @@ public class MvcController {
       } 
     } else { // Case when reversing a withdraw, deposit the money instead
       user.setAmountToDeposit(reversalAmount);
-      submitDeposit(user);
+      submitDeposit(user, todaysDate);
     }
 
     // Adds to number of reversals only after a successful reversal 
     numOfReversals++;
     TestudoBankRepository.setCustomerNumFraudReversals(jdbcTemplate, userID, numOfReversals);
 
-    updateAccountInfo(user);
+    updateAccountInfo(user,todaysDate);
 
     return "account_info";
   }
@@ -557,7 +581,7 @@ public class MvcController {
    * @return "account_info" page if login successful. Otherwise, redirect to "welcome" page.
    */
   @PostMapping("/transfer")
-  public String submitTransfer(@ModelAttribute("user") User sender) {
+  public String submitTransfer(@ModelAttribute("user") User sender, int todaysDate) {
 
     // checks to see the customer you are transfering to exists
     if (!TestudoBankRepository.doesCustomerExist(jdbcTemplate, sender.getTransferRecipientID())){
@@ -610,14 +634,14 @@ public class MvcController {
 
     // withdraw transfer amount from sender and deposit into recipient's account
     sender.setAmountToWithdraw(transferAmount);
-    submitWithdraw(sender);
+    submitWithdraw(sender,todaysDate);
 
     recipient.setAmountToDeposit(transferAmount);
-    submitDeposit(recipient);
+    submitDeposit(recipient, todaysDate);
 
     // Inserting transfer into transfer history for both customers
     TestudoBankRepository.insertRowToTransferLogsTable(jdbcTemplate, senderUserID, recipientUserID, currentTime, transferAmountInPennies);
-    updateAccountInfo(sender);
+    updateAccountInfo(sender,todaysDate);
 
     return "account_info";
   }
@@ -641,8 +665,7 @@ public class MvcController {
    * @return "account_info" page if buy successful. Otherwise, redirect to "welcome" page.
    */
   @PostMapping("/buycrypto")
-  public String buyCrypto(@ModelAttribute("user") User user) {
-
+  public String buyCrypto(@ModelAttribute("user") User user, int todaysDate) {
     String userID = user.getUsername();
     String userPasswordAttempt = user.getPassword();
     String userPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, userID);
@@ -696,7 +719,7 @@ public class MvcController {
     user.setCryptoTransaction(true);
 
     // TODO: I don't like how this is dependent on a string return value. Withdraw logic should probably be extracted
-    String withdrawResponse = submitWithdraw(user);
+    String withdrawResponse = submitWithdraw(user, todaysDate);
 
     if (withdrawResponse.equals("account_info")) {
 
@@ -708,7 +731,7 @@ public class MvcController {
       TestudoBankRepository.increaseCustomerCryptoBalance(jdbcTemplate, userID, cryptoToBuy, cryptoAmountToBuy);
       TestudoBankRepository.insertRowToCryptoLogsTable(jdbcTemplate, userID, cryptoToBuy, CRYPTO_HISTORY_BUY_ACTION, currentTime, cryptoAmountToBuy);
 
-      updateAccountInfo(user);
+      updateAccountInfo(user,todaysDate);
 
       return "account_info";
     } else {
@@ -736,7 +759,7 @@ public class MvcController {
    * @return "account_info" page if sell successful. Otherwise, redirect to "welcome" page.
    */
   @PostMapping("/sellcrypto")
-  public String sellCrypto(@ModelAttribute("user") User user) {
+  public String sellCrypto(@ModelAttribute("user") User user, int todaysDate) {
     String userID = user.getUsername();
     String userPasswordAttempt = user.getPassword();
     String userPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, userID);
@@ -780,14 +803,14 @@ public class MvcController {
     user.setCryptoTransaction(true);
 
     // TODO: I don't like how this is dependent on a string return value. Deposit logic should probably be extracted
-    String depositResponse = submitDeposit(user);
+    String depositResponse = submitDeposit(user, todaysDate);
 
     if (depositResponse.equals("account_info")) {
 
       TestudoBankRepository.decreaseCustomerCryptoBalance(jdbcTemplate, userID, cryptoToBuy, cryptoAmountToSell);
       TestudoBankRepository.insertRowToCryptoLogsTable(jdbcTemplate, userID, cryptoToBuy, CRYPTO_HISTORY_SELL_ACTION, currentTime, cryptoAmountToSell);
 
-      updateAccountInfo(user);
+      updateAccountInfo(user,todaysDate);
 
       return "account_info";
     } else {
