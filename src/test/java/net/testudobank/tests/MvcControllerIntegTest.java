@@ -1276,7 +1276,8 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
                       .flashAttr("user", user)
                       .with(SecurityMockMvcRequestPostProcessors.csrf()))
               .andExpect(status().isOk())
-              .andExpect(forwardedUrl("/WEB-INF/views" + (transaction.shouldSucceed ? "/account_info" : "/welcome") + ".jsp"));
+              .andExpect(view().name(transaction.shouldSucceed ? "account_info" : "welcome"));
+
 
       // check the crypto balance
       try {
@@ -1595,6 +1596,9 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
     // buy ETH
     cryptoTransactionTester.test(buyEth);
 
+    // wait so the timestamp is always different for the next transaction
+    Thread.sleep(1000);
+
     CryptoTransaction buySol = CryptoTransaction.builder()
             .cryptoName("SOL")
             .cryptoPrice(100)
@@ -1609,7 +1613,7 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
     cryptoTransactionTester.test(buySol);
 
     // wait so the timestamp is always different for the next transaction
-    Thread.sleep(2000);
+    Thread.sleep(1000);
 
     CryptoTransaction sellSol = CryptoTransaction.builder()
             .cryptoName("SOL")
