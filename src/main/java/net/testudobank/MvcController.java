@@ -146,8 +146,8 @@ public class MvcController {
   @GetMapping("/buycrypto")
 	public String showBuyCryptoForm(Model model) {
     User user = new User();
-    user.setEthPrice(dollarsToDollarString(cryptoPriceClient.getCurrentCryptoValue("ETH")));
-    user.setSolPrice(dollarsToDollarString(cryptoPriceClient.getCurrentCryptoValue("SOL")));
+    user.setEthPrice(dollarsToDollarString(cryptoPriceClient.getCacheableCurrentCryptoValue("ETH")));
+    user.setSolPrice(dollarsToDollarString(cryptoPriceClient.getCacheableCurrentCryptoValue("SOL")));
 		model.addAttribute("user", user);
 		return "buycrypto_form";
 	}
@@ -163,8 +163,8 @@ public class MvcController {
   @GetMapping("/sellcrypto")
 	public String showSellCryptoForm(Model model) {
     User user = new User();
-    user.setEthPrice(dollarsToDollarString(cryptoPriceClient.getCurrentCryptoValue("ETH")));
-    user.setSolPrice(dollarsToDollarString(cryptoPriceClient.getCurrentCryptoValue("SOL")));
+    user.setEthPrice(dollarsToDollarString(cryptoPriceClient.getCacheableCurrentCryptoValue("ETH")));
+    user.setSolPrice(dollarsToDollarString(cryptoPriceClient.getCacheableCurrentCryptoValue("SOL")));
 		model.addAttribute("user", user);
 		return "sellcrypto_form";
 	}
@@ -237,7 +237,7 @@ public class MvcController {
     // calculate total Crypto holdings balance by summing balance of each supported cryptocurrency
     double cryptoBalanceInDollars = 0;
     for (String cryptoName : MvcController.SUPPORTED_CRYPTOCURRENCIES) {
-      cryptoBalanceInDollars += TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, user.getUsername(), cryptoName).orElse(0.0) * cryptoPriceClient.getCurrentCryptoValue(cryptoName);
+      cryptoBalanceInDollars += TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, user.getUsername(), cryptoName).orElse(0.0) * cryptoPriceClient.getCacheableCurrentCryptoValue(cryptoName);
     }
 
     user.setFirstName((String) userData.get("FirstName"));
@@ -251,8 +251,8 @@ public class MvcController {
     user.setCryptoHist(cryptoTransactionHistoryEntries);
     user.setEthBalance(TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, user.getUsername(), "ETH").orElse(0.0));
     user.setSolBalance(TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, user.getUsername(), "SOL").orElse(0.0));
-    user.setEthPrice(dollarsToDollarString(cryptoPriceClient.getCurrentCryptoValue("ETH")));
-    user.setSolPrice(dollarsToDollarString(cryptoPriceClient.getCurrentCryptoValue("SOL")));
+    user.setEthPrice(dollarsToDollarString(cryptoPriceClient.getCacheableCurrentCryptoValue("ETH")));
+    user.setSolPrice(dollarsToDollarString(cryptoPriceClient.getCacheableCurrentCryptoValue("SOL")));
   }
 
   // Converts dollar amounts in frontend to penny representation in backend MySQL DB
@@ -648,7 +648,7 @@ public class MvcController {
     }
 
     // calculate how much it will cost to buy currently
-    double costOfCryptoPurchaseInDollars = cryptoPriceClient.getCurrentCryptoValue(cryptoToBuy) * cryptoAmountToBuy;
+    double costOfCryptoPurchaseInDollars = cryptoPriceClient.getCacheableCurrentCryptoValue(cryptoToBuy) * cryptoAmountToBuy;
 
     // possible for web scraper to fail and return a negative value, abort if so
     if (costOfCryptoPurchaseInDollars < 0) {
@@ -737,7 +737,7 @@ public class MvcController {
       return "welcome";
     }
 
-    double cryptoValueInDollars = cryptoPriceClient.getCurrentCryptoValue(cryptoToBuy) * cryptoAmountToSell;
+    double cryptoValueInDollars = cryptoPriceClient.getCacheableCurrentCryptoValue(cryptoToBuy) * cryptoAmountToSell;
 
     String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date());
 

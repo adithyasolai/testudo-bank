@@ -23,8 +23,8 @@ public class CryptoPriceClientTest {
      */
     @Test
     public void testBasic() {
-        assertTrue(cryptoPriceClient.getCurrentCryptoValue("ETH") > 0);
-        assertTrue(cryptoPriceClient.getCurrentCryptoValue("SOL") > 0);
+        assertTrue(cryptoPriceClient.getCacheableCurrentCryptoValue("ETH") > 0);
+        assertTrue(cryptoPriceClient.getCacheableCurrentCryptoValue("SOL") > 0);
     }
 
     /**
@@ -33,15 +33,15 @@ public class CryptoPriceClientTest {
     @Test
     public void testCache() {
         cryptoPriceClient.clearPriceCache();
-        assertTrue(cryptoPriceClient.getCurrentCryptoValue("ETH") > 0);
-        assertTrue(cryptoPriceClient.getCurrentCryptoValue("ETH") > 0);
-        assertTrue(cryptoPriceClient.getCurrentCryptoValue("SOL") > 0);
-        assertTrue(cryptoPriceClient.getCurrentCryptoValue("SOL") > 0);
+        assertTrue(cryptoPriceClient.getCacheableCurrentCryptoValue("ETH") > 0);
+        assertTrue(cryptoPriceClient.getCacheableCurrentCryptoValue("ETH") > 0);
+        assertTrue(cryptoPriceClient.getCacheableCurrentCryptoValue("SOL") > 0);
+        assertTrue(cryptoPriceClient.getCacheableCurrentCryptoValue("SOL") > 0);
         Mockito.verify(cryptoPriceClient, Mockito.times(1)).getCurrentEthValue();
         Mockito.verify(cryptoPriceClient, Mockito.times(1)).getCurrentSolValue();
         cryptoPriceClient.clearPriceCache();
-        assertTrue(cryptoPriceClient.getCurrentCryptoValue("ETH") > 0);
-        assertTrue(cryptoPriceClient.getCurrentCryptoValue("SOL") > 0);
+        assertTrue(cryptoPriceClient.getCacheableCurrentCryptoValue("ETH") > 0);
+        assertTrue(cryptoPriceClient.getCacheableCurrentCryptoValue("SOL") > 0);
         Mockito.verify(cryptoPriceClient, Mockito.times(2)).getCurrentEthValue();
         Mockito.verify(cryptoPriceClient, Mockito.times(2)).getCurrentSolValue();
     }

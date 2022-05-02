@@ -1260,7 +1260,7 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
 
 
       // Mock the price of the cryptocurrency
-      Mockito.when(cryptoPriceClient.getCurrentCryptoValue(transaction.cryptoName)).thenReturn(transaction.cryptoPrice);
+      Mockito.when(cryptoPriceClient.getCacheableCurrentCryptoValue(transaction.cryptoName)).thenReturn(transaction.cryptoPrice);
 
       // attempt transaction
       LocalDateTime cryptoTransactionTime = MvcControllerIntegTestHelpers.fetchCurrentTimeAsLocalDateTimeNoMilliseconds();

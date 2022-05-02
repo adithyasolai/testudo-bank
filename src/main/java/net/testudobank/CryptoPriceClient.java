@@ -21,7 +21,7 @@ public class CryptoPriceClient {
      * @return
      */
     @Cacheable("crypto")
-    public double getCurrentCryptoValue(String cryptoName) {
+    public double getCacheableCurrentCryptoValue(String cryptoName) {
         if (cryptoName.equals("ETH")) {
             return getCurrentEthValue();
         } else if (cryptoName.equals("SOL")) {
