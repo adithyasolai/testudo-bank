@@ -179,6 +179,23 @@ public class MvcController {
 		return "sellcrypto_form";
 	}
 
+  /**
+   * HTML GET request handler that serves the "report_form" page to the user.
+   * An empty `User` object is also added to the Model as an Attribute to store
+   * the user's input for selling cryptocurrency.
+   * 
+   * @param model
+   * @return "report_form" page
+   */
+  @GetMapping("/report")
+	public String showReportForm(Model model) {
+    User user = new User();
+    user.setEthPrice(cryptoPriceClient.getCurrentEthValue());
+    user.setSolPrice(cryptoPriceClient.getCurrentSolValue());
+		model.addAttribute("user", user);
+		return "report_form";
+	}
+
   //// HELPER METHODS ////
 
   /**
