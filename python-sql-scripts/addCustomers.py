@@ -19,7 +19,8 @@ create_customer_table_sql = '''
     LastName varchar(255),
     Balance int,
     OverdraftBalance int,
-    NumFraudReversals int
+    NumFraudReversals int,
+    TuitionBalance int
   );
   '''
 cursor.execute(create_customer_table_sql)
@@ -91,6 +92,16 @@ CREATE TABLE CryptoHistory (
 '''
 cursor.execute(create_cryptohistory_table_sql)
 
+# Make empty tuition history table
+create_tuitionhistory_table_sql = '''
+CREATE TABLE TuitionHistory (
+  CustomerID varchar(255),
+  Timestamp DATETIME,
+  Amount int
+);
+'''
+
+cursor.execute(create_tuitionhistory_table_sql)
 
 
 # The two sets created below are used to ensure that this
@@ -128,13 +139,14 @@ for i in range(num_customers_to_add):
     # both the balance and overdraftbalance columns represent the total dollar amount as pennies instead of dollars.
     insert_customer_sql = '''
     INSERT INTO Customers
-    VALUES  ({0},{1},{2},{3},{4},{5});
+    VALUES  ({0},{1},{2},{3},{4},{5},{6});
     '''.format("'" + customer_id + "'",
                 "'" + customer_first_name + "'",
                 "'" + customer_last_name + "'",
                 customer_balance,
                 0,
-                0)
+                0,
+                10000) 
     cursor.execute(insert_customer_sql)
     
     # add customer ID and password to Passwords table

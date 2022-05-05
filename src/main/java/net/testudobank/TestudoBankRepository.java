@@ -166,4 +166,27 @@ public class TestudoBankRepository {
       return false;
     }
   }
+
+  public static int getCustomerTuitionBalanceInPennies(JdbcTemplate jdbcTemplate, String customerID) {
+    String getUserBalanceSql =  String.format("SELECT TuitionBalance FROM Customers WHERE CustomerID='%s';", customerID);
+    int userTuitionBalanceInPennies = jdbcTemplate.queryForObject(getUserBalanceSql, Integer.class);
+    return userTuitionBalanceInPennies;
+  }
+
+  public static void setCustomerTuitionBalance(JdbcTemplate jdbcTemplate, String customerID, int newTuitionBalanceInPennies) {
+    String tuitionBalanceUpdateSql = String.format("UPDATE Customers SET TuitionBalance = %d WHERE CustomerID='%s';", newTuitionBalanceInPennies, customerID);
+    jdbcTemplate.update(tuitionBalanceUpdateSql);
+  }
+
+  public static void insertRowToTuitionHistoryTable(JdbcTemplate jdbcTemplate, String customerID, String timestamp, double Amount) {
+    String cryptoHistorySql = "INSERT INTO TuitionHistory (CustomerID, Timestamp, Amount) VALUES (?, ?, ?)";
+    jdbcTemplate.update(cryptoHistorySql, customerID, timestamp,Amount);
+  }
+
+  public static List<Map<String,Object>> getTuitionLogs(JdbcTemplate jdbcTemplate, String customerID) {
+    String getTuitionHistorySql = "Select * from TuitionHistory WHERE CustomerID=? ORDER BY Timestamp DESC";
+    return jdbcTemplate.queryForList(getTuitionHistorySql, customerID);
+   }
+
+  
 }

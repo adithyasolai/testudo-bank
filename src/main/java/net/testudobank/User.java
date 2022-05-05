@@ -96,4 +96,18 @@ public class User {
   @Setter  @Getter @PositiveOrZero @ToString.Include
   private double cryptoBalanceUSD;
 
+  //// Tuition Feilds ////
+
+  @Setter @Getter @Positive
+  private double amountToDepositIntoTuition;
+
+  @Setter @Getter @Positive
+  private double tuitionBalance;
+
+  @Setter @Getter
+  private boolean isTuition;
+
+  @Setter @Getter
+  private String tuitionHist;
+
 }

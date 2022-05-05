@@ -42,6 +42,7 @@ public class MvcControllerIntegTest {
   private static String CUSTOMER1_FIRST_NAME = "Foo";
   private static String CUSTOMER1_LAST_NAME = "Bar";
   public static long REASONABLE_TIMESTAMP_EPSILON_IN_SECONDS = 1L;
+  public static int TUITION_COST = 10000;
 
   private static String CUSTOMER2_ID = "987654321";
   private static String CUSTOMER2_PASSWORD = "password";
@@ -326,7 +327,7 @@ public class MvcControllerIntegTest {
     double CUSTOMER1_OVERDRAFT_BALANCE = 123.45;
     int CUSTOMER1_OVERDRAFT_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_OVERDRAFT_BALANCE);
     int CUSTOMER1_NUM_FRAUD_REVERSALS = 0;
-    MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER1_ID, CUSTOMER1_PASSWORD, CUSTOMER1_FIRST_NAME, CUSTOMER1_LAST_NAME, CUSTOMER1_MAIN_BALANCE_IN_PENNIES, CUSTOMER1_OVERDRAFT_BALANCE_IN_PENNIES, CUSTOMER1_NUM_FRAUD_REVERSALS);
+    MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER1_ID, CUSTOMER1_PASSWORD, CUSTOMER1_FIRST_NAME, CUSTOMER1_LAST_NAME, CUSTOMER1_MAIN_BALANCE_IN_PENNIES, CUSTOMER1_OVERDRAFT_BALANCE_IN_PENNIES, CUSTOMER1_NUM_FRAUD_REVERSALS,TUITION_COST);
 
     // Prepare Deposit Form to Deposit $150 to customer 1's account.
     double CUSTOMER1_AMOUNT_TO_DEPOSIT = 150; // user input is in dollar amount, not pennies.
@@ -389,7 +390,7 @@ public class MvcControllerIntegTest {
     double CUSTOMER1_OVERDRAFT_BALANCE = 123.45;
     int CUSTOMER1_OVERDRAFT_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_OVERDRAFT_BALANCE);
     int CUSTOMER1_NUM_FRAUD_REVERSALS = 0;
-    MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER1_ID, CUSTOMER1_PASSWORD, CUSTOMER1_FIRST_NAME, CUSTOMER1_LAST_NAME, CUSTOMER1_MAIN_BALANCE_IN_PENNIES, CUSTOMER1_OVERDRAFT_BALANCE_IN_PENNIES, CUSTOMER1_NUM_FRAUD_REVERSALS);
+    MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER1_ID, CUSTOMER1_PASSWORD, CUSTOMER1_FIRST_NAME, CUSTOMER1_LAST_NAME, CUSTOMER1_MAIN_BALANCE_IN_PENNIES, CUSTOMER1_OVERDRAFT_BALANCE_IN_PENNIES, CUSTOMER1_NUM_FRAUD_REVERSALS,TUITION_COST);
 
     // Prepare Deposit Form to Deposit $50 to customer 1's account.
     double CUSTOMER1_AMOUNT_TO_DEPOSIT = 50; // user input is in dollar amount, not pennies.
@@ -634,7 +635,8 @@ public class MvcControllerIntegTest {
                                                   CUSTOMER1_LAST_NAME, 
                                                   CUSTOMER1_MAIN_BALANCE_IN_PENNIES, 
                                                   CUSTOMER1_OVERDRAFT_BALANCE_IN_PENNIES,
-                                                  CUSTOMER1_NUM_FRAUD_REVERSALS);
+                                                  CUSTOMER1_NUM_FRAUD_REVERSALS,
+                                                  TUITION_COST);
 
     // Deposit $50, and then immediately dispute/reverse that deposit.
     // this will bring the customer to the MAX_DISPUTES limit, and also have a few
@@ -910,8 +912,8 @@ public class MvcControllerIntegTest {
                                                   CUSTOMER1_LAST_NAME, 
                                                   CUSTOMER1_BALANCE_IN_PENNIES, 
                                                   CUSTOMER1_OVERDRAFT_BALANCE_IN_PENNIES,
-                                                  CUSTOMER1_NUM_FRAUD_REVERSALS
-                                                  );
+                                                  CUSTOMER1_NUM_FRAUD_REVERSALS,
+                                                  TUITION_COST);
     
     // Prepare Deposit Form to Deposit $100 to customer 1's account.
     double CUSTOMER1_AMOUNT_TO_DEPOSIT = 100; // user input is in dollar amount, not pennies.
@@ -1016,7 +1018,7 @@ public class MvcControllerIntegTest {
     double CUSTOMER2_OVERDRAFT_BALANCE = 101.0;
     int CUSTOMER2_OVERDRAFT_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER2_OVERDRAFT_BALANCE);
     int CUSTOMER2_NUM_FRAUD_REVERSALS = 0;
-    MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER2_ID, CUSTOMER2_PASSWORD, CUSTOMER2_FIRST_NAME, CUSTOMER2_LAST_NAME, CUSTOMER2_BALANCE_IN_PENNIES, CUSTOMER2_OVERDRAFT_BALANCE_IN_PENNIES, CUSTOMER2_NUM_FRAUD_REVERSALS);
+    MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER2_ID, CUSTOMER2_PASSWORD, CUSTOMER2_FIRST_NAME, CUSTOMER2_LAST_NAME, CUSTOMER2_BALANCE_IN_PENNIES, CUSTOMER2_OVERDRAFT_BALANCE_IN_PENNIES, CUSTOMER2_NUM_FRAUD_REVERSALS, TUITION_COST);
 
     //Amount to transfer
     double TRANSFER_AMOUNT = 100;
@@ -1074,7 +1076,7 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
     double CUSTOMER2_OVERDRAFT_BALANCE = 100.0;
     int CUSTOMER2_OVERDRAFT_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER2_OVERDRAFT_BALANCE);
     int CUSTOMER2_NUM_FRAUD_REVERSALS = 0;
-    MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER2_ID, CUSTOMER2_PASSWORD, CUSTOMER2_FIRST_NAME, CUSTOMER2_LAST_NAME, CUSTOMER2_BALANCE_IN_PENNIES, CUSTOMER2_OVERDRAFT_BALANCE_IN_PENNIES, CUSTOMER2_NUM_FRAUD_REVERSALS);
+    MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER2_ID, CUSTOMER2_PASSWORD, CUSTOMER2_FIRST_NAME, CUSTOMER2_LAST_NAME, CUSTOMER2_BALANCE_IN_PENNIES, CUSTOMER2_OVERDRAFT_BALANCE_IN_PENNIES, CUSTOMER2_NUM_FRAUD_REVERSALS,TUITION_COST);
 
     //Transfer $150 from sender's account to recipient's account.
     double TRANSFER_AMOUNT = 150;
@@ -1217,7 +1219,7 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
     void initialize() throws ScriptException {
       int balanceInPennies = MvcControllerIntegTestHelpers.convertDollarsToPennies(initialBalanceInDollars);
       MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER1_ID, CUSTOMER1_PASSWORD, CUSTOMER1_FIRST_NAME,
-              CUSTOMER1_LAST_NAME, balanceInPennies, MvcControllerIntegTestHelpers.convertDollarsToPennies(initialOverdraftBalanceInDollars), 0);
+              CUSTOMER1_LAST_NAME, balanceInPennies, MvcControllerIntegTestHelpers.convertDollarsToPennies(initialOverdraftBalanceInDollars), 0,TUITION_COST);
       for (Map.Entry<String, Double> initialBalance : initialCryptoBalance.entrySet()) {
         MvcControllerIntegTestHelpers.setCryptoBalance(dbDelegate, CUSTOMER1_ID, initialBalance.getKey(), initialBalance.getValue());
       }
@@ -1604,24 +1606,24 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
 
     // Simple Buy of Sol
     CryptoTransaction cryptoTransaction2 = CryptoTransaction.builder()
-            .expectedEndingBalanceInDollars(997)
-            .expectedEndingCryptoBalance(2)
-            .cryptoPrice(1)
-            .cryptoAmountToTransact(2)
-            .cryptoName("SOL")
-            .cryptoTransactionTestType(CryptoTransactionTestType.BUY)
-            .shouldSucceed(true)
-            .build();
-    cryptoTransactionTester.test(cryptoTransaction2);
-
-    //  Selling SOLL
-    CryptoTransaction cryptoTransaction3 = CryptoTransaction.builder()
             .expectedEndingBalanceInDollars(998)
             .expectedEndingCryptoBalance(1)
             .cryptoPrice(1)
             .cryptoAmountToTransact(1)
             .cryptoName("SOL")
             .cryptoTransactionTestType(CryptoTransactionTestType.BUY)
+            .shouldSucceed(true)
+            .build();
+    cryptoTransactionTester.test(cryptoTransaction2);
+
+    //  Selling Sol
+    CryptoTransaction cryptoTransaction3 = CryptoTransaction.builder()
+            .expectedEndingBalanceInDollars(999)
+            .expectedEndingCryptoBalance(0)
+            .cryptoPrice(1)
+            .cryptoAmountToTransact(1)
+            .cryptoName("SOL")
+            .cryptoTransactionTestType(CryptoTransactionTestType.SELL)
             .shouldSucceed(true)
             .build();
     cryptoTransactionTester.test(cryptoTransaction3);
@@ -1668,4 +1670,148 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
             .build();
     cryptoTransactionTester.test(cryptoTransaction);
   }
+  //Test to see if a simple tuition payment could be made and a user's 
+  //balance would decrease, and tuition balance decrease too
+  @Test
+  public void simpleTuitionPaymentTest() throws SQLException, ScriptException { 
+    
+    double CUSTOMER1_BALANCE = 11000.00;
+    int CUSTOMER1_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_BALANCE);
+    MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER1_ID, CUSTOMER1_PASSWORD, CUSTOMER1_FIRST_NAME, CUSTOMER1_LAST_NAME, CUSTOMER1_BALANCE_IN_PENNIES);
+    
+    // Prepare Tuition Form 
+    double CUSTOMER1_AMOUNT_TO_DEPOSIT_INTO_TUITION = 1000.00; // user input is in dollar amount, not pennies.
+    User customer1TuitionFormInputs = new User();
+    customer1TuitionFormInputs.setUsername(CUSTOMER1_ID);
+    customer1TuitionFormInputs.setPassword(CUSTOMER1_PASSWORD);
+    customer1TuitionFormInputs.setAmountToDepositIntoTuition(CUSTOMER1_AMOUNT_TO_DEPOSIT_INTO_TUITION); 
+
+    // verify that there are no logs in TuitionHistory table before Tuition payment
+    assertEquals(0, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM TuitionHistory;", Integer.class));
+
+
+    // send request to the Deposit Form's POST handler in MvcController
+    controller.submitTuitionWithdraw(customer1TuitionFormInputs);
+
+    // fetch updated data from the DB
+    List<Map<String,Object>> customersTableData = jdbcTemplate.queryForList("SELECT * FROM Customers;");
+    List<Map<String,Object>> tuitionHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM TuitionHistory;");
+  
+    // verify that customer1's data is still the only data populated in Customers table
+    assertEquals(1, customersTableData.size());
+    Map<String,Object> customer1Data = customersTableData.get(0);
+    assertEquals(CUSTOMER1_ID, (String)customer1Data.get("CustomerID"));
+
+    // verify customer balance was decreased by $1000
+    double CUSTOMER1_EXPECTED_FINAL_BALANCE = CUSTOMER1_BALANCE - CUSTOMER1_AMOUNT_TO_DEPOSIT_INTO_TUITION;
+    double CUSTOMER1_EXPECTED_FINAL_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_EXPECTED_FINAL_BALANCE);
+    assertEquals(CUSTOMER1_EXPECTED_FINAL_BALANCE_IN_PENNIES, (int)customer1Data.get("Balance"));
+
+    // verify that the tuition deposit is stored in the TuitionHistory Table
+    assertEquals(1, tuitionHistoryTableData.size());
+    
+    //Verify that the tuition balance decreased by 1000
+    int EXPECTED_TUITION_BALANCE = (int)(TUITION_COST - CUSTOMER1_AMOUNT_TO_DEPOSIT_INTO_TUITION);
+    assertEquals(EXPECTED_TUITION_BALANCE, customer1Data.get("TuitionBalance"));
+  }
+
+
+  // Error Test case where the payment is larger than the tuition balance
+  // This should not be allowed
+  @Test
+  public void errorTuitionPaymentTest() throws SQLException, ScriptException { 
+    
+    double CUSTOMER1_BALANCE = 11000.00;
+    int CUSTOMER1_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_BALANCE);
+    MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER1_ID, CUSTOMER1_PASSWORD, CUSTOMER1_FIRST_NAME, CUSTOMER1_LAST_NAME, CUSTOMER1_BALANCE_IN_PENNIES);
+    
+    // Prepare Tuition Form 
+    double CUSTOMER1_AMOUNT_TO_DEPOSIT_INTO_TUITION = 11000.00; // user input is in dollar amount, not pennies.
+    User customer1TuitionFormInputs = new User();
+    customer1TuitionFormInputs.setUsername(CUSTOMER1_ID);
+    customer1TuitionFormInputs.setPassword(CUSTOMER1_PASSWORD);
+    customer1TuitionFormInputs.setAmountToDepositIntoTuition(CUSTOMER1_AMOUNT_TO_DEPOSIT_INTO_TUITION); 
+
+    // verify that there are no logs in TuitionHistory table before Tuition payment
+    assertEquals(0, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM TuitionHistory;", Integer.class));
+
+
+    // send request to the Deposit Form's POST handler in MvcController
+    controller.submitTuitionWithdraw(customer1TuitionFormInputs);
+
+    // fetch updated data from the DB
+    List<Map<String,Object>> customersTableData = jdbcTemplate.queryForList("SELECT * FROM Customers;");
+    List<Map<String,Object>> tuitionHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM TuitionHistory;");
+  
+    // verify that customer1's data is still the only data populated in Customers table
+    assertEquals(1, customersTableData.size());
+    Map<String,Object> customer1Data = customersTableData.get(0);
+    assertEquals(CUSTOMER1_ID, (String)customer1Data.get("CustomerID"));
+
+    // verify customer balance is not changed
+    double CUSTOMER1_EXPECTED_FINAL_BALANCE = CUSTOMER1_BALANCE;
+    double CUSTOMER1_EXPECTED_FINAL_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_EXPECTED_FINAL_BALANCE);
+    assertEquals(CUSTOMER1_EXPECTED_FINAL_BALANCE_IN_PENNIES, (int)customer1Data.get("Balance"));
+
+    // verify that the tuition deposit is not stored in the TuitionHistory Table
+    assertEquals(0, tuitionHistoryTableData.size());
+    
+    //Verify that the tuition balance is not decreased
+    int EXPECTED_TUITION_BALANCE = (int)(TUITION_COST);
+    assertEquals(EXPECTED_TUITION_BALANCE, customer1Data.get("TuitionBalance"));
+  }
+
+  // Uses an overdraft payment for the tuition feature. Payment should
+  // First come from  balance and then the remaining gets put  in 
+  // overdraft amount
+  @Test
+  public void overdraftTuitionPaymentTest() throws SQLException, ScriptException { 
+    
+    double CUSTOMER1_BALANCE = 500;
+    int CUSTOMER1_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_BALANCE);
+    MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER1_ID, CUSTOMER1_PASSWORD, CUSTOMER1_FIRST_NAME, CUSTOMER1_LAST_NAME, CUSTOMER1_BALANCE_IN_PENNIES);
+    
+    // Prepare Tuition Form 
+    double CUSTOMER1_AMOUNT_TO_DEPOSIT_INTO_TUITION = 1000.00; // user input is in dollar amount, not pennies.
+    User customer1TuitionFormInputs = new User();
+    customer1TuitionFormInputs.setUsername(CUSTOMER1_ID);
+    customer1TuitionFormInputs.setPassword(CUSTOMER1_PASSWORD);
+    customer1TuitionFormInputs.setAmountToDepositIntoTuition(CUSTOMER1_AMOUNT_TO_DEPOSIT_INTO_TUITION); 
+    customer1TuitionFormInputs.setBalance(CUSTOMER1_BALANCE);
+    customer1TuitionFormInputs.setOverDraftBalance(0);
+    // verify that there are no logs in TuitionHistory table before Tuition payment
+    assertEquals(0, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM TuitionHistory;", Integer.class));
+
+
+    // send request to the Deposit Form's POST handler in MvcController
+    controller.submitTuitionWithdraw(customer1TuitionFormInputs);
+
+    // fetch updated data from the DB
+    List<Map<String,Object>> customersTableData = jdbcTemplate.queryForList("SELECT * FROM Customers;");
+    List<Map<String,Object>> tuitionHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM TuitionHistory;");
+  
+    // verify that customer1's data is still the only data populated in Customers table
+    assertEquals(1, customersTableData.size());
+    Map<String,Object> customer1Data = customersTableData.get(0);
+    assertEquals(CUSTOMER1_ID, (String)customer1Data.get("CustomerID"));
+
+    // verify customer balance is not changed
+    double CUSTOMER1_EXPECTED_FINAL_BALANCE = 0;
+    double CUSTOMER1_EXPECTED_FINAL_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_EXPECTED_FINAL_BALANCE) ;
+    assertEquals(CUSTOMER1_EXPECTED_FINAL_BALANCE_IN_PENNIES, (int)customer1Data.get("Balance"));
+
+    // verify that the tuition deposit is stored in the TuitionHistory Table
+    assertEquals(1, tuitionHistoryTableData.size());
+    
+    //Verify that the tuition balance is not decreased
+    int EXPECTED_TUITION_BALANCE = (int)(TUITION_COST - CUSTOMER1_AMOUNT_TO_DEPOSIT_INTO_TUITION);
+    assertEquals(EXPECTED_TUITION_BALANCE, customer1Data.get("TuitionBalance"));
+
+    // Verify overdraft amount increased by 
+    int OVERDRAFT_AMOUNT =  500;
+    int INTEREST = 10;
+    assertEquals((OVERDRAFT_AMOUNT + INTEREST)*100, customer1Data.get("OverdraftBalance"));
+  }
+
+
 }

@@ -32,6 +32,7 @@
 		<h2><span>${user.firstName}</span> <span>${user.lastName}</span> Bank Account Info</h2>
     <span>Username: </span><span>${user.username}</span><br/>
 		<span>Balance: $</span><span>${user.balance}</span><br/>
+    <span>Remaining Tuition Balance: $</span><span>${user.tuitionBalance}</span><br/>
     <span>Overdraft Balance: $</span><span>${user.overDraftBalance}</span><br/>
     <span>Crypto Balance in USD: $</span><span>${user.cryptoBalanceUSD}</span><br/>
     <span>Ethereum Coins Owned: </span><span>${user.ethBalance}</span><br/>
@@ -42,6 +43,7 @@
     <span>Transaction History: </span><span>${user.transactionHist}</span><br/>
     <span>Transfer History: </span><span>${user.transferHist}</span><br/>
     <span>Crypto History: </span><span>${user.cryptoHist}</span><br/>
+    <span>Tuition Payment History: </span><span>${user.tuitionHist}</span><br/>
     <br/>
     <a href='/deposit'>Deposit</a>
     <a href='/withdraw'>Withdraw</a>
