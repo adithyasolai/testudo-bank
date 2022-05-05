@@ -5,12 +5,16 @@ import javax.validation.constraints.PositiveOrZero;
 
 import lombok.Getter;
 import lombok.Setter;
+import lombok.ToString;
 
+@ToString(onlyExplicitlyIncluded = true)
 public class User {
-  @Setter @Getter
+  //// General Customer Fields ////
+
+  @Setter @Getter @ToString.Include
 	private String username;
 
-  @Setter @Getter
+  @Setter @Getter @ToString.Include
 	private String password;
 
   @Setter @Getter
@@ -19,7 +23,7 @@ public class User {
   @Setter @Getter
   private String lastName;
 
-  @Setter  @Getter @PositiveOrZero
+  @Setter  @Getter @PositiveOrZero @ToString.Include
 	private double balance;
 
   @Setter @Getter @PositiveOrZero
@@ -31,14 +35,22 @@ public class User {
   @Setter @Getter
   private String transactionHist;
 
+  //// Dispute Fields ////
+
+  @Setter @Getter
+  private int numTransactionsAgo;
+
+  //// Deposit Fields ////
+
   @Setter @Getter @Positive
   private double amountToDeposit;
+
+  //// Withdraw Fields ////
 
   @Setter @Getter @Positive
   private double amountToWithdraw;
 
-  @Setter @Getter
-  private int numTransactionsAgo;
+  //// Transfer Fields ////
 
   @Setter @Getter
   private double amountToTransfer;
@@ -52,15 +64,36 @@ public class User {
   @Setter @Getter
   private String transferHist;
 
+  //// Crypto Fields ////
+
+  @Setter @Getter
+  private boolean isCryptoTransaction;
+
+  @Setter @Getter
+  private String cryptoHist;
+
   @Setter @Getter @Positive
   private double amountToBuyCrypto;
 
   @Setter @Getter @Positive
   private double amountToSellCrypto;
-  
-	@Override
-	public String toString() {
-		return "User [username=" + username + ", password=" + password + ", balance=" + balance + "]";
-	}
+
+  @Setter @Getter
+  private String whichCryptoToBuy;
+
+  @Setter @Getter
+  private double ethPrice;
+
+  @Setter @Getter
+  private double solPrice;
+
+  @Setter  @Getter @PositiveOrZero @ToString.Include
+  private double ethBalance;
+
+  @Setter  @Getter @PositiveOrZero @ToString.Include
+  private double solBalance;
+
+  @Setter  @Getter @PositiveOrZero @ToString.Include
+  private double cryptoBalanceUSD;
 
 }

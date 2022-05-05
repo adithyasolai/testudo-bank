@@ -42,10 +42,16 @@
 			<form:label path="password">Password:</form:label>
 			<form:password path="password"/><br/>		
 
-      <form:label path="amountToBuyCrypto">Amount to buy (Ethereum):</form:label>
-			<form:input path="amountToBuyCrypto"/><br/>	
+      <form:label path="whichCryptoToBuy">Which Crypto to buy (Type 'ETH' or 'SOL'):</form:label>
+			<form:input path="whichCryptoToBuy"/><br/>
 
-			<form:button>Buy Ethereum</form:button>
+      <form:label path="amountToBuyCrypto">Amount to buy (# of Coins, Fractional Allowed):</form:label>
+			<form:input path="amountToBuyCrypto"/><br/>
+      
+      <span>Current $ETH Price: </span><span>${user.ethPrice}</span><br/>
+      <span>Current $SOL Price: </span><span>${user.solPrice}</span><br/>
+
+			<form:button>Buy Crypto</form:button>
 		</form:form>
     <a href='/'>Home</a>
 	</div>
