@@ -20,6 +20,15 @@ import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
 
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.xssf.usermodel.XSSFSheet;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+
 @Controller
 public class MvcController {
   
@@ -190,8 +199,8 @@ public class MvcController {
   @GetMapping("/report")
 	public String showReportForm(Model model) {
     User user = new User();
-    user.setEthPrice(cryptoPriceClient.getCurrentEthValue());
-    user.setSolPrice(cryptoPriceClient.getCurrentSolValue());
+    // user.setEthPrice(cryptoPriceClient.getCurrentEthValue());
+    // user.setSolPrice(cryptoPriceClient.getCurrentSolValue());
 		model.addAttribute("user", user);
 		return "report_form";
 	}
@@ -812,6 +821,74 @@ public class MvcController {
     } else {
       return "welcome";
     }
+  }
+
+
+  /**
+   * HTML POST request handler for the Cryptocurrency Report Form page.
+   * <p>
+   * The same username+password handling from the login page is used.
+   * <p>
+   * If the password attempt is correct, cryptocurrency information from database
+   * is written to an excel file and exported.
+   * <p>
+   * If the password attempt is incorrect the user is redirected to the "welcome" page.
+   * <p>
+   * @param user
+   * @return "account_info" page if report generation is successful. Otherwise, redirect to "welcome" page.
+   */
+  @PostMapping("/report")
+  public String generateReport(@ModelAttribute("user") User user) {
+    String userID = user.getUsername();
+    String userPasswordAttempt = user.getPassword();
+    String userPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, userID);
+
+    //// Invalid Input/State Handling ////
+
+    // unsuccessful login
+    if (!userPasswordAttempt.equals(userPassword)) {
+      return "welcome";
+    }
+    List<Map<String, Object>> cryptoLogs = TestudoBankRepository.getCryptoLogs(jdbcTemplate, userID);
+    for (Map<String, Object> row: cryptoLogs) {
+      for(Object obj: row.keySet()) {
+        System.out.println(" Inside  " + row.get(obj));
+      }
+    }
+    final String FILE_NAME = "/tmp/report.xlsx";
+    XSSFWorkbook workbook = new XSSFWorkbook();
+    XSSFSheet sheet = workbook.createSheet("Customer Report");
+    Object[][] reportStructure = {
+        {"Date", "Action", "Amount", "Currency", "CryptoName", "Term"}
+    };
+
+    int rowNum = 0;
+    System.out.println("Creating Excel Document");
+    for(Object[] attribute : reportStructure) {
+      Row row = sheet.createRow(rowNum++);
+      int colNum = 0;
+      for(Object field: attribute) {
+        Cell cell = row.createCell(colNum++);
+        if(field instanceof String) {
+          cell.setCellValue((String) field);
+        } else if (field instanceof Integer) {
+          cell.setCellValue((Integer) field);
+        }
+      }
+    }
+
+    try {
+      FileOutputStream outputStream = new FileOutputStream(FILE_NAME);
+      workbook.write(outputStream);
+      workbook.close();
+    } catch (FileNotFoundException e) {
+      e.printStackTrace();
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+    System.out.println("Done!!!!!!");
+
+    return "account_info";
   }
 
 }
