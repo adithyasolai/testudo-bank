@@ -179,6 +179,21 @@ public class MvcController {
 		return "sellcrypto_form";
 	}
 
+  /**
+   * HTML GET request handler that serves the "tuition_form" page to the user.
+   * An empty `User` object is also added to the Model as an Attribute to store
+   * the user's input for tuition.
+   * 
+   * @param model
+   * @return "sellcrypto_form" page
+   */
+  @GetMapping("/tuition")
+	public String showTutionForm(Model model) {
+    User user = new User();
+		model.addAttribute("user", user);
+		return "tuition_form";
+	}
+
   //// HELPER METHODS ////
 
   /**
@@ -212,6 +227,12 @@ public class MvcController {
       cryptoHistoryOutput.append(cryptoLog).append(HTML_LINE_BREAK);
     }
 
+    List<Map<String, Object>> tuitionLogs = TestudoBankRepository.getTuitionLogs(jdbcTemplate, user.getUsername());
+    String tuitionHistoryOutput = HTML_LINE_BREAK;
+    for (Map<String, Object> tuitionLog : tuitionLogs) {
+      tuitionHistoryOutput += tuitionLog + HTML_LINE_BREAK;
+    }
+
     String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance FROM Customers WHERE CustomerID='%s';", user.getUsername());
     List<Map<String,Object>> queryResults = jdbcTemplate.queryForList(getUserNameAndBalanceAndOverDraftBalanceSql);
     Map<String,Object> userData = queryResults.get(0);
@@ -221,7 +242,7 @@ public class MvcController {
     for (String cryptoName : MvcController.SUPPORTED_CRYPTOCURRENCIES) {
       cryptoBalanceInDollars += TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, user.getUsername(), cryptoName).orElse(0.0) * cryptoPriceClient.getCurrentCryptoValue(cryptoName);
     }
-
+    
     user.setFirstName((String)userData.get("FirstName"));
     user.setLastName((String)userData.get("LastName"));
     user.setBalance((int)userData.get("Balance")/100.0);
@@ -236,6 +257,9 @@ public class MvcController {
     user.setSolBalance(TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, user.getUsername(), "SOL").orElse(0.0));
     user.setEthPrice(cryptoPriceClient.getCurrentEthValue());
     user.setSolPrice(cryptoPriceClient.getCurrentSolValue());
+    user.setTuitionBalance(TestudoBankRepository.getCustomerTuitionBalanceInPennies(jdbcTemplate, user.getUsername()));
+    user.setTuitionHist(tuitionHistoryOutput);
+    
   }
 
   // Converts dollar amounts in frontend to penny representation in backend MySQL DB
@@ -433,7 +457,9 @@ public class MvcController {
       TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_TRANSFER_SEND_ACTION, userWithdrawAmtInPennies);
     } else if (user.isCryptoTransaction()) {
       TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_CRYPTO_BUY_ACTION, userWithdrawAmtInPennies);
-    } else {
+    } else if (user.isTuition()){
+      //do nothing
+    }else{
       // Adds withdraw to transaction history
       TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_WITHDRAW_ACTION, userWithdrawAmtInPennies);
     }
@@ -793,6 +819,50 @@ public class MvcController {
     } else {
       return "welcome";
     }
+  }
+
+
+  @PostMapping("/tuition")
+  public String submitTuitionWithdraw(@ModelAttribute("user") User user) {
+    String userID = user.getUsername();
+    String userPasswordAttempt = user.getPassword();
+    String userPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, userID);
+
+    //// Invalid Input/State Handling ////
+
+    // unsuccessful login
+    if (userPasswordAttempt.equals(userPassword) == false) {
+      return "welcome";
+    }
+    
+    double amt = user.getAmountToDepositIntoTuition();
+    int depositAmt = convertDollarsToPennies(amt);
+    // Cant deposit negative money for tuition
+    if (amt < 0) {
+      return "welcome";
+    }
+
+    int tuitionBalance = TestudoBankRepository.getCustomerTuitionBalanceInPennies(jdbcTemplate, userID);
+    int tuitionBalanceInPennies = convertDollarsToPennies(tuitionBalance);
+    // Depositing more money than total tuition Balance
+    if (amt>tuitionBalance){
+      return "welcome";
+    }
+    user.setAmountToWithdraw(amt);
+    user.setTuition(true);
+    String result = submitWithdraw(user);
+
+    if (result == "welcome"){
+      return "welcome";
+    }
+    // Get the timestamp
+    String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date());
+    // If withdraw goes well then deposit money for into the tuition balance
+    TestudoBankRepository.setCustomerTuitionBalance(jdbcTemplate, userID, (tuitionBalanceInPennies - depositAmt)/100);
+    TestudoBankRepository.insertRowToTuitionHistoryTable(jdbcTemplate,userID,currentTime,amt);
+
+    updateAccountInfo(user);
+    return "account_info";
   }
 
 }
