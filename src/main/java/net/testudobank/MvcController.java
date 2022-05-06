@@ -853,15 +853,21 @@ public class MvcController {
       return "welcome";
     }
     new File("tmp").mkdir( );
+    // Fetch the crypto transactions history
     List<Map<String, Object>> cryptoLogs = TestudoBankRepository.getCryptoLogs(jdbcTemplate, userID);
+
+    if(cryptoLogs.isEmpty()) {
+      return "welcome"; 
+    }
     final String FILE_NAME = "tmp/report.xlsx";
 
+    // Init the workbook and sheet to write 
     XSSFWorkbook workbook = new XSSFWorkbook();
     XSSFSheet sheet = workbook.createSheet("Customer Report");
     Object[][] reportStructure = {
         {"customerID", "Date", "Action", "CryptoName", "Amount", "Currency",  "Term"}
     };
-
+    // Write the Headers of the excel file
     int rowNum = 0;
     for(Object[] attribute : reportStructure) {
       Row row = sheet.createRow(rowNum++);
@@ -877,6 +883,7 @@ public class MvcController {
         }
       }
     }
+    // Write the values based on the crypto transaction history
     for(Map<String, Object> rowDB: cryptoLogs) {
       Row row = sheet.createRow(rowNum++);
       int colNum = 0;
