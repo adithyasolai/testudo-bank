@@ -28,6 +28,9 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.math.BigDecimal;
+
+import java.io.File;
 
 @Controller
 public class MvcController {
@@ -849,24 +852,17 @@ public class MvcController {
     if (!userPasswordAttempt.equals(userPassword)) {
       return "welcome";
     }
+    new File("tmp").mkdir( );
     List<Map<String, Object>> cryptoLogs = TestudoBankRepository.getCryptoLogs(jdbcTemplate, userID);
-    for (Map<String, Object> row: cryptoLogs) {
-      System.out.println("Row: " + row);
-      for(Object obj: row.keySet()) {
-        System.out.println(" Inside  " + row.get(obj));
-        // System.out.println();
-      }
-    }
     final String FILE_NAME = "tmp/report.xlsx";
 
     XSSFWorkbook workbook = new XSSFWorkbook();
     XSSFSheet sheet = workbook.createSheet("Customer Report");
     Object[][] reportStructure = {
-        {"Date", "Action", "Amount", "Currency", "CryptoName", "Term"}
+        {"customerID", "Date", "Action", "CryptoName", "Amount", "Currency",  "Term"}
     };
 
     int rowNum = 0;
-    System.out.println("Creating Excel Document");
     for(Object[] attribute : reportStructure) {
       Row row = sheet.createRow(rowNum++);
       int colNum = 0;
@@ -881,6 +877,37 @@ public class MvcController {
         }
       }
     }
+    for(Map<String, Object> rowDB: cryptoLogs) {
+      Row row = sheet.createRow(rowNum++);
+      int colNum = 0;
+      for(Object field: rowDB.keySet()) {
+        Cell cell = row.createCell(colNum++);
+        if(rowDB.get(field) instanceof String) {
+          cell.setCellValue((String) rowDB.get(field));
+        } else if (rowDB.get(field) instanceof Integer) {
+          cell.setCellValue((Integer) rowDB.get(field));
+        } else if (rowDB.get(field) instanceof Double) {
+          cell.setCellValue((Double) rowDB.get(field));
+        } else if (rowDB.get(field) instanceof LocalDateTime) {
+          cell.setCellValue((String) rowDB.get(field).toString());
+          // WRONG: Need to keep track of months in addition
+          // Cell cellTerm = row.createCell(8);
+          // String oldYear = rowDB.get(field).toString().substring(0, 4);
+          // String currentYear = new java.util.Date().toString().substring(0, 4);
+          // if(Integer.parseInt(currentYear) - Integer.parseInt(oldYear) == 0) {
+          //   cellTerm.setCellValue((String) "Short");
+          // } else {
+          //   cellTerm.setCellValue((String) "Long");
+          // }
+        } else if (rowDB.get(field) instanceof BigDecimal) {
+          cell.setCellValue((String) rowDB.get(field).toString());
+        }
+      }
+      // Currency always USD at this point
+      Cell cellCurrency = row.createCell(colNum++);
+      cellCurrency.setCellValue((String) "USD");
+      
+    }
 
     try {
       FileOutputStream outputStream = new FileOutputStream(FILE_NAME);
@@ -891,7 +918,6 @@ public class MvcController {
     } catch (IOException e) {
       e.printStackTrace();
     }
-    System.out.println("Done!!!!!!");
 
     return "account_info";
   }
