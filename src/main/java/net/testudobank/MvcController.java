@@ -239,7 +239,7 @@ public class MvcController {
   }
 
   // Converts dollar amounts in frontend to penny representation in backend MySQL DB
-  private static int convertDollarsToPennies(double dollarAmount) {
+  public static int convertDollarsToPennies(double dollarAmount) {
     return (int) (dollarAmount * 100);
   }
 
@@ -394,6 +394,8 @@ public class MvcController {
       return "welcome";
     }
 
+
+
     // Negative deposit amount is not allowed
     double userWithdrawAmt = user.getAmountToWithdraw();
     if (userWithdrawAmt < 0) {
@@ -438,7 +440,7 @@ public class MvcController {
       TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_WITHDRAW_ACTION, userWithdrawAmtInPennies);
     }
 
-  
+
     // update Model so that View can access new main balance, overdraft balance, and logs
     updateAccountInfo(user);
     return "account_info";
