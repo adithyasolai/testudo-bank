@@ -851,11 +851,14 @@ public class MvcController {
     }
     List<Map<String, Object>> cryptoLogs = TestudoBankRepository.getCryptoLogs(jdbcTemplate, userID);
     for (Map<String, Object> row: cryptoLogs) {
+      System.out.println("Row: " + row);
       for(Object obj: row.keySet()) {
         System.out.println(" Inside  " + row.get(obj));
+        // System.out.println();
       }
     }
-    final String FILE_NAME = "/tmp/report.xlsx";
+    final String FILE_NAME = "tmp/report.xlsx";
+
     XSSFWorkbook workbook = new XSSFWorkbook();
     XSSFSheet sheet = workbook.createSheet("Customer Report");
     Object[][] reportStructure = {
@@ -873,6 +876,8 @@ public class MvcController {
           cell.setCellValue((String) field);
         } else if (field instanceof Integer) {
           cell.setCellValue((Integer) field);
+        } else if (field instanceof Double) {
+          cell.setCellValue((Double) field);
         }
       }
     }
