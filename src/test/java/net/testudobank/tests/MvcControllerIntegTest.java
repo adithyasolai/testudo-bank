@@ -1,9 +1,11 @@
 package net.testudobank.tests;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
+import java.nio.file.Files;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.Collections;
@@ -1835,7 +1837,7 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
 
 
   @Test
-  public void testSimpleReportGeneration() throws SQLException, ScriptException {
+  public void testMultLinesReportGeneration() throws SQLException, ScriptException {
     // initialize customer1 with a balance of $123.45 (to make sure this works for non-whole dollar amounts). represented as pennies in the DB.
     double CUSTOMER1_BALANCE = 123.45 * 2;
     int CUSTOMER1_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_BALANCE);
@@ -1845,13 +1847,17 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
     // Then we convert that into pennies; Then convert from dollers to ETH
     double CUSTOMER1_BALANCE_CRYPTO = 123.45;
     // int CUSTOMER1_BALANCE_CRYPTO_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_BALANCE_CRYPTO);
+    
     double CUSTOMER1_ETH_BALANCE_AMT = CUSTOMER1_BALANCE_CRYPTO / MvcControllerIntegTestHelpers.getCurrentEthValue();
-    double CUSTOMER1_SOL_BALANCE_AMT = CUSTOMER1_BALANCE_CRYPTO / cryptoPriceClient.getCurrentCryptoValue("SOL");
+    double CUSTOMER1_ETH_BALANCE_AMT2 = CUSTOMER1_BALANCE_CRYPTO / MvcControllerIntegTestHelpers.getCurrentEthValue();
+    // double CUSTOMER1_SOL_BALANCE_AMT = CUSTOMER1_BALANCE_CRYPTO / cryptoPriceClient.getCurrentCryptoValue("SOL");
     /*Next: Add to the crypto table. Set up the cryptoSell . Check that account balance increased by val +- epsilon */
     String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date()); // use same timestamp for all logs created by this transfer
     // net.testudobank.TestudoBankRepository.insertRowToCryptoLogsTable(jdbcTemplate, CUSTOMER1_ID, currentTime, "Buy" , "ETH",  CUSTOMER1_ETH_BALANCE_AMT);
     net.testudobank.TestudoBankRepository.insertRowToCryptoLogsTable(jdbcTemplate, CUSTOMER1_ID, "ETH", "Buy", currentTime, CUSTOMER1_ETH_BALANCE_AMT);
-    net.testudobank.TestudoBankRepository.insertRowToCryptoLogsTable(jdbcTemplate, CUSTOMER1_ID, "SOL", "Buy", currentTime, CUSTOMER1_SOL_BALANCE_AMT);
+    // System.out.println(CUSTOMER1_SOL_BALANCE_AMT);
+
+    net.testudobank.TestudoBankRepository.insertRowToCryptoLogsTable(jdbcTemplate, CUSTOMER1_ID, "ETH", "Buy", currentTime, CUSTOMER1_ETH_BALANCE_AMT2);
 
     // prepare report FORM
     User customer1ReportFormInputs = new User();
@@ -1868,6 +1874,7 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
       XSSFSheet sheet = workbook.getSheetAt(0);
 
       assertEquals(3, sheet.getPhysicalNumberOfRows());
+
       workbook.close();
 
     } catch (Exception e) {
@@ -1877,6 +1884,64 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
     // Cleanup the created file
     File reportFile = new File("tmp/report.xlsx");
     reportFile.delete();
+  }
+
+
+  @Test
+  public void testSingleLineReportGeneration() throws SQLException, ScriptException {
+    // initialize customer1 with a balance of $123.45 (to make sure this works for non-whole dollar amounts). represented as pennies in the DB.
+    double CUSTOMER1_BALANCE = 123.45;
+    int CUSTOMER1_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_BALANCE);
+    MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER1_ID, CUSTOMER1_PASSWORD, CUSTOMER1_FIRST_NAME, CUSTOMER1_LAST_NAME, CUSTOMER1_BALANCE_IN_PENNIES);
+
+    double CUSTOMER1_BALANCE_CRYPTO = 123.45;
+    double CUSTOMER1_ETH_BALANCE_AMT = CUSTOMER1_BALANCE_CRYPTO / MvcControllerIntegTestHelpers.getCurrentEthValue();
+    /*Next: Add to the crypto table. Set up the cryptoSell .*/
+    String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date()); // use same timestamp for all logs created by this transfer
+    net.testudobank.TestudoBankRepository.insertRowToCryptoLogsTable(jdbcTemplate, CUSTOMER1_ID, "ETH", "Buy", currentTime, CUSTOMER1_ETH_BALANCE_AMT);
+    // prepare report FORM
+    User customer1ReportFormInputs = new User();
+    customer1ReportFormInputs.setUsername(CUSTOMER1_ID);
+    customer1ReportFormInputs.setPassword(CUSTOMER1_PASSWORD);
+
+    // send request to the report Form's POST handler in MvcController
+    controller.generateReport(customer1ReportFormInputs);
+
+    // Read from excel file and check lines
+    try {
+      FileInputStream file = new FileInputStream(new File("tmp/report.xlsx"));
+      XSSFWorkbook workbook = new XSSFWorkbook(file);
+      XSSFSheet sheet = workbook.getSheetAt(0);
+
+      assertEquals(2, sheet.getPhysicalNumberOfRows());
+      workbook.close();
+
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+
+    // Cleanup the created file
+    File reportFile = new File("tmp/report.xlsx");
+    reportFile.delete();
+  }
+
+  @Test
+  public void testNoLineReportGeneration() throws SQLException, ScriptException {
+    // initialize customer1 with a balance of $123.45 (to make sure this works for non-whole dollar amounts). represented as pennies in the DB.
+    double CUSTOMER1_BALANCE = 123.45;
+    int CUSTOMER1_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_BALANCE);
+    MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER1_ID, CUSTOMER1_PASSWORD, CUSTOMER1_FIRST_NAME, CUSTOMER1_LAST_NAME, CUSTOMER1_BALANCE_IN_PENNIES);
+
+    User customer1ReportFormInputs = new User();
+    customer1ReportFormInputs.setUsername(CUSTOMER1_ID);
+    customer1ReportFormInputs.setPassword(CUSTOMER1_PASSWORD);
+
+    // send request to the report Form's POST handler in MvcController
+    controller.generateReport(customer1ReportFormInputs);
+
+    // Make sure that the file does not exist
+    File reportFile = new File("tmp/report.xlsx");
+    assertFalse(reportFile.exists());
   }
 
   /**
