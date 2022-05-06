@@ -47,9 +47,14 @@ public class MvcController {
   public static String TRANSACTION_HISTORY_TRANSFER_RECEIVE_ACTION = "TransferReceive";
   public static String TRANSACTION_HISTORY_CRYPTO_SELL_ACTION = "CryptoSell";
   public static String TRANSACTION_HISTORY_CRYPTO_BUY_ACTION = "CryptoBuy";
+  public static String TRANSACTION_HISTORY_INDEX_SELL_ACTION = "IndexSell";
+  public static String TRANSACTION_HISTORY_INDEX_BUY_ACTION = "IndexBuy";
   public static String CRYPTO_HISTORY_SELL_ACTION = "Sell";
   public static String CRYPTO_HISTORY_BUY_ACTION = "Buy";
+  public static String INDEX_HISTORY_SELL_ACTION = "Sell";
+  public static String INDEX_HISTORY_BUY_ACTION = "Buy";
   public static Set<String> SUPPORTED_CRYPTOCURRENCIES = new HashSet<>(Arrays.asList("ETH", "SOL"));
+  public static Set<String> SUPPORTED_INDEXES = new HashSet<>(Arrays.asList("VOO", "VTV"));
 
   public MvcController(@Autowired JdbcTemplate jdbcTemplate, @Autowired CryptoPriceClient cryptoPriceClient) {
     this.jdbcTemplate = jdbcTemplate;
@@ -163,6 +168,23 @@ public class MvcController {
 	}
 
   /**
+   * HTML GET request handler that serves the "buyindex_form" page to the user.
+   * An empty `User` object is also added to the Model as an Attribute to store
+   * the user's input for buying shares of index funds.
+   * 
+   * @param model
+   * @return "buyindex_form" page
+   */
+  @GetMapping("/buyindex")
+	public String showBuyIndexForm(Model model) {
+    User user = new User();
+    user.setVooPrice(cryptoPriceClient.getCurrentVooValue());
+    user.setVtvPrice(cryptoPriceClient.getCurrentVtvValue());
+		model.addAttribute("user", user);
+		return "buyindex_form";
+	}
+
+  /**
    * HTML GET request handler that serves the "sellcrypto_form" page to the user.
    * An empty `User` object is also added to the Model as an Attribute to store
    * the user's input for selling cryptocurrency.
@@ -177,6 +199,23 @@ public class MvcController {
     user.setSolPrice(cryptoPriceClient.getCurrentSolValue());
 		model.addAttribute("user", user);
 		return "sellcrypto_form";
+	}
+
+  /**
+   * HTML GET request handler that serves the "sellindex_form" page to the user.
+   * An empty `User` object is also added to the Model as an Attribute to store
+   * the user's input for selling shares of index fund.
+   * 
+   * @param model
+   * @return "sellindex_form" page
+   */
+  @GetMapping("/sellindex")
+	public String showSellIndexForm(Model model) {
+    User user = new User();
+    user.setVooPrice(cryptoPriceClient.getCurrentVooValue());
+    user.setVtvPrice(cryptoPriceClient.getCurrentVtvValue());
+		model.addAttribute("user", user);
+		return "sellindex_form";
 	}
 
   //// HELPER METHODS ////
@@ -212,6 +251,12 @@ public class MvcController {
       cryptoHistoryOutput.append(cryptoLog).append(HTML_LINE_BREAK);
     }
 
+    List<Map<String, Object>> indexLogs = TestudoBankRepository.getIndexLogs(jdbcTemplate, user.getUsername());
+    StringBuilder indexHistoryOutput = new StringBuilder(HTML_LINE_BREAK);
+    for (Map<String, Object> indexLog : indexLogs) {
+      indexHistoryOutput.append(indexLog).append(HTML_LINE_BREAK);
+    }
+
     String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance FROM Customers WHERE CustomerID='%s';", user.getUsername());
     List<Map<String,Object>> queryResults = jdbcTemplate.queryForList(getUserNameAndBalanceAndOverDraftBalanceSql);
     Map<String,Object> userData = queryResults.get(0);
@@ -222,20 +267,32 @@ public class MvcController {
       cryptoBalanceInDollars += TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, user.getUsername(), cryptoName).orElse(0.0) * cryptoPriceClient.getCurrentCryptoValue(cryptoName);
     }
 
+    // calculate total Index holdings balance by summing balance of each supported index fund
+    double indexBalanceInDollars = 0;
+    for (String indexName : MvcController.SUPPORTED_INDEXES) {
+      indexBalanceInDollars += TestudoBankRepository.getCustomerIndexBalance(jdbcTemplate, user.getUsername(), indexName).orElse(0.0) * cryptoPriceClient.getCurrentIndexValue(indexName);
+    }
+
     user.setFirstName((String)userData.get("FirstName"));
     user.setLastName((String)userData.get("LastName"));
     user.setBalance((int)userData.get("Balance")/100.0);
     double overDraftBalance = (int)userData.get("OverdraftBalance");
     user.setOverDraftBalance(overDraftBalance/100);
     user.setCryptoBalanceUSD(cryptoBalanceInDollars);
+    user.setIndexBalanceUSD(indexBalanceInDollars);
     user.setLogs(logs);
     user.setTransactionHist(transactionHistoryOutput);
     user.setTransferHist(transferHistoryOutput);
     user.setCryptoHist(cryptoHistoryOutput.toString());
+    user.setIndexHist(indexHistoryOutput.toString());
     user.setEthBalance(TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, user.getUsername(), "ETH").orElse(0.0));
     user.setSolBalance(TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, user.getUsername(), "SOL").orElse(0.0));
     user.setEthPrice(cryptoPriceClient.getCurrentEthValue());
     user.setSolPrice(cryptoPriceClient.getCurrentSolValue());
+    user.setVooBalance(TestudoBankRepository.getCustomerIndexBalance(jdbcTemplate, user.getUsername(), "VOO").orElse(0.0));
+    user.setVtvBalance(TestudoBankRepository.getCustomerIndexBalance(jdbcTemplate, user.getUsername(), "VTV").orElse(0.0));
+    user.setVooPrice(cryptoPriceClient.getCurrentVooValue());
+    user.setVtvPrice(cryptoPriceClient.getCurrentVtvValue());
   }
 
   // Converts dollar amounts in frontend to penny representation in backend MySQL DB
@@ -350,6 +407,8 @@ public class MvcController {
       TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_TRANSFER_RECEIVE_ACTION, userDepositAmtInPennies);
     } else if (user.isCryptoTransaction()) {
       TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_CRYPTO_SELL_ACTION, userDepositAmtInPennies);
+    } else if(user.isIndexTransaction()) {
+      TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_INDEX_SELL_ACTION, userDepositAmtInPennies);
     } else {
       // Adds deposit to transaction history
       TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_DEPOSIT_ACTION, userDepositAmtInPennies);
@@ -433,7 +492,9 @@ public class MvcController {
       TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_TRANSFER_SEND_ACTION, userWithdrawAmtInPennies);
     } else if (user.isCryptoTransaction()) {
       TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_CRYPTO_BUY_ACTION, userWithdrawAmtInPennies);
-    } else {
+    } else if (user.isIndexTransaction()){
+      TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_INDEX_BUY_ACTION, userWithdrawAmtInPennies);
+    }else {
       // Adds withdraw to transaction history
       TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_WITHDRAW_ACTION, userWithdrawAmtInPennies);
     }
@@ -786,6 +847,179 @@ public class MvcController {
 
       TestudoBankRepository.decreaseCustomerCryptoBalance(jdbcTemplate, userID, cryptoToBuy, cryptoAmountToSell);
       TestudoBankRepository.insertRowToCryptoLogsTable(jdbcTemplate, userID, cryptoToBuy, CRYPTO_HISTORY_SELL_ACTION, currentTime, cryptoAmountToSell);
+
+      updateAccountInfo(user);
+
+      return "account_info";
+    } else {
+      return "welcome";
+    }
+  }
+
+  /**
+   * HTML POST request handler for the Buy Index Form page.
+   * <p>
+   * The same username+password handling from the login page is used.
+   * <p>
+   * If the password attempt is correct, the user is not in overdraft,
+   * and the purchase amount is a valid amount that does not exceed balance,
+   * the cost of the fund shares in cash will be subtracted from the users balance,
+   * and the fund shares will be added to the users account
+   * <p>
+   * If the password attempt is incorrect or the amount to purchase is invalid,
+   * the user is redirected to the "welcome" page.
+   * <p>
+   * Index purchase function is implemented by re-using withdraw handler.
+   *
+   * @param user
+   * @return "account_info" page if buy successful. Otherwise, redirect to "welcome" page.
+   */
+  @PostMapping("/buyindex")
+  public String buyIndex(@ModelAttribute("user") User user) {
+
+    String userID = user.getUsername();
+    String userPasswordAttempt = user.getPassword();
+    String userPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, userID);
+
+    //// Invalid Input/State Handling ////
+
+    // unsuccessful login
+    if (!userPasswordAttempt.equals(userPassword)) {
+      return "welcome";
+    }
+
+    // must buy a supported index
+    String indexToBuy = user.getWhichIndexToBuy();
+    if (MvcController.SUPPORTED_INDEXES.contains(indexToBuy) == false) {
+      return "welcome";
+    }
+
+    // must buy a positive amount
+    double indexAmountToBuy = user.getAmountToBuyIndex();
+    if (indexAmountToBuy <= 0) {
+      return "welcome";
+    }
+
+    // cannot buy index while in overdraft
+    int userOverdraftBalanceInPennies = TestudoBankRepository.getCustomerOverdraftBalanceInPennies(jdbcTemplate, userID);
+    if (userOverdraftBalanceInPennies > 0) {
+      return "welcome";
+    }
+
+    // calculate how much it will cost to buy currently
+    double costOfIndexPurchaseInDollars = cryptoPriceClient.getCurrentIndexValue(indexToBuy) * indexAmountToBuy;
+
+    // possible for web scraper to fail and return a negative value, abort if so
+    if (costOfIndexPurchaseInDollars < 0) {
+      return "welcome";
+    }
+
+    double costOfIndexPurchaseInPennies = convertDollarsToPennies(costOfIndexPurchaseInDollars);
+
+    int userBalanceInPennies = TestudoBankRepository.getCustomerCashBalanceInPennies(jdbcTemplate, userID);
+
+    // check if balance will cover purchase
+    if (costOfIndexPurchaseInPennies > userBalanceInPennies) {
+      return "welcome";
+    }
+
+    String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date());
+
+    // buy index
+    user.setAmountToWithdraw(costOfIndexPurchaseInDollars);
+    user.setIndexTransaction(true);
+
+    // TODO: I don't like how this is dependent on a string return value. Withdraw logic should probably be extracted
+    String withdrawResponse = submitWithdraw(user);
+
+    if (withdrawResponse.equals("account_info")) {
+
+      // create an entry in IndexHoldings table if customer is buying this Index for the first time.
+      if (!TestudoBankRepository.getCustomerIndexBalance(jdbcTemplate, userID, indexToBuy).isPresent()) {
+        TestudoBankRepository.initCustomerIndexBalance(jdbcTemplate, userID, indexToBuy);
+      }
+
+      TestudoBankRepository.increaseCustomerIndexBalance(jdbcTemplate, userID, indexToBuy, indexAmountToBuy);
+      TestudoBankRepository.insertRowToIndexLogsTable(jdbcTemplate, userID, indexToBuy, INDEX_HISTORY_BUY_ACTION, currentTime, indexAmountToBuy);
+
+      updateAccountInfo(user);
+
+      return "account_info";
+    } else {
+      return "welcome";
+    }
+
+  }
+
+    /**
+   * HTML POST request handler for the Sell Index Form page.
+   * <p>
+   * The same username+password handling from the login page is used.
+   * <p>
+   * If the password attempt is correct, and the purchase amount is a valid amount
+   * that does not exceed index balance, the cost of the fund shares in cash will be
+   * added to the users cash balance, and the fund shares will be subtracted from the users account
+   * <p>
+   * If the password attempt is incorrect or the amount to purchase is invalid,
+   * the user is redirected to the "welcome" page.
+   * <p>
+   * Index Sale function is implemented by re-using deposit handler.
+   * Logic of deposit (applying to overdraft, adding to balance, etc.) is delegated to this handler.
+   *
+   * @param user
+   * @return "account_info" page if sell successful. Otherwise, redirect to "welcome" page.
+   */
+  @PostMapping("/sellindex")
+  public String sellIndex(@ModelAttribute("user") User user) {
+    String userID = user.getUsername();
+    String userPasswordAttempt = user.getPassword();
+    String userPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, userID);
+
+    //// Invalid Input/State Handling ////
+
+    // unsuccessful login
+    if (!userPasswordAttempt.equals(userPassword)) {
+      return "welcome";
+    }
+
+    // must buy a supported index fund
+    String indexToBuy = user.getWhichIndexToBuy();
+    if (MvcController.SUPPORTED_INDEXES.contains(indexToBuy) == false) {
+      return "welcome";
+    }
+
+    // must sell a positive amount
+    double indexAmountToSell = user.getAmountToSellIndex();
+    if (indexAmountToSell <= 0) {
+      return "welcome";
+    }
+
+    // possible for user to not have any index fund shares
+    Optional<Double> indexBalance = TestudoBankRepository.getCustomerIndexBalance(jdbcTemplate, userID, indexToBuy);
+    if (!indexBalance.isPresent()) {
+      return "welcome";
+    }
+
+    // check if user has required index fund balance
+    // TODO: comparing doubles like this is probably not a good idea
+    if (indexBalance.get() < indexAmountToSell) {
+      return "welcome";
+    }
+
+    double indexValueInDollars = cryptoPriceClient.getCurrentIndexValue(indexToBuy) * indexAmountToSell;
+
+    String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date());
+
+    user.setAmountToDeposit(indexValueInDollars);
+    user.setIndexTransaction(true);
+
+    // TODO: I don't like how this is dependent on a string return value. Deposit logic should probably be extracted
+    String depositResponse = submitDeposit(user);
+
+    if (depositResponse.equals("account_info")) {
+
+      TestudoBankRepository.decreaseCustomerIndexBalance(jdbcTemplate, userID, indexToBuy, indexAmountToSell);
+      TestudoBankRepository.insertRowToIndexLogsTable(jdbcTemplate, userID, indexToBuy, INDEX_HISTORY_SELL_ACTION, currentTime, indexAmountToSell);
 
       updateAccountInfo(user);
 

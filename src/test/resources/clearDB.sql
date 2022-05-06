@@ -5,3 +5,5 @@ TRUNCATE TransactionHistory;
 TRUNCATE TransferHistory;
 TRUNCATE CryptoHistory;
 TRUNCATE CryptoHoldings;
+TRUNCATE IndexHistory;
+TRUNCATE IndexHoldings;

@@ -50,7 +50,7 @@ create_transactionhistory_table_sql = '''
 CREATE TABLE TransactionHistory (
   CustomerID varchar(255),
   Timestamp DATETIME,
-  Action varchar(255) CHECK (Action IN ('Deposit', 'Withdraw', 'TransferSend', 'TransferReceive', 'CryptoBuy', 'CryptoSell')),
+  Action varchar(255) CHECK (Action IN ('Deposit', 'Withdraw', 'TransferSend', 'TransferReceive', 'CryptoBuy', 'CryptoSell', 'IndexBuy', 'IndexSell')),
   Amount int
 );
 '''
@@ -78,6 +78,16 @@ CREATE TABLE CryptoHoldings (
 '''
 cursor.execute(create_cryptoholdings_table_sql)
 
+# Make empty IndexHoldings table
+create_indexholdings_table_sql = '''
+CREATE TABLE IndexHoldings (
+  CustomerID varchar(255),
+  IndexName varchar(255),
+  IndexAmount decimal(30,18)
+);
+'''
+cursor.execute(create_indexholdings_table_sql)
+
 
 # Make empty CryptoHistory table
 create_cryptohistory_table_sql = '''
@@ -90,6 +100,18 @@ CREATE TABLE CryptoHistory (
 );
 '''
 cursor.execute(create_cryptohistory_table_sql)
+
+# Make empty indexHistory table
+create_indexhistory_table_sql = '''
+CREATE TABLE IndexHistory (
+  CustomerID varchar(255),
+  Timestamp DATETIME,
+  Action varchar(255) CHECK (Action IN ('Buy', 'Sell')),
+  IndexName varchar(255),
+  IndexAmount decimal(30,18)
+);
+'''
+cursor.execute(create_indexhistory_table_sql)
 
 
 

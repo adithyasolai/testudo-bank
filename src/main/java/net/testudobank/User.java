@@ -96,4 +96,36 @@ public class User {
   @Setter  @Getter @PositiveOrZero @ToString.Include
   private double cryptoBalanceUSD;
 
+  //// Index Fund Fields ////
+
+  @Setter @Getter
+  private boolean isIndexTransaction;
+
+  @Setter @Getter
+  private String indexHist;
+
+  @Setter @Getter @Positive
+  private double amountToBuyIndex;
+
+  @Setter @Getter @Positive
+  private double amountToSellIndex;
+
+  @Setter @Getter
+  private String whichIndexToBuy;
+
+  @Setter @Getter
+  private double vooPrice;
+
+  @Setter @Getter
+  private double vtvPrice;
+
+  @Setter  @Getter @PositiveOrZero @ToString.Include
+  private double vooBalance;
+
+  @Setter  @Getter @PositiveOrZero @ToString.Include
+  private double vtvBalance;
+
+  @Setter  @Getter @PositiveOrZero @ToString.Include
+  private double indexBalanceUSD;
+
 }

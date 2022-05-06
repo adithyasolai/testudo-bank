@@ -1577,5 +1577,221 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
             .build();
     cryptoTransactionTester.test(cryptoTransaction);
   }
+/**
+   * Verifies the simplest Index  case.
+   * The customer's Balance in the Customers table should be decreased,
+   * the indexAmount should be increase in indexHoldingsTable,
+   * and the transaction should be logged in the indexHistory table.
+   * 
+   * Assumes that the customer's account is in the simplest state
+   * (not already in overdraft, the withdraw does not put customer in overdraft,
+   *  account is not frozen due to too many transaction disputes, etc.)
+   * 
+   * @throws SQLException
+   * @throws ScriptException
+   */
+  @Test
+  public void testSimpleIndexBuy() throws SQLException, ScriptException {
+    // initialize customer1 with a balance of $10000.45 (to make sure this works for non-whole dollar amounts and so customer has enough money to buy index)
+    double CUSTOMER1_BALANCE = 10000.45;
+    int CUSTOMER1_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_BALANCE);
+    MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER1_ID, CUSTOMER1_PASSWORD, CUSTOMER1_FIRST_NAME, CUSTOMER1_LAST_NAME, CUSTOMER1_BALANCE_IN_PENNIES);
+
+    // Prepare Index Form to buy 0.1 VOO
+    double CUSTOMER1_AMOUNT_TO_BUY = 0.1; 
+    User customer1IndexBuyFormInputs = new User();
+    customer1IndexBuyFormInputs.setUsername(CUSTOMER1_ID);
+    customer1IndexBuyFormInputs.setPassword(CUSTOMER1_PASSWORD);
+    customer1IndexBuyFormInputs.setAmountToBuyIndex(CUSTOMER1_AMOUNT_TO_BUY); // user input is in ethereum.
+    customer1IndexBuyFormInputs.setWhichIndexToBuy("VOO");
+
+
+    // verify that there are no logs in IndexHistory table before action
+    assertEquals(0, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM IndexHistory;", Integer.class));
+
+    // store timestamp of when index request is sent to verify timestamps in the indexHistory table later
+    LocalDateTime timeWhenIndexBuyRequestSent = MvcControllerIntegTestHelpers.fetchCurrentTimeAsLocalDateTimeNoMilliseconds();
+    System.out.println("Timestamp when Withdraw Request is sent: " + timeWhenIndexBuyRequestSent);
+
+    // send request to the buy index Form's POST handler in MvcController
+    controller.buyIndex(customer1IndexBuyFormInputs);
+
+    // fetch updated data from the DB
+    List<Map<String,Object>> customersTableData = jdbcTemplate.queryForList("SELECT * FROM Customers;");
+    List<Map<String,Object>> indexHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM IndexHistory;");
+    List<Map<String,Object>> indexHoldingsTableData = jdbcTemplate.queryForList("SELECT * FROM IndexHoldings;");
+  
+    // verify that customer1's data is still the only data populated in Customers table
+    assertEquals(1, customersTableData.size());
+    Map<String,Object> customer1Data = customersTableData.get(0);
+    assertEquals(CUSTOMER1_ID, (String)customer1Data.get("CustomerID"));
+
+    // verify that customer1's data is still the only data populated in index holdings table
+    assertEquals(1, indexHoldingsTableData.size());
+    Map<String,Object> indexHoldingsData = indexHoldingsTableData.get(0);
+    assertEquals(CUSTOMER1_ID, (String)indexHoldingsData.get("CustomerID"));
+
+    // verify index balance was increased by 0.1
+    double doubleFloatEpsilon = .001;
+    double CUSTOMER1_EXPECTED_FINAL_INDEX_BALANCE = CUSTOMER1_AMOUNT_TO_BUY;
+    BigDecimal bd = (BigDecimal)indexHoldingsData.get("IndexAmount");
+    double UPDATED_INDEX_BALANCE = bd.doubleValue();
+    double indexAmountDifference = CUSTOMER1_EXPECTED_FINAL_INDEX_BALANCE - UPDATED_INDEX_BALANCE;
+    assertTrue(Math.abs(indexAmountDifference) < doubleFloatEpsilon);
+
+    // verify balance was decreased by appropriate amount
+    double ethereumEpsilon = .1;
+    double CUSTOMER1_EXPECTED_FINAL_BALANCE = CUSTOMER1_BALANCE-(CUSTOMER1_AMOUNT_TO_BUY*customer1IndexBuyFormInputs.getVooPrice());
+    double UPDATED_BALANCE = (int)customer1Data.get("Balance")/100.0;
+    double balanceDifference = CUSTOMER1_EXPECTED_FINAL_BALANCE - UPDATED_BALANCE;
+    assertTrue(Math.abs(balanceDifference) < ethereumEpsilon);
+
+    // verify that the buy action is the only log in indexHistory table
+    assertEquals(1, indexHistoryTableData.size());
+
+    // Ensures appropriate entry was added to indexHistory   
+    Map<String,Object> customer1CryptoLog = indexHistoryTableData.get(0);
+    MvcControllerIntegTestHelpers.checkIndexLog(customer1CryptoLog, timeWhenIndexBuyRequestSent, CUSTOMER1_ID, MvcController.INDEX_HISTORY_BUY_ACTION, "VOO", CUSTOMER1_AMOUNT_TO_BUY);
+  }
+
+  /**
+   * Verifies the simplest index sellcase.
+   * The customer's Balance in the Customers table should be increased,
+   * the indexAmount should be decreased in indexHoldingsTable,
+   * and the transaction should be logged in the indexHistory table.
+   * 
+   * Assumes that the customer's account is in the simplest state
+   * (not already in overdraft, the withdraw does not put customer in overdraft,
+   *  account is not frozen due to too many transaction disputes, etc.)
+   * 
+   * Fails when run with other tests
+   * 
+   * @throws SQLException
+   * @throws ScriptException
+   */
+  
+  @Test
+  public void testSimpleIndexSell() throws SQLException, ScriptException {
+    // initialize customer1 with a balance of $10000.45 (to make sure this works for non-whole dollar amounts)
+    double CUSTOMER1_BALANCE = 10000.45;
+    double INDEX_BALANCE = 0.5;
+    int CUSTOMER1_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_BALANCE);
+    MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER1_ID, CUSTOMER1_PASSWORD, CUSTOMER1_FIRST_NAME, CUSTOMER1_LAST_NAME, CUSTOMER1_BALANCE_IN_PENNIES);
+    String insertIndexHoldingsSql = String.format("INSERT INTO IndexHoldings VALUES ('%s', '%s', %f)", CUSTOMER1_ID, "VTV", INDEX_BALANCE);
+    ScriptUtils.executeDatabaseScript(dbDelegate, null, insertIndexHoldingsSql);
+    
+
+
+    // Prepare Crypto Form to sell 0.2 VTV
+    double CUSTOMER1_AMOUNT_TO_SELL = 0.2; // user input is in VTV.
+    User customer1IndexSellFormInputs = new User();
+    customer1IndexSellFormInputs.setUsername(CUSTOMER1_ID);
+    customer1IndexSellFormInputs.setPassword(CUSTOMER1_PASSWORD);
+    customer1IndexSellFormInputs.setAmountToSellIndex(CUSTOMER1_AMOUNT_TO_SELL); // user input is in VTV.
+    customer1IndexSellFormInputs.setWhichIndexToBuy("VTV");
+
+    // verify that there are no logs in IndexHistory table before action
+    assertEquals(0, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM IndexHistory;", Integer.class));
+
+    // store timestamp of when index request is sent to verify timestamps in the indexHistory table later
+    LocalDateTime timeWhenIndexSellRequestSent = MvcControllerIntegTestHelpers.fetchCurrentTimeAsLocalDateTimeNoMilliseconds();
+    System.out.println("Timestamp when Withdraw Request is sent: " + timeWhenIndexSellRequestSent);
+
+    // send request to the sell index Form's POST handler in MvcController
+    controller.sellIndex(customer1IndexSellFormInputs);
+
+    // fetch updated data from the DB
+    List<Map<String,Object>> customersTableData = jdbcTemplate.queryForList("SELECT * FROM Customers;");
+    List<Map<String,Object>> indexHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM IndexHistory;");
+    List<Map<String,Object>> indexHoldingsTableData = jdbcTemplate.queryForList("SELECT * FROM IndexHoldings;");
+  
+    // verify that customer1's data is still the only data populated in Customers table
+    assertEquals(1, customersTableData.size());
+    Map<String,Object> customer1Data = customersTableData.get(0);
+    assertEquals(CUSTOMER1_ID, (String)customer1Data.get("CustomerID"));
+
+    // verify that customer1's data is still the only data populated in index holdings table
+    assertEquals(1, indexHoldingsTableData.size());
+    Map<String,Object> indexHoldingsData = indexHoldingsTableData.get(0);
+    assertEquals(CUSTOMER1_ID, (String)customer1Data.get("CustomerID"));
+
+    // verify index balance was decreased by 0.2
+    double doubleFloatEpsilon = .01;
+    double CUSTOMER1_EXPECTED_FINAL_INDEX_BALANCE = INDEX_BALANCE - CUSTOMER1_AMOUNT_TO_SELL;
+    BigDecimal bd = (BigDecimal)indexHoldingsData.get("IndexAmount");
+    double UPDATED_INDEX_BALANCE = bd.doubleValue();
+    System.out.println(CUSTOMER1_EXPECTED_FINAL_INDEX_BALANCE);
+    System.out.println(UPDATED_INDEX_BALANCE);
+    double indexAmountDifference = CUSTOMER1_EXPECTED_FINAL_INDEX_BALANCE - UPDATED_INDEX_BALANCE;
+    assertTrue(Math.abs(indexAmountDifference) < doubleFloatEpsilon);
+
+    // verify balance was increased by appropriate amount
+    double vtvEpsilon = .2;
+    double CUSTOMER1_EXPECTED_FINAL_BALANCE = CUSTOMER1_BALANCE+(CUSTOMER1_AMOUNT_TO_SELL*customer1IndexSellFormInputs.getVtvPrice());
+    double UPDATED_BALANCE = (int)customer1Data.get("Balance")/100.0;
+    double balanceDifference = CUSTOMER1_EXPECTED_FINAL_BALANCE - UPDATED_BALANCE;
+    assertTrue(Math.abs(balanceDifference) < vtvEpsilon);
+
+    // verify that the sell action is the only log in indexHistory table
+    assertEquals(1, indexHistoryTableData.size());
+
+    // Ensures appropriate entry was added to indexHistory   
+    Map<String,Object> customer1IndexLog = indexHistoryTableData.get(0);
+    MvcControllerIntegTestHelpers.checkIndexLog(customer1IndexLog, timeWhenIndexSellRequestSent, CUSTOMER1_ID, MvcController.INDEX_HISTORY_SELL_ACTION, "VTV", CUSTOMER1_AMOUNT_TO_SELL);
+  }
+
+  /**
+   * Verifies that when user attempts to buy index when they are in overdraft their request
+   * is not processed. Checks to make sure nothing is added to indexHoldings and indexHistory.
+   * 
+   * @throws SQLException
+   * @throws ScriptException
+   */
+  @Test
+  public void testIndexBuyInOverdraft() throws SQLException, ScriptException {
+    // initialize customer1 with an overdraft balance of $100.50
+    double CUSTOMER1_BALANCE = 0;
+    int CUSTOMER1_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_BALANCE);
+    double CUSTOMER1_OVERDRAFT_BALANCE = 100.50;
+    int CUSTOMER1_OVERDRAFT_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_OVERDRAFT_BALANCE);
+    int CUSTOMER1_NUM_FRAUD_REVERSALS = 0;
+    MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER1_ID, CUSTOMER1_PASSWORD, CUSTOMER1_FIRST_NAME, CUSTOMER1_LAST_NAME, CUSTOMER1_BALANCE_IN_PENNIES, CUSTOMER1_OVERDRAFT_BALANCE_IN_PENNIES, CUSTOMER1_NUM_FRAUD_REVERSALS);
+
+
+    // Prepare Index Form to buy 0.1 VOO
+    double CUSTOMER1_AMOUNT_TO_BUY = 0.1; // user input is in VOO.
+    User customer1IndexBuyFormInputs = new User();
+    customer1IndexBuyFormInputs.setUsername(CUSTOMER1_ID);
+    customer1IndexBuyFormInputs.setPassword(CUSTOMER1_PASSWORD);
+    customer1IndexBuyFormInputs.setAmountToBuyCrypto(CUSTOMER1_AMOUNT_TO_BUY); // user input is in ethereum.
+    customer1IndexBuyFormInputs.setWhichIndexToBuy("VOO");
+
+    // verify that there are no logs in indexHistory table before action
+    assertEquals(0, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM IndexHistory;", Integer.class));
+
+    // verify that there are no logs in IndexHoldings table before action
+    assertEquals(0, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM IndexHoldings;", Integer.class));
+
+    // send request to the buy crypto Form's POST handler in MvcController
+    controller.buyIndex(customer1IndexBuyFormInputs);
+
+    // fetch updated data from the DB
+    List<Map<String,Object>> customersTableData = jdbcTemplate.queryForList("SELECT * FROM Customers;");
+    List<Map<String,Object>> indexHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM IndexHistory;");
+    List<Map<String,Object>> indexHoldingsTableData = jdbcTemplate.queryForList("SELECT * FROM IndexHoldings;");
+
+    // verify that customer1's data is still the only data populated in Customers table
+    assertEquals(1, customersTableData.size());
+    Map<String,Object> customer1Data = customersTableData.get(0);
+    assertEquals(CUSTOMER1_ID, (String)customer1Data.get("CustomerID"));
+
+    // verify that there is no data in cryptoHoldings Table
+    assertEquals(0, indexHoldingsTableData.size());
+
+
+    // verify that nothing is added to cryptoHistory table
+    assertEquals(0, indexHistoryTableData.size());
+
+  }
 
 }
