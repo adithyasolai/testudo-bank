@@ -9,6 +9,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.Map;
 import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashSet;
 import java.time.LocalDateTime;
@@ -18,6 +19,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+import org.python.antlr.PythonParser.elif_clause_return;
 import org.springframework.beans.factory.annotation.Autowired;
 
 @Controller
@@ -83,6 +85,22 @@ public class MvcController {
 		model.addAttribute("user", user);
 		
 		return "login_form";
+	}
+
+  /**
+ * HTML GET request handler that serves the "loginForSus_form" page to the user.
+ * An empty `User` object is also added to the Model as an Attribute to store
+ * the user's login form input.
+ * 
+ * @param model
+ * @return "loginForSus_form" page
+ */
+  @GetMapping("/loginForSus")
+	public String showLoginForSusForm(Model model) {
+		User user = new User();
+		model.addAttribute("user", user);
+		
+		return "loginForSus_form";
 	}
 
   /**
@@ -179,6 +197,21 @@ public class MvcController {
 		return "sellcrypto_form";
 	}
 
+    /**
+   * HTML GET request handler that serves the "suspiciousActivity_form" page to the user.
+   * An empty `User` object is also added to the Model as an Attribute to store
+   * the user's suspiciousActivity form input.
+   * 
+   * @param model
+   * @return "suspiciousActivity_form" page
+   */
+  @GetMapping("/suspiciousActivity")
+	public String showSuspiciousActivityForm(Model model) {
+    User user = new User();
+		model.addAttribute("user", user);
+		return "suspiciousActivity_form";
+	}
+
   //// HELPER METHODS ////
 
   /**
@@ -222,6 +255,15 @@ public class MvcController {
       cryptoBalanceInDollars += TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, user.getUsername(), cryptoName).orElse(0.0) * cryptoPriceClient.getCurrentCryptoValue(cryptoName);
     }
 
+    //see that most recent 50 suspisous transactions
+    List<Map<String,Object>> susTransactionLogs = TestudoBankRepository.getRecentSusTransactions(jdbcTemplate, user.getUsername(),50);
+    ArrayList<String> susTransactionHistoryOutput = new ArrayList<String>();
+    for(Map<String, Object> susTransactionLog : susTransactionLogs){
+      String susTransactionLogString = susTransactionLog.toString().replace("{", "").replace("}", "").replace("]", "").replace("[", "");
+      susTransactionHistoryOutput.add(susTransactionLogString+"*");
+    }
+
+
     user.setFirstName((String)userData.get("FirstName"));
     user.setLastName((String)userData.get("LastName"));
     user.setBalance((int)userData.get("Balance")/100.0);
@@ -236,6 +278,7 @@ public class MvcController {
     user.setSolBalance(TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, user.getUsername(), "SOL").orElse(0.0));
     user.setEthPrice(cryptoPriceClient.getCurrentEthValue());
     user.setSolPrice(cryptoPriceClient.getCurrentSolValue());
+    user.setSusTransactionHist(susTransactionHistoryOutput);
   }
 
   // Converts dollar amounts in frontend to penny representation in backend MySQL DB
@@ -286,6 +329,75 @@ public class MvcController {
       return "welcome";
     }
 	}
+
+  /**
+   * HTML POST request handler for the LoginForSus Form page to determine 
+   * login success or failure.
+   * 
+   * Queries 'passwords' table in MySQL DB for the correct password associated with the
+   * username ID given by the user. Compares the user's password attempt with the correct
+   * password.
+   * 
+   * If the password attempt is correct, the "suspiciousActivity_form" page is served to the customer
+   * with a list of the 50 most recent suspicious transactions retrieved from the MySQL DB.
+   * 
+   * If the password attempt is incorrect, the user is redirected to the "welcome" page.
+   * 
+   * @param user
+   * @return "suspiciousActivity_form" page if login successful.Otherwise, redirect to "welcome" page.
+  */
+  @PostMapping("/loginForSus")
+	public String submitLoginForSusForm(@ModelAttribute("user") User user) {
+    // Print user's existing fields for debugging
+		System.out.println(user);
+
+    String userID = user.getUsername();
+    String userPasswordAttempt = user.getPassword();
+
+    // Retrieve correct password for this customer.
+    String userPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, userID);
+
+    if (userPasswordAttempt.equals(userPassword)) {
+      updateAccountInfo(user);
+
+      return "suspiciousActivity_form";
+    } else {
+      return "welcome";
+    }
+	}
+
+  //   /**
+  //  * HTML POST request handler for the Suspicious Activity page.
+  //  * 
+  //  * If the user is currently not in overdraft, the deposit amount is simply
+  //  * added to the user's main balance.
+  //  * 
+  //  * If the user is in overdraft, the deposit amount first pays off the overdraft balance,
+  //  * and any excess deposit amount is added to the main balance.
+  //  * 
+  //  * @param user
+  //  * @return "account_info" page if valid deposit request. Otherwise, redirect to "welcome" page.
+  //  */
+  // @PostMapping("/suspiciousActivity")
+  // public String submitSuspiciousActivityForm(@ModelAttribute("user") User user) {
+  //   // Print user's existing fields for debugging
+
+  //   // String userID = user.getUsername();
+  //   // String userPasswordAttempt = user.getPassword();
+
+  //   // // Retrieve correct password for this customer.
+  //   // String userPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, userID);
+
+  //   // if (userPasswordAttempt.equals(userPassword)) {
+  //   //   updateAccountInfo(user);
+
+  //    return "suspiciousActivity_form";
+  //   // } else {
+  //     //return "welcome";
+  //   // }
+	// }
+
+
 
   /**
    * HTML POST request handler for the Deposit Form page.
@@ -348,11 +460,20 @@ public class MvcController {
     if (user.isTransfer()){
       // Adds transaction recieve to transaction history
       TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_TRANSFER_RECEIVE_ACTION, userDepositAmtInPennies);
+      if (userDepositAmt>=500){
+        TestudoBankRepository.insertRowToSuspiciousTransactionsTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_TRANSFER_RECEIVE_ACTION, userDepositAmtInPennies);
+      }
     } else if (user.isCryptoTransaction()) {
       TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_CRYPTO_SELL_ACTION, userDepositAmtInPennies);
+      if (userDepositAmt>=500){
+        TestudoBankRepository.insertRowToSuspiciousTransactionsTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_CRYPTO_SELL_ACTION, userDepositAmtInPennies);
+      }
     } else {
       // Adds deposit to transaction history
       TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_DEPOSIT_ACTION, userDepositAmtInPennies);
+      if (userDepositAmt>=500){
+        TestudoBankRepository.insertRowToSuspiciousTransactionsTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_DEPOSIT_ACTION, userDepositAmtInPennies);
+      }
     }
 
     // update Model so that View can access new main balance, overdraft balance, and logs
@@ -431,11 +552,20 @@ public class MvcController {
     if (user.isTransfer()){
       // Adds transfer send to transaction history
       TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_TRANSFER_SEND_ACTION, userWithdrawAmtInPennies);
+      if (userWithdrawAmt>=500){
+        TestudoBankRepository.insertRowToSuspiciousTransactionsTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_TRANSFER_SEND_ACTION, userWithdrawAmtInPennies);
+      }
     } else if (user.isCryptoTransaction()) {
       TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_CRYPTO_BUY_ACTION, userWithdrawAmtInPennies);
+      if (userWithdrawAmt>=500){
+        TestudoBankRepository.insertRowToSuspiciousTransactionsTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_CRYPTO_BUY_ACTION, userWithdrawAmtInPennies);
+      }
     } else {
       // Adds withdraw to transaction history
       TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_WITHDRAW_ACTION, userWithdrawAmtInPennies);
+      if (userWithdrawAmt>=500){
+        TestudoBankRepository.insertRowToSuspiciousTransactionsTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_WITHDRAW_ACTION, userWithdrawAmtInPennies);
+      }
     }
 
   
