@@ -51,7 +51,7 @@ CREATE TABLE CryptoHistory (
 CREATE TABLE SuspiciousTransactions (
   CustomerID varchar(255),
   Timestamp DATETIME,
-  Action varchar(255) CHECK (Action IN ('Deposit', 'Withdraw')),
+  Action varchar(255) CHECK (Action IN ('Deposit', 'Withdraw', 'TransferSend', 'TransferRecieve', 'CryptoBuy', 'CryptoSell')),
   Amount int
 );
 
