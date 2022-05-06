@@ -166,4 +166,33 @@ public class TestudoBankRepository {
       return false;
     }
   }
+  
+  public static void insertRowToSuspiciousTransactionsTable(JdbcTemplate jdbcTemplate, String customerID, String timestamp, String action, int amtInPennies) {
+    String insertRowToSuspiciousTransactionsSql = String.format("INSERT INTO SuspiciousTransactions(CustomerID, Timestamp, Action, Amount) VALUES ('%s', '%s', '%s', %d);",
+                                                              customerID,
+                                                              timestamp,
+                                                              action,
+                                                              amtInPennies);
+    jdbcTemplate.update(insertRowToSuspiciousTransactionsSql);
+  }
+
+  public static void deleteRowFromSuspiciousTransactionsTable(JdbcTemplate jdbcTemplate, String customerID, String timestamp) {
+    String deleteRowFromSuspiciousTransactionsSql = String.format("DELETE from SuspiciousTransactions where CustomerID='%s' AND Timestamp='%s';", customerID, timestamp);
+    jdbcTemplate.update(deleteRowFromSuspiciousTransactionsSql);
+  }
+
+  public static List<Map<String,Object>> getRecentSusTransactions(JdbcTemplate jdbcTemplate, String customerID, int numTransactionsToFetch) {
+    String getTransactionHistorySql = String.format("Select * from SuspiciousTransactions WHERE CustomerId='%s' ORDER BY Timestamp DESC LIMIT %d;", customerID, numTransactionsToFetch);
+    List<Map<String,Object>> transactionLogs = jdbcTemplate.queryForList(getTransactionHistorySql);
+    return transactionLogs;
+  }
+
+  public static void insertRowToFraudulentTransactionssTable(JdbcTemplate jdbcTemplate, String customerID, String timestamp, String action, int amtInPennies) {
+    String insertRowToFraudulentTransactionsSql = String.format("INSERT INTO FraudulentTransactions VALUES ('%s', '%s', '%s', %d);",
+                                                              customerID,
+                                                              timestamp,
+                                                              action,
+                                                              amtInPennies);
+    jdbcTemplate.update(insertRowToFraudulentTransactionsSql);
+  }
 }

@@ -1,5 +1,7 @@
 package net.testudobank;
 
+import java.util.ArrayList;
+
 import javax.validation.constraints.Positive;
 import javax.validation.constraints.PositiveOrZero;
 
@@ -95,5 +97,8 @@ public class User {
 
   @Setter  @Getter @PositiveOrZero @ToString.Include
   private double cryptoBalanceUSD;
+
+  @Setter @Getter
+  private ArrayList<String> susTransactionHist;
 
 }
