@@ -6,7 +6,7 @@
 <head>
   <link rel="icon" href="https://fanapeel.com/wp-content/uploads/logo_-university-of-maryland-terrapins-testudo-turtle-hold-red-white-m.png">
   <meta charset="ISO-8859-1">
-  <title>Welcome Page</title>
+  <title>Sell Index Fund Form</title>
   <style type="text/css">
     label {
       display: inline-block;
@@ -33,21 +33,27 @@
     }
   </style>
 </head>
-
 <body>
 	<div align="center">
-		<h2>Welcome to Testudo Bank!</h2>
-        <img src="https://fanapeel.com/wp-content/uploads/logo_-university-of-maryland-terrapins-testudo-turtle-hold-red-white-m.png" style="float:left;width:100px;height:100px;">
-		<a href='/login'>View Account</a> <br/>
-    <a href='/deposit'>Deposit</a> <br/>
-    <a href='/withdraw'>Withdraw</a> <br/>
-    <a href='/dispute'>Dispute</a> <br/>
-    <a href='/transfer'>Transfer</a> <br/>
-    <a href='/buycrypto'>Buy Cryptocurrency</a>
-    <a href='/sellcrypto'>Sell Cryptocurrency</a> <br/>
-    <a href='/buyindex'>Buy Index Funds</a>
-    <a href='/sellindex'>Sell Index Funds</a> <br/>
+		<form:form action="sellindex" method="post" modelAttribute="user">
+			<form:label path="username">Username:</form:label>
+			<form:input path="username"/><br/>
+
+			<form:label path="password">Password:</form:label>
+			<form:password path="password"/><br/>		
+
+      <form:label path="whichIndexToBuy">Which Index Fund to Sell (Type 'VOO' or 'VTV'):</form:label>
+			<form:input path="whichIndexToBuy"/><br/>
+
+      <form:label path="amountToSellIndex">Amount to Sell (# of shares, Fractional Allowed):</form:label>
+			<form:input path="amountToSellIndex"/><br/>	
+
+      <span>Current $VOO Price: </span><span>${user.vooPrice}</span><br/>
+      <span>Current $VTV Price: </span><span>${user.vtvPrice}</span><br/>
+
+			<form:button>Sell Shares</form:button>
+		</form:form>
+    <a href='/'>Home</a>
 	</div>
 </body>
-
 </html>

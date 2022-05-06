@@ -47,3 +47,17 @@ CREATE TABLE CryptoHistory (
   CryptoName varchar(255),
   CryptoAmount decimal(30,18)
 );
+
+CREATE TABLE IndexHoldings (
+  CustomerID varchar(255),
+  IndexName varchar(255),
+  IndexAmount decimal(30,18)
+);
+
+CREATE TABLE IndexHistory (
+  CustomerID varchar(255),
+  Timestamp DATETIME,
+  Action varchar(255) CHECK (Action IN ('Buy', 'Sell')),
+  IndexName varchar(255),
+  IndexAmount decimal(30,18)
+);

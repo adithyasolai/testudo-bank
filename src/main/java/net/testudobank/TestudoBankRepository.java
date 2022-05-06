@@ -39,6 +39,18 @@ public class TestudoBankRepository {
 
   }
 
+  public static Optional<Double> getCustomerIndexBalance(JdbcTemplate jdbcTemplate, String customerID, String indexName) {
+    String getUserIndexBalanceSql = "SELECT IndexAmount FROM IndexHoldings WHERE CustomerID= ? AND IndexName= ?;";
+
+    try {
+      return Optional.ofNullable(jdbcTemplate.queryForObject(getUserIndexBalanceSql, BigDecimal.class, customerID, indexName)).map(BigDecimal::doubleValue);
+    } catch (EmptyResultDataAccessException ignored) {
+      // user may not have crypto row yet
+      return Optional.empty();
+    }
+
+  }
+
   public static int getCustomerOverdraftBalanceInPennies(JdbcTemplate jdbcTemplate, String customerID) {
     String getUserOverdraftBalanceSql = String.format("SELECT OverdraftBalance FROM Customers WHERE CustomerID='%s';", customerID);
     int userOverdraftBalanceInPennies = jdbcTemplate.queryForObject(getUserOverdraftBalanceSql, Integer.class);
@@ -70,8 +82,13 @@ public class TestudoBankRepository {
   }
 
   public static List<Map<String,Object>> getCryptoLogs(JdbcTemplate jdbcTemplate, String customerID) {
-    String getTransferHistorySql = "Select * from CryptoHistory WHERE CustomerID=? ORDER BY Timestamp DESC";
-    return jdbcTemplate.queryForList(getTransferHistorySql, customerID);
+    String getCryptoHistorySql = "Select * from CryptoHistory WHERE CustomerID=? ORDER BY Timestamp DESC";
+    return jdbcTemplate.queryForList(getCryptoHistorySql, customerID);
+  }
+
+  public static List<Map<String,Object>> getIndexLogs(JdbcTemplate jdbcTemplate, String customerID) {
+    String getIndexHistorySql = "Select * from IndexHistory WHERE CustomerID=? ORDER BY Timestamp DESC";
+    return jdbcTemplate.queryForList(getIndexHistorySql, customerID);
   }
 
   public static void insertRowToTransactionHistoryTable(JdbcTemplate jdbcTemplate, String customerID, String timestamp, String action, int amtInPennies) {
@@ -124,9 +141,20 @@ public class TestudoBankRepository {
     jdbcTemplate.update(balanceInitSql, customerID, cryptoName);
   }
 
+  public static void initCustomerIndexBalance(JdbcTemplate jdbcTemplate, String customerID, String indexName) {
+    // TODO: this currently does not check if row with customerID and cryptoName already exists, and can create a duplicate row!
+    String balanceInitSql = "INSERT INTO IndexHoldings (IndexAmount,CustomerID,IndexName) VALUES (0, ? , ? )";
+    jdbcTemplate.update(balanceInitSql, customerID, indexName);
+  }
+
   public static void increaseCustomerCryptoBalance(JdbcTemplate jdbcTemplate, String customerID, String cryptoName, double increaseAmt) {
     String balanceIncreaseSql = "UPDATE CryptoHoldings SET CryptoAmount = CryptoAmount + ? WHERE CustomerID= ? AND CryptoName= ?";
     jdbcTemplate.update(balanceIncreaseSql, increaseAmt, customerID, cryptoName);
+  }
+
+  public static void increaseCustomerIndexBalance(JdbcTemplate jdbcTemplate, String customerID, String indexName, double increaseAmt) {
+    String balanceIncreaseSql = "UPDATE IndexHoldings SET IndexAmount = IndexAmount + ? WHERE CustomerID= ? AND IndexName= ?";
+    jdbcTemplate.update(balanceIncreaseSql, increaseAmt, customerID, indexName);
   }
 
   public static void decreaseCustomerCashBalance(JdbcTemplate jdbcTemplate, String customerID, int decreaseAmtInPennies) {
@@ -137,6 +165,11 @@ public class TestudoBankRepository {
   public static void decreaseCustomerCryptoBalance(JdbcTemplate jdbcTemplate, String customerID, String cryptoName, double decreaseAmt) {
     String balanceDecreaseSql = "UPDATE CryptoHoldings SET CryptoAmount = CryptoAmount - ? WHERE CustomerID= ? AND CryptoName= ?";
     jdbcTemplate.update(balanceDecreaseSql, decreaseAmt, customerID, cryptoName);
+  }
+
+  public static void decreaseCustomerIndexBalance(JdbcTemplate jdbcTemplate, String customerID, String indexName, double decreaseAmt) {
+    String balanceDecreaseSql = "UPDATE IndexHoldings SET IndexAmount = IndexAmount - ? WHERE CustomerID= ? AND IndexName= ?";
+    jdbcTemplate.update(balanceDecreaseSql, decreaseAmt, customerID, indexName);
   }
 
   public static void deleteRowFromOverdraftLogsTable(JdbcTemplate jdbcTemplate, String customerID, String timestamp) {
@@ -156,6 +189,11 @@ public class TestudoBankRepository {
   public static void insertRowToCryptoLogsTable(JdbcTemplate jdbcTemplate, String customerID, String cryptoName, String action, String timestamp, double cryptoAmount) {
     String cryptoHistorySql = "INSERT INTO CryptoHistory (CustomerID, Timestamp, Action, CryptoName, CryptoAmount) VALUES (?, ?, ?, ?, ?)";
     jdbcTemplate.update(cryptoHistorySql, customerID, timestamp, action, cryptoName, cryptoAmount);
+  }
+
+  public static void insertRowToIndexLogsTable(JdbcTemplate jdbcTemplate, String customerID, String indexName, String action, String timestamp, double indexAmount) {
+    String indexHistorySql = "INSERT INTO IndexHistory (CustomerID, Timestamp, Action, IndexName, IndexAmount) VALUES (?, ?, ?, ?, ?)";
+    jdbcTemplate.update(indexHistorySql, customerID, timestamp, action, indexName, indexAmount);
   }
   
   public static boolean doesCustomerExist(JdbcTemplate jdbcTemplate, String customerID) { 

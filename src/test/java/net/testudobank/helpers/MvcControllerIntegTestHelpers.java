@@ -92,6 +92,19 @@ public class MvcControllerIntegTestHelpers {
     System.out.println("Timestamp stored in CryptoHistory table for the request: " + transactionLogTimestamp);
   }
 
+  // Verifies that a single index log in the IndexHistory table matches the expected customerID, timestamp, action, indexName, and amount
+  public static void checkIndexLog(Map<String,Object> indexLog, LocalDateTime timeWhenRequestSent, String expectedCustomerID, String expectedAction, String expectedIndexName, double expectedIndexAmount) {
+    assertEquals(expectedCustomerID, indexLog.get("CustomerID"));
+    assertEquals(expectedAction, indexLog.get("Action"));
+    assertEquals(expectedIndexAmount, ((BigDecimal) indexLog.get("IndexAmount")).doubleValue());
+    assertEquals(expectedIndexName, indexLog.get("IndexName"));
+    // verify that the timestamp for the Deposit is within a reasonable range from when the request was first sent
+    LocalDateTime transactionLogTimestamp = (LocalDateTime)indexLog.get("Timestamp");
+    LocalDateTime transactionLogTimestampAllowedUpperBound = timeWhenRequestSent.plusSeconds(MvcControllerIntegTest.REASONABLE_TIMESTAMP_EPSILON_IN_SECONDS);
+    assertTrue(transactionLogTimestamp.compareTo(timeWhenRequestSent) >= 0 && transactionLogTimestamp.compareTo(transactionLogTimestampAllowedUpperBound) <= 0);
+    System.out.println("Timestamp stored in IndexHistory table for the request: " + transactionLogTimestamp);
+  }
+
   // Converts dollar amounts in frontend to penny representation in backend MySQL DB
   public static int convertDollarsToPennies(double dollarAmount) {
     return (int) (dollarAmount * 100);
