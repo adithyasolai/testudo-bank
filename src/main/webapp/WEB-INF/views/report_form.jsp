@@ -42,7 +42,9 @@
 			<form:label path="password">Password:</form:label>
 			<form:password path="password"/><br/>		
 
-			<form:button>Generate Report</form:button>
+      <a download="tmp/report.xlsx">
+        <form:button>Generate Report</form:button>
+      </a>
 		</form:form>
     <a href='/'>Home</a>
 	</div>
