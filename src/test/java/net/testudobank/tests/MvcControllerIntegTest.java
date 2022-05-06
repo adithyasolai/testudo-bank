@@ -1830,20 +1830,21 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
   @Test
   public void testSimpleReportGeneration() throws SQLException, ScriptException {
     // initialize customer1 with a balance of $123.45 (to make sure this works for non-whole dollar amounts). represented as pennies in the DB.
-    double CUSTOMER1_BALANCE = 123.45;
+    double CUSTOMER1_BALANCE = 123.45 * 2;
     int CUSTOMER1_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_BALANCE);
     MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER1_ID, CUSTOMER1_PASSWORD, CUSTOMER1_FIRST_NAME, CUSTOMER1_LAST_NAME, CUSTOMER1_BALANCE_IN_PENNIES);
 
     // Design: User submits how much in dollars they want to sell ETH
     // Then we convert that into pennies; Then convert from dollers to ETH
     double CUSTOMER1_BALANCE_CRYPTO = 123.45;
-    int CUSTOMER1_BALANCE_CRYPTO_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_BALANCE_CRYPTO);
+    // int CUSTOMER1_BALANCE_CRYPTO_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_BALANCE_CRYPTO);
     double CUSTOMER1_ETH_BALANCE_AMT = CUSTOMER1_BALANCE_CRYPTO / MvcControllerIntegTestHelpers.getCurrentEthValue();
+    double CUSTOMER1_SOL_BALANCE_AMT = CUSTOMER1_BALANCE_CRYPTO / cryptoPriceClient.getCurrentCryptoValue("SOL");
     /*Next: Add to the crypto table. Set up the cryptoSell . Check that account balance increased by val +- epsilon */
     String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date()); // use same timestamp for all logs created by this transfer
     // net.testudobank.TestudoBankRepository.insertRowToCryptoLogsTable(jdbcTemplate, CUSTOMER1_ID, currentTime, "Buy" , "ETH",  CUSTOMER1_ETH_BALANCE_AMT);
     net.testudobank.TestudoBankRepository.insertRowToCryptoLogsTable(jdbcTemplate, CUSTOMER1_ID, "ETH", "Buy", currentTime, CUSTOMER1_ETH_BALANCE_AMT);
-    // net.testudobank.TestudoBankRepository.insertRowToCryptoHoldingsTable(jdbcTemplate, CUSTOMER1_ID, "ETH", CUSTOMER1_ETH_BALANCE_AMT);
+    net.testudobank.TestudoBankRepository.insertRowToCryptoLogsTable(jdbcTemplate, CUSTOMER1_ID, "SOL", "Buy", currentTime, CUSTOMER1_SOL_BALANCE_AMT);
 
     // prepare report FORM
     User customer1ReportFormInputs = new User();
