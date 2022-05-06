@@ -897,15 +897,17 @@ public class MvcController {
           cell.setCellValue((Double) rowDB.get(field));
         } else if (rowDB.get(field) instanceof LocalDateTime) {
           cell.setCellValue((String) rowDB.get(field).toString());
-          // WRONG: Need to keep track of months in addition
-          // Cell cellTerm = row.createCell(8);
-          // String oldYear = rowDB.get(field).toString().substring(0, 4);
-          // String currentYear = new java.util.Date().toString().substring(0, 4);
-          // if(Integer.parseInt(currentYear) - Integer.parseInt(oldYear) == 0) {
-          //   cellTerm.setCellValue((String) "Short");
-          // } else {
-          //   cellTerm.setCellValue((String) "Long");
-          // }
+          // TODO: Incomplete- Need to keep track of months in addition for calculation
+          Cell cellTerm = row.createCell(6);
+          String oldYear = rowDB.get(field).toString().substring(0, 4);
+          int currentYear = new Date().toInstant().atZone(ZoneId.systemDefault()).toLocalDate().getYear();
+          System.out.println("OLD: " +oldYear);
+          System.out.println("New:" +currentYear);
+          if(currentYear - Integer.parseInt(oldYear) == 0) {
+            cellTerm.setCellValue((String) "Short");
+          } else {
+            cellTerm.setCellValue((String) "Long");
+          }
         } else if (rowDB.get(field) instanceof BigDecimal) {
           cell.setCellValue((String) rowDB.get(field).toString());
         }
