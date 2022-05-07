@@ -1846,7 +1846,6 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
     // Design: User submits how much in dollars they want to sell ETH
     // Then we convert that into pennies; Then convert from dollers to ETH
     double CUSTOMER1_BALANCE_CRYPTO = 123.45;
-    // int CUSTOMER1_BALANCE_CRYPTO_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_BALANCE_CRYPTO);
     
     double CUSTOMER1_ETH_BALANCE_AMT = CUSTOMER1_BALANCE_CRYPTO / MvcControllerIntegTestHelpers.getCurrentEthValue();
     double CUSTOMER1_ETH_BALANCE_AMT2 = CUSTOMER1_BALANCE_CRYPTO / MvcControllerIntegTestHelpers.getCurrentEthValue();
