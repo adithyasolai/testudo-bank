@@ -20,6 +20,18 @@ import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
 
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.xssf.usermodel.XSSFSheet;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.math.BigDecimal;
+
+import java.io.File;
+
 @Controller
 public class MvcController {
   
@@ -179,6 +191,23 @@ public class MvcController {
 		return "sellcrypto_form";
 	}
 
+  /**
+   * HTML GET request handler that serves the "report_form" page to the user.
+   * An empty `User` object is also added to the Model as an Attribute to store
+   * the user's input for selling cryptocurrency.
+   * 
+   * @param model
+   * @return "report_form" page
+   */
+  @GetMapping("/report")
+	public String showReportForm(Model model) {
+    User user = new User();
+    // user.setEthPrice(cryptoPriceClient.getCurrentEthValue());
+    // user.setSolPrice(cryptoPriceClient.getCurrentSolValue());
+		model.addAttribute("user", user);
+		return "report_form";
+	}
+
   //// HELPER METHODS ////
 
   /**
@@ -239,7 +268,7 @@ public class MvcController {
   }
 
   // Converts dollar amounts in frontend to penny representation in backend MySQL DB
-  private static int convertDollarsToPennies(double dollarAmount) {
+  public static int convertDollarsToPennies(double dollarAmount) {
     return (int) (dollarAmount * 100);
   }
 
@@ -394,6 +423,8 @@ public class MvcController {
       return "welcome";
     }
 
+
+
     // Negative deposit amount is not allowed
     double userWithdrawAmt = user.getAmountToWithdraw();
     if (userWithdrawAmt < 0) {
@@ -438,7 +469,7 @@ public class MvcController {
       TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_WITHDRAW_ACTION, userWithdrawAmtInPennies);
     }
 
-  
+
     // update Model so that View can access new main balance, overdraft balance, and logs
     updateAccountInfo(user);
     return "account_info";
@@ -793,6 +824,111 @@ public class MvcController {
     } else {
       return "welcome";
     }
+  }
+
+
+  /**
+   * HTML POST request handler for the Cryptocurrency Report Form page.
+   * <p>
+   * The same username+password handling from the login page is used.
+   * <p>
+   * If the password attempt is correct, cryptocurrency information from database
+   * is written to an excel file and exported.
+   * <p>
+   * If the password attempt is incorrect the user is redirected to the "welcome" page.
+   * <p>
+   * @param user
+   * @return "account_info" page if report generation is successful. Otherwise, redirect to "welcome" page.
+   */
+  @PostMapping("/report")
+  public String generateReport(@ModelAttribute("user") User user) {
+    String userID = user.getUsername();
+    String userPasswordAttempt = user.getPassword();
+    String userPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, userID);
+
+    //// Invalid Input/State Handling ////
+
+    // unsuccessful login
+    if (!userPasswordAttempt.equals(userPassword)) {
+      return "welcome";
+    }
+    new File("tmp").mkdir( );
+    // Fetch the crypto transactions history
+    List<Map<String, Object>> cryptoLogs = TestudoBankRepository.getCryptoLogs(jdbcTemplate, userID);
+
+    if(cryptoLogs.isEmpty()) {
+      return "welcome"; 
+    }
+    final String FILE_NAME = "tmp/report.xlsx";
+
+    // Init the workbook and sheet to write 
+    XSSFWorkbook workbook = new XSSFWorkbook();
+    XSSFSheet sheet = workbook.createSheet("Customer Report");
+    Object[][] reportStructure = {
+        {"customerID", "Date", "Action", "CryptoName", "Amount", "Currency",  "Term"}
+    };
+    // Write the Headers of the excel file
+    int rowNum = 0;
+    for(Object[] attribute : reportStructure) {
+      Row row = sheet.createRow(rowNum++);
+      int colNum = 0;
+      for(Object field: attribute) {
+        Cell cell = row.createCell(colNum++);
+        if(field instanceof String) {
+          cell.setCellValue((String) field);
+        } else if (field instanceof Integer) {
+          cell.setCellValue((Integer) field);
+        } else if (field instanceof Double) {
+          cell.setCellValue((Double) field);
+        }
+      }
+    }
+    // Write the values based on the crypto transaction history
+    for(Map<String, Object> rowDB: cryptoLogs) {
+      Row row = sheet.createRow(rowNum++);
+      int colNum = 0;
+      for(Object field: rowDB.keySet()) {
+        Cell cell = row.createCell(colNum++);
+        if(rowDB.get(field) instanceof String) {
+          cell.setCellValue((String) rowDB.get(field));
+        } else if (rowDB.get(field) instanceof Integer) {
+          cell.setCellValue((Integer) rowDB.get(field));
+        } else if (rowDB.get(field) instanceof Double) {
+          cell.setCellValue((Double) rowDB.get(field));
+        } else if (rowDB.get(field) instanceof LocalDateTime) {
+          cell.setCellValue((String) rowDB.get(field).toString());
+          // TODO: Incomplete- Need to keep track of months in addition for calculation
+          Cell cellTerm = row.createCell(6);
+          String oldYear = rowDB.get(field).toString().substring(0, 4);
+          int currentYear = new Date().toInstant().atZone(ZoneId.systemDefault()).toLocalDate().getYear();
+          System.out.println("OLD: " +oldYear);
+          System.out.println("New:" +currentYear);
+          if(currentYear - Integer.parseInt(oldYear) == 0) {
+            cellTerm.setCellValue((String) "Short");
+          } else {
+            cellTerm.setCellValue((String) "Long");
+          }
+        } else if (rowDB.get(field) instanceof BigDecimal) {
+          cell.setCellValue((String) rowDB.get(field).toString());
+        }
+      }
+      // Currency always USD at this point
+      Cell cellCurrency = row.createCell(colNum++);
+      cellCurrency.setCellValue((String) "USD");
+      
+    }
+
+    try {
+      FileOutputStream outputStream = new FileOutputStream(FILE_NAME);
+      workbook.write(outputStream);
+      workbook.close();
+    } catch (FileNotFoundException e) {
+      e.printStackTrace();
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+
+    return "account_info";
   }
 
 }
