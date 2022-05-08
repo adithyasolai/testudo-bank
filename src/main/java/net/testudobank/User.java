@@ -84,6 +84,7 @@ public class User {
   @Setter @Getter
   private double ethPrice;
 
+
   @Setter @Getter
   private double solPrice;
 
@@ -96,4 +97,14 @@ public class User {
   @Setter  @Getter @PositiveOrZero @ToString.Include
   private double cryptoBalanceUSD;
 
+  //TerrapinExpress Fields
+
+  @Setter @Getter
+  private boolean isTerrapinExpress; 
+
+  @Setter @Getter
+  private double terrapinExpressAmountToTransact; 
+
+  @Setter @Getter
+  private double terrapinExpressBalance; 
 }

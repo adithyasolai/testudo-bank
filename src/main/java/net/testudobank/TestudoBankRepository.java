@@ -166,4 +166,38 @@ public class TestudoBankRepository {
       return false;
     }
   }
+
+  public static void insertRowToTerrapinExpressHoldings(JdbcTemplate jdbcTemplate, String customerID, double amount){
+    String terrapinExpress = "INSERT INTO TerrapinExpressHoldings (CustomerID, TerrapinExpressAmount) Values (?, ?)";
+    jdbcTemplate.update(terrapinExpress, customerID, amount);
+  }
+
+  public static void insertRowToTerrapinExpressHistory(JdbcTemplate jdbcTemplate, String customerID, String timestamp, String action, double amount){
+    String terrapinExpress = "Insert INTO TerrapinExpressHistory (CustomerID, Timestamp, Action, TerrapinExpressAmount) VALUES (?, ?, ?, ?)";
+    jdbcTemplate.update(terrapinExpress, customerID, timestamp, action, amount);
+  }
+  
+  public static void updateTerrapinExpressHoldings(JdbcTemplate jdbcTemplate, String customerID, double amount){
+    String terrapinExpress = "UPDATE TerrapinExpressHoldings SET TerrapinExpressAmount = TerrapinExpressAmount + %d WHERE CustomerID='%s';";
+    jdbcTemplate.update(terrapinExpress, customerID, amount);
+  }
+  public static void decreaseTerrapinExpressHoldings(JdbcTemplate jdbcTemplate, String customerID, double amount){
+    String terrapinExpress = "UPDATE TerrapinExpressHoldings SET TerrapinExpressAmount = TerrapinExpressAmount - ? WHERE CustomerID=?";
+    jdbcTemplate.update(terrapinExpress, amount, customerID);
+  }
+
+  public static boolean doesCustomerHoldTerrapinExpress(JdbcTemplate jdbcTemplate, String customerID){
+    String getCustomerID = String.format("SELECT COUNT(*) FROM TerrapinExpressHoldings WHERE CustomerID='%s';", customerID);
+    if (jdbcTemplate.queryForObject(getCustomerID, Integer.class) == 1) {
+      return true;
+     } else {
+       return false;
+     }
+  }
+
+  public static double getCurrentTerrapinExpressBalance(JdbcTemplate jdbcTemplate, String customerID){
+    String getUserTerrapinExpressBalanceSql = String.format("SELECT TerrapinExpressAmount FROM TerrapinExpressHoldings WHERE CustomerID='%s';", customerID);
+    double terrapinExpressAmount = jdbcTemplate.queryForObject(getUserTerrapinExpressBalanceSql, Double.class);
+    return terrapinExpressAmount; 
+  }
 }
