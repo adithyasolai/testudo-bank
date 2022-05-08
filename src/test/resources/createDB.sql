@@ -47,3 +47,15 @@ CREATE TABLE CryptoHistory (
   CryptoName varchar(255),
   CryptoAmount decimal(30,18)
 );
+
+CREATE TABLE TerrapinExpressHistory (
+  CustomerID varchar(255),
+  Timestamp DATETIME,
+  Action varchar(255) CHECK (Action IN ('Deposit', 'Withdraw')),
+  TerrapinExpressAmount decimal(30,18)
+);
+
+CREATE TABLE TerrapinExpressHoldings (
+  CustomerID varchar(255),
+  TerrapinExpressAmount decimal(30,18)
+);

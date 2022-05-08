@@ -47,8 +47,12 @@ public class MvcController {
   public static String TRANSACTION_HISTORY_TRANSFER_RECEIVE_ACTION = "TransferReceive";
   public static String TRANSACTION_HISTORY_CRYPTO_SELL_ACTION = "CryptoSell";
   public static String TRANSACTION_HISTORY_CRYPTO_BUY_ACTION = "CryptoBuy";
+  public static String TRANSACTION_HISTORY_TERRAPINEXPRESS_DEPOSIT = "TerrapinExpressDeposit";
+  public static String TRANSACTION_HISTORY_TERRAPINEXPRESS_WITHDRAW = "TerrapinExpressWithdraw";
   public static String CRYPTO_HISTORY_SELL_ACTION = "Sell";
   public static String CRYPTO_HISTORY_BUY_ACTION = "Buy";
+  public static String TERRAPIN_EXPRESS_DEPOSIT = "Deposit";
+  public static String TERRAPIN_EXPRESS_WITHDRAW = "Withdraw";
   public static Set<String> SUPPORTED_CRYPTOCURRENCIES = new HashSet<>(Arrays.asList("ETH", "SOL"));
 
   public MvcController(@Autowired JdbcTemplate jdbcTemplate, @Autowired CryptoPriceClient cryptoPriceClient) {
@@ -179,6 +183,19 @@ public class MvcController {
 		return "sellcrypto_form";
 	}
 
+  @GetMapping("/terrapin_express_buy")
+  public String showTerrapinExpressBuyForm(Model model){
+    User user = new User();
+    model.addAttribute("user", user);
+    return "terrapin_express_buy_form";
+  }
+
+  @GetMapping("/terrapin_express_sell")
+  public String showTerrapinExpressSellForm(Model model){
+    User user = new User();
+    model.addAttribute("user", user);
+    return "terrapin_express_sell_form";
+  }
   //// HELPER METHODS ////
 
   /**
@@ -236,6 +253,11 @@ public class MvcController {
     user.setSolBalance(TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, user.getUsername(), "SOL").orElse(0.0));
     user.setEthPrice(cryptoPriceClient.getCurrentEthValue());
     user.setSolPrice(cryptoPriceClient.getCurrentSolValue());
+    if(TestudoBankRepository.doesCustomerHoldTerrapinExpress(jdbcTemplate, user.getUsername())){
+      user.setTerrapinExpressBalance(TestudoBankRepository.getCurrentTerrapinExpressBalance(jdbcTemplate, user.getUsername()));
+    }else{
+      user.setTerrapinExpressBalance(0);
+    }
   }
 
   // Converts dollar amounts in frontend to penny representation in backend MySQL DB
@@ -350,7 +372,9 @@ public class MvcController {
       TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_TRANSFER_RECEIVE_ACTION, userDepositAmtInPennies);
     } else if (user.isCryptoTransaction()) {
       TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_CRYPTO_SELL_ACTION, userDepositAmtInPennies);
-    } else {
+    } else if (user.isTerrapinExpress()){  
+      TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_TERRAPINEXPRESS_DEPOSIT, userDepositAmtInPennies);
+    } else{
       // Adds deposit to transaction history
       TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_DEPOSIT_ACTION, userDepositAmtInPennies);
     }
@@ -433,7 +457,9 @@ public class MvcController {
       TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_TRANSFER_SEND_ACTION, userWithdrawAmtInPennies);
     } else if (user.isCryptoTransaction()) {
       TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_CRYPTO_BUY_ACTION, userWithdrawAmtInPennies);
-    } else {
+    } else if(user.isTerrapinExpress()){
+      TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_TERRAPINEXPRESS_DEPOSIT, userWithdrawAmtInPennies);
+    }else{
       // Adds withdraw to transaction history
       TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_WITHDRAW_ACTION, userWithdrawAmtInPennies);
     }
@@ -795,4 +821,75 @@ public class MvcController {
     }
   }
 
+  @PostMapping("/terrapin_express_buy")
+  public String buyTerrapinExpress(@ModelAttribute("user") User user){
+    String userID = user.getUsername();
+    String userPasswordAttempt = user.getPassword();
+    String userPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, userID);
+    String deposit = "Deposit";
+
+    //// Invalid Input/State Handling ////
+
+    // unsuccessful login
+    if (!userPasswordAttempt.equals(userPassword)) {
+      return "welcome";
+    }
+    if(user.getTerrapinExpressAmountToTransact() <= 0){
+      return "welcome";
+    }
+    if(user.getBalance() < user.getTerrapinExpressAmountToTransact()){
+      return "welcome";
+    }
+    if(user.getOverDraftBalance() > 0){
+      return "welcome";
+    }
+    user.setTerrapinExpress(true);
+    user.setAmountToWithdraw(user.getTerrapinExpressAmountToTransact());
+    String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date());
+    String terrapinExpressDeposit = submitWithdraw(user);
+    if(terrapinExpressDeposit.equals("account_info")){
+      if(TestudoBankRepository.doesCustomerHoldTerrapinExpress(jdbcTemplate, userID) == true){
+        TestudoBankRepository.updateTerrapinExpressHoldings(jdbcTemplate, userID, user.getTerrapinExpressAmountToTransact());
+      }else{
+        TestudoBankRepository.insertRowToTerrapinExpressHoldings(jdbcTemplate, userID, user.getTerrapinExpressAmountToTransact());
+      }
+      TestudoBankRepository.insertRowToTerrapinExpressHistory(jdbcTemplate, userID, currentTime, deposit, user.getTerrapinExpressAmountToTransact());
+      updateAccountInfo(user);
+      return "account_info";
+    }else{
+      return "welcome";
+    }
+  }
+@PostMapping("terrapin_express_sell")
+  public String sellTerrapinExpress(@ModelAttribute("user") User user){
+    String userID = user.getUsername();
+    String userPasswordAttempt = user.getPassword();
+    String userPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, userID);
+
+    // unsuccessful login
+    if(TestudoBankRepository.doesCustomerHoldTerrapinExpress(jdbcTemplate, userID) == false){
+      return "welcome";
+    }
+    if (!userPasswordAttempt.equals(userPassword)) {
+      return "welcome";
+    }
+    if(user.getTerrapinExpressAmountToTransact() <= 0){
+      return "welcome";
+    }
+    if(user.getTerrapinExpressAmountToTransact() > TestudoBankRepository.getCurrentTerrapinExpressBalance(jdbcTemplate, userID)){
+      return "welcome";
+    }
+    user.setTerrapinExpress(true);
+    user.setAmountToDeposit(user.getTerrapinExpressAmountToTransact());
+    String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date());
+    String terrapinExpressDeposit = submitDeposit(user);
+    if(terrapinExpressDeposit.equals("welcome")){
+      return "welcome";
+    }
+    TestudoBankRepository.decreaseTerrapinExpressHoldings(jdbcTemplate, userID, user.getTerrapinExpressAmountToTransact());
+    TestudoBankRepository.insertRowToTerrapinExpressHistory(jdbcTemplate, userID, currentTime, TERRAPIN_EXPRESS_WITHDRAW, user.getTerrapinExpressAmountToTransact());
+
+    updateAccountInfo(user);
+    return "account_info";
+  }
 }

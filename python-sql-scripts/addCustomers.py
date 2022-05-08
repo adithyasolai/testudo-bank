@@ -92,6 +92,23 @@ CREATE TABLE CryptoHistory (
 cursor.execute(create_cryptohistory_table_sql)
 
 
+create_terrapinexpresshistory_table_sql = '''
+CREATE TABLE TerrapinExpressHistory (
+  CustomerID varchar(255),
+  Timestamp DATETIME,
+  Action varchar(255) CHECK (Action IN ('Deposit', 'Withdraw')),
+  TerrapinExpressAmount decimal(30,18)
+);
+'''
+cursor.execute(create_terrapinexpresshistory_table_sql)
+
+create_terrapinexpressholdings_table_sql = '''
+CREATE TABLE TerrapinExpressHoldings (
+  CustomerID varchar(255),
+  TerrapinExpressAmount decimal(30,18)
+);
+'''
+cursor.execute(create_terrapinexpressholdings_table_sql)
 
 # The two sets created below are used to ensure that this
 # automated, randomized process does not accidentally 

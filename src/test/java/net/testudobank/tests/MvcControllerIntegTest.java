@@ -30,6 +30,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import net.testudobank.MvcController;
+import net.testudobank.TestudoBankRepository;
 import net.testudobank.User;
 import net.testudobank.helpers.MvcControllerIntegTestHelpers;
 
@@ -1323,7 +1324,6 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
     CryptoTransactionTester cryptoTransactionTester = CryptoTransactionTester.builder()
             .initialBalanceInDollars(1000)
             .build();
-
     cryptoTransactionTester.initialize();
 
     CryptoTransaction cryptoTransaction = CryptoTransaction.builder()
@@ -1346,7 +1346,6 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
     CryptoTransactionTester cryptoTransactionTester = CryptoTransactionTester.builder()
             .initialBalanceInDollars(1000)
             .build();
-
     cryptoTransactionTester.initialize();
 
     CryptoTransaction cryptoTransaction = CryptoTransaction.builder()
@@ -1370,7 +1369,6 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
             .initialBalanceInDollars(1000)
             .initialCryptoBalance(Collections.singletonMap("ETH", 0.0))
             .build();
-
     cryptoTransactionTester.initialize();
 
     CryptoTransaction cryptoTransaction = CryptoTransaction.builder()
@@ -1394,7 +1392,6 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
             .initialBalanceInDollars(1000)
             .initialCryptoBalance(Collections.singletonMap("ETH", 0.1))
             .build();
-
     cryptoTransactionTester.initialize();
 
     CryptoTransaction cryptoTransaction = CryptoTransaction.builder()
@@ -1417,7 +1414,6 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
     CryptoTransactionTester cryptoTransactionTester = CryptoTransactionTester.builder()
             .initialBalanceInDollars(1000)
             .build();
-
     cryptoTransactionTester.initialize();
 
     CryptoTransaction cryptoTransaction = CryptoTransaction.builder()
@@ -1439,7 +1435,6 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
     CryptoTransactionTester cryptoTransactionTester = CryptoTransactionTester.builder()
             .initialBalanceInDollars(1000)
             .build();
-
     cryptoTransactionTester.initialize();
 
     CryptoTransaction cryptoTransaction = CryptoTransaction.builder()
@@ -1486,7 +1481,6 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
             .initialBalanceInDollars(1000)
             .initialOverdraftBalanceInDollars(100)
             .build();
-
     cryptoTransactionTester.initialize();
 
     CryptoTransaction cryptoTransaction = CryptoTransaction.builder()
@@ -1512,7 +1506,6 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
             .initialOverdraftBalanceInDollars(50)
             .initialCryptoBalance(Collections.singletonMap("ETH", 0.15))
             .build();
-
     cryptoTransactionTester.initialize();
 
     CryptoTransaction cryptoTransaction = CryptoTransaction.builder()
@@ -1539,7 +1532,6 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
             .initialBalanceInDollars(1000)
             .initialCryptoBalance(Collections.singletonMap("ETH", 0.0))
             .build();
-
     cryptoTransactionTester.initialize();
 
     CryptoTransaction cryptoTransaction = CryptoTransaction.builder()
@@ -1563,7 +1555,6 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
             .initialBalanceInDollars(1000)
             .initialCryptoBalance(Collections.singletonMap("ETH", 0.1))
             .build();
-
     cryptoTransactionTester.initialize();
 
     CryptoTransaction cryptoTransaction = CryptoTransaction.builder()
@@ -1578,4 +1569,147 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
     cryptoTransactionTester.test(cryptoTransaction);
   }
 
+    @Test
+    public void testBuyETHBuySOLAndSellSOL() throws ScriptException {
+      
+      CryptoTransactionTester cryptoTransactionTester= CryptoTransactionTester.builder()
+          .initialBalanceInDollars(500)
+          .initialCryptoBalance(Collections.singletonMap("ETH", 0.0))
+          .initialCryptoBalance(Collections.singletonMap("SOL", 0.0))
+          .build();
+      cryptoTransactionTester.initialize();
+
+      CryptoTransaction cryptoTransactionBuyETH = CryptoTransaction.builder()
+        .expectedEndingBalanceInDollars(499)
+        .expectedEndingCryptoBalance(1.0)
+        .cryptoName("ETH")
+        .cryptoPrice(1)
+        .cryptoAmountToTransact(1.0)
+        .cryptoTransactionTestType(CryptoTransactionTestType.BUY)
+        .shouldSucceed(true)
+        .validPassword(true)
+        .build();
+      cryptoTransactionTester.test(cryptoTransactionBuyETH);
+
+      CryptoTransaction cryptoTransactionBuySOL = CryptoTransaction.builder()
+        .expectedEndingBalanceInDollars(498)
+        .expectedEndingCryptoBalance(1.0)
+        .cryptoPrice(1)
+        .cryptoName("SOL")
+        .cryptoAmountToTransact(1.0)
+        .cryptoTransactionTestType(CryptoTransactionTestType.BUY)
+        .shouldSucceed(true)
+        .validPassword(true)
+        .build();
+      cryptoTransactionTester.test(cryptoTransactionBuySOL);
+
+      CryptoTransaction cryptoTransactionSellSOL = CryptoTransaction.builder()
+        .expectedEndingBalanceInDollars(499)
+        .expectedEndingCryptoBalance(0)
+        .cryptoPrice(1)
+        .cryptoName("SOL")
+        .cryptoAmountToTransact(1.0)
+        .cryptoTransactionTestType(CryptoTransactionTestType.SELL)
+        .shouldSucceed(true)
+        .validPassword(true)
+        .build();
+      cryptoTransactionTester.test(cryptoTransactionSellSOL);
+    }
+
+  @Test
+  public void testBuyBTC() throws ScriptException {
+    CryptoTransactionTester cryptoTransactionTester = CryptoTransactionTester.builder()
+      .initialBalanceInDollars(1000)
+      .build();
+    cryptoTransactionTester.initialize();
+
+    CryptoTransaction buyBTC = CryptoTransaction.builder()
+      .expectedEndingBalanceInDollars(1000)
+      .expectedEndingCryptoBalance(0)
+      .cryptoPrice(-1)
+      .cryptoAmountToTransact(0.1)
+      .cryptoName("BTC")
+      .cryptoTransactionTestType(CryptoTransactionTestType.BUY)
+      .shouldSucceed(false)
+      .build();
+    cryptoTransactionTester.test(buyBTC);
+  }
+
+  @Test
+  public void testSellBTC() throws ScriptException { 
+    CryptoTransactionTester cryptoTransactionTester = CryptoTransactionTester.builder()
+      .initialBalanceInDollars(1000)
+      .build();
+    cryptoTransactionTester.initialize();
+    CryptoTransaction sellBTC = CryptoTransaction.builder()
+      .expectedEndingBalanceInDollars(1000)
+      .expectedEndingCryptoBalance(0)
+      .cryptoPrice(-1)
+      .cryptoAmountToTransact(0.1)
+      .cryptoName("BTC")
+      .cryptoTransactionTestType(CryptoTransactionTestType.SELL)
+      .shouldSucceed(false)
+      .build();
+    cryptoTransactionTester.test(sellBTC);
+  }
+
+  @Test
+  public void testBuyTerrapinExpress() throws ScriptException {
+    User CUSTOMER1 = new User();
+    double TerrapinExpressBuyAmount = 10; 
+    CUSTOMER1.setUsername(CUSTOMER1_ID);
+    CUSTOMER1.setPassword(CUSTOMER1_PASSWORD);
+    double CUSTOMER1_BALANCE = 10000;
+    int CUSTOMER1_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_BALANCE);
+    MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER1_ID, CUSTOMER1_PASSWORD, CUSTOMER1_FIRST_NAME, CUSTOMER1_LAST_NAME, CUSTOMER1_BALANCE_IN_PENNIES);
+    CUSTOMER1.setBalance(CUSTOMER1_BALANCE);
+    CUSTOMER1.setTerrapinExpressAmountToTransact(TerrapinExpressBuyAmount);
+    assertEquals("account_info", controller.buyTerrapinExpress(CUSTOMER1));
+  
+    User CUSTOMER2 = new User();
+    CUSTOMER2.setUsername(CUSTOMER2_ID);
+    CUSTOMER2.setPassword(CUSTOMER2_PASSWORD);
+    double CUSTOMER2_BALANCE = 10000;
+    int CUSTOMER2_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER2_BALANCE);
+    CUSTOMER2.setBalance(CUSTOMER2_BALANCE);
+    MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER2_ID, CUSTOMER2_PASSWORD, CUSTOMER2_FIRST_NAME, CUSTOMER2_LAST_NAME, CUSTOMER2_BALANCE_IN_PENNIES);
+    CUSTOMER2.setTerrapinExpressAmountToTransact(10);
+    CUSTOMER2.setOverDraftBalance(10);
+    assertEquals("welcome", controller.buyTerrapinExpress(CUSTOMER2));
+
+  }
+
+  @Test
+  public void testSellTerrapinExpress() throws ScriptException{
+    double tempTerrapinExpress = 1000;
+    double terrapinExpressSell = 100;
+    User CUSTOMER1 = new User();
+    CUSTOMER1.setUsername(CUSTOMER1_ID);
+    CUSTOMER1.setPassword(CUSTOMER1_PASSWORD);
+    double CUSTOMER1_BALANCE = 100000;
+    int CUSTOMER1_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER1_BALANCE);
+    MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER1_ID, CUSTOMER1_PASSWORD, CUSTOMER1_FIRST_NAME, CUSTOMER1_LAST_NAME, CUSTOMER1_BALANCE_IN_PENNIES);
+    CUSTOMER1.setBalance(CUSTOMER1_BALANCE);
+    CUSTOMER1.setTerrapinExpressAmountToTransact(tempTerrapinExpress);
+    assertEquals("account_info", controller.buyTerrapinExpress(CUSTOMER1));
+    CUSTOMER1.setTerrapinExpressAmountToTransact(terrapinExpressSell);
+    assertEquals("account_info", controller.sellTerrapinExpress(CUSTOMER1));
+    double currTerrapinExpress = TestudoBankRepository.getCurrentTerrapinExpressBalance(jdbcTemplate, CUSTOMER1_ID);
+    assertEquals(currTerrapinExpress, tempTerrapinExpress - terrapinExpressSell);
+
+    User CUSTOMER2 = new User();
+    CUSTOMER2.setUsername(CUSTOMER2_ID);
+    CUSTOMER2.setPassword(CUSTOMER2_PASSWORD);
+    double CUSTOMER2_BALANCE = 100000;
+    int CUSTOMER2_BALANCE_IN_PENNIES = MvcControllerIntegTestHelpers.convertDollarsToPennies(CUSTOMER2_BALANCE);
+    MvcControllerIntegTestHelpers.addCustomerToDB(dbDelegate, CUSTOMER2_ID, CUSTOMER2_PASSWORD, CUSTOMER2_FIRST_NAME, CUSTOMER2_LAST_NAME, CUSTOMER2_BALANCE_IN_PENNIES);
+    CUSTOMER2.setBalance(CUSTOMER2_BALANCE);
+    CUSTOMER2.setTerrapinExpressAmountToTransact(tempTerrapinExpress);
+    controller.buyTerrapinExpress(CUSTOMER2);
+    CUSTOMER2.setOverDraftBalance(terrapinExpressSell);
+    CUSTOMER2.setTerrapinExpressAmountToTransact(tempTerrapinExpress);
+    assertEquals("account_info",controller.sellTerrapinExpress(CUSTOMER2));
+    assertEquals(CUSTOMER2.getOverDraftBalance(), 0);
+    assertEquals(CUSTOMER2.getBalance(), CUSTOMER2_BALANCE);
+  }
 }
