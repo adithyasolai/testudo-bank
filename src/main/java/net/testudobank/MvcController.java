@@ -236,6 +236,8 @@ public class MvcController {
     user.setSolBalance(TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, user.getUsername(), "SOL").orElse(0.0));
     user.setEthPrice(cryptoPriceClient.getCurrentEthValue());
     user.setSolPrice(cryptoPriceClient.getCurrentSolValue());
+    user.setEthValue(user.getEthBalance()*user.getEthPrice());
+    user.setSolValue(user.getSolBalance()*user.getSolPrice());
   }
 
   // Converts dollar amounts in frontend to penny representation in backend MySQL DB
