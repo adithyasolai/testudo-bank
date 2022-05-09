@@ -763,6 +763,7 @@ public class MvcController {
     double cryptoAmountToSell = user.getAmountToSellCrypto();
     if (cryptoAmountToSell <= 0) {
       return "welcome";
+
     }
 
     // possible for user to not have any crypto
@@ -797,6 +798,9 @@ public class MvcController {
       Optional<Float> cryptoFees = TestudoBankRepository.getFeesCollected(jdbcTemplate,cryptoToBuy);
 
       // Checking if the cryptoSellFees table has an entry for the crypto we are buying
+      /**
+       * This check is to determine whether I'm adding a row to the CryptoSellFeesTable or if I will update it instead 
+       */
     if (!cryptoFees.isPresent()) {
       TestudoBankRepository.insertRowToCryptoSellFeesTable(jdbcTemplate, cryptoToBuy, saleFee); 
     } else {

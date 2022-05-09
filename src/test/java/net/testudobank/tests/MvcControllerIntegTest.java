@@ -1417,7 +1417,9 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
   /**
    * Test the situation in which a customer with no pre-existing Crypto buys ETH, buys SOL, and then sells some of their SOL.
    * 
+   * 
    * Note: I made changes to this test to check the feesCollected and adjusted balance
+   * 
    */
   @Test
   public void testSimpleBuyAndSellSOL() throws ScriptException {
@@ -1491,7 +1493,9 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
 
   /**
    * Test simple selling of cryptocurrency
-   * Edited this test to make sure it is checking the feesCollected Column
+   * 
+   * Note: I made changes to this test to make sure it is checking the feesCollected Column
+   * 
    */
   @Test
   public void testCryptoSellSimple() throws ScriptException {
@@ -1610,8 +1614,10 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
 
   /**
    * Test that selling cryptocurrency first pays off overdraft balance
-   * 
+   *
+   *  
    * Note: I modified this test to make sure that the overdraft balance is properly calculated
+   * 
    */
   @Test
   public void testCryptoSellOverdraft() throws ScriptException {
