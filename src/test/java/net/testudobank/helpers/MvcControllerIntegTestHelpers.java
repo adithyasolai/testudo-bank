@@ -4,6 +4,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.math.BigDecimal;
+import java.text.DecimalFormat;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
@@ -67,11 +68,12 @@ public class MvcControllerIntegTestHelpers {
   }
 
   // Verifies that a single transaction log in the CryptoHistory table matches the expected customerID, timestamp, action, name, and amount
-  public static void checkCryptoHistoryLog(Map<String,Object> CryptoHistoryLog, LocalDateTime timeWhenRequestSent, String expectedCustomerID, String expectedAction, String expectedName, float expectedAmountInETH) {
+  public static void checkCryptoHistoryLog(Map<String,Object> CryptoHistoryLog, LocalDateTime timeWhenRequestSent, String expectedCustomerID, String expectedAction, String expectedName, double expectedAmountInETH, float expectedCryptoFeesCollected) {
     assertEquals(expectedCustomerID, (String)CryptoHistoryLog.get("CustomerID"));
     assertEquals(expectedAction, (String)CryptoHistoryLog.get("Action"));
     assertEquals(expectedName, (String)CryptoHistoryLog.get("CryptoName"));
     assertEquals(expectedAmountInETH, (float)CryptoHistoryLog.get("CryptoAmount"));
+    assertEquals(expectedCryptoFeesCollected, CryptoHistoryLog.get("FeesCollected"));
     // verify that the timestamp for the Deposit is within a reasonable range from when the request was first sent
     LocalDateTime CryptoHistoryLogTimestamp = (LocalDateTime)CryptoHistoryLog.get("Timestamp");
     LocalDateTime CryptoHistoryLogTimestampAllowedUpperBound = timeWhenRequestSent.plusSeconds(MvcControllerIntegTest.REASONABLE_TIMESTAMP_EPSILON_IN_SECONDS);
@@ -100,11 +102,14 @@ public class MvcControllerIntegTestHelpers {
   }
 
   // Verifies that a single crypto log in the CryptoHistory table matches the expected customerID, timestamp, action, cryptocurrency, and amount
-  public static void checkCryptoLog(Map<String,Object> cryptoLog, LocalDateTime timeWhenRequestSent, String expectedCustomerID, String expectedAction, String expectedCryptoName, double expectedCryptoAmount) {
+  public static void checkCryptoLog(Map<String,Object> cryptoLog, LocalDateTime timeWhenRequestSent, String expectedCustomerID, String expectedAction, String expectedCryptoName, double expectedCryptoAmount, float expectedCryptoFeesCollected) {
+    DecimalFormat df = new DecimalFormat("#.#");
     assertEquals(expectedCustomerID, cryptoLog.get("CustomerID"));
     assertEquals(expectedAction, cryptoLog.get("Action"));
     assertEquals(expectedCryptoAmount, ((BigDecimal) cryptoLog.get("CryptoAmount")).doubleValue());
     assertEquals(expectedCryptoName, cryptoLog.get("CryptoName"));
+    float fees = Float.valueOf(df.format(cryptoLog.get("FeesCollected")));
+    assertEquals(expectedCryptoFeesCollected, fees);
     // verify that the timestamp for the Deposit is within a reasonable range from when the request was first sent
     LocalDateTime transactionLogTimestamp = (LocalDateTime)cryptoLog.get("Timestamp");
     LocalDateTime transactionLogTimestampAllowedUpperBound = timeWhenRequestSent.plusSeconds(MvcControllerIntegTest.REASONABLE_TIMESTAMP_EPSILON_IN_SECONDS);

@@ -9,6 +9,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.Map;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Date;
 import java.util.HashSet;
 import java.time.LocalDateTime;
@@ -17,6 +18,8 @@ import java.util.List;
 
 import java.util.Optional;
 import java.util.Set;
+
+import javax.validation.constraints.Null;
 
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -66,10 +69,10 @@ public class MvcController {
    * @param model
    * @return "welcome" page
    */
-	@GetMapping("/")
-	public String showWelcome(Model model) {
-		return "welcome";
-	}
+  @GetMapping("/")
+  public String showWelcome(Model model) {
+    return "welcome";
+  }
 
   /**
    * HTML GET request handler that serves the "login_form" page to the user.
@@ -80,12 +83,12 @@ public class MvcController {
    * @return "login_form" page
    */
   @GetMapping("/login")
-	public String showLoginForm(Model model) {
-		User user = new User();
-		model.addAttribute("user", user);
-		
-		return "login_form";
-	}
+  public String showLoginForm(Model model) {
+    User user = new User();
+    model.addAttribute("user", user);
+    
+    return "login_form";
+  }
 
   /**
    * HTML GET request handler that serves the "deposit_form" page to the user.
@@ -96,11 +99,11 @@ public class MvcController {
    * @return "deposit_form" page
    */
   @GetMapping("/deposit")
-	public String showDepositForm(Model model) {
+  public String showDepositForm(Model model) {
     User user = new User();
-		model.addAttribute("user", user);
-		return "deposit_form";
-	}
+    model.addAttribute("user", user);
+    return "deposit_form";
+  }
 
   /**
    * HTML GET request handler that serves the "withdraw_form" page to the user.
@@ -111,11 +114,11 @@ public class MvcController {
    * @return "withdraw_form" page
    */
   @GetMapping("/withdraw")
-	public String showWithdrawForm(Model model) {
+  public String showWithdrawForm(Model model) {
     User user = new User();
-		model.addAttribute("user", user);
-		return "withdraw_form";
-	}
+    model.addAttribute("user", user);
+    return "withdraw_form";
+  }
 
   /**
    * HTML GET request handler that serves the "dispute_form" page to the user.
@@ -126,11 +129,11 @@ public class MvcController {
    * @return "dispute_form" page
    */
   @GetMapping("/dispute")
-	public String showDisputeForm(Model model) {
+  public String showDisputeForm(Model model) {
     User user = new User();
-		model.addAttribute("user", user);
-		return "dispute_form";
-	}
+    model.addAttribute("user", user);
+    return "dispute_form";
+  }
 
   /**
    * HTML GET request handler that serves the "transfer_form" page to the user.
@@ -141,11 +144,11 @@ public class MvcController {
    * @return "dispute_form" page
    */
   @GetMapping("/transfer")
-	public String showTransferForm(Model model) {
+  public String showTransferForm(Model model) {
     User user = new User();
-		model.addAttribute("user", user);
-		return "transfer_form";
-	}
+    model.addAttribute("user", user);
+    return "transfer_form";
+  }
 
   /**
    * HTML GET request handler that serves the "buycrypto_form" page to the user.
@@ -156,13 +159,13 @@ public class MvcController {
    * @return "buycrypto_form" page
    */
   @GetMapping("/buycrypto")
-	public String showBuyCryptoForm(Model model) {
+  public String showBuyCryptoForm(Model model) {
     User user = new User();
     user.setEthPrice(cryptoPriceClient.getCurrentEthValue());
     user.setSolPrice(cryptoPriceClient.getCurrentSolValue());
-		model.addAttribute("user", user);
-		return "buycrypto_form";
-	}
+    model.addAttribute("user", user);
+    return "buycrypto_form";
+  }
 
   /**
    * HTML GET request handler that serves the "sellcrypto_form" page to the user.
@@ -173,13 +176,13 @@ public class MvcController {
    * @return "sellcrypto_form" page
    */
   @GetMapping("/sellcrypto")
-	public String showSellCryptoForm(Model model) {
+  public String showSellCryptoForm(Model model) {
     User user = new User();
     user.setEthPrice(cryptoPriceClient.getCurrentEthValue());
     user.setSolPrice(cryptoPriceClient.getCurrentSolValue());
-		model.addAttribute("user", user);
-		return "sellcrypto_form";
-	}
+    model.addAttribute("user", user);
+    return "sellcrypto_form";
+  }
 
   //// HELPER METHODS ////
 
@@ -270,9 +273,9 @@ public class MvcController {
    * @return "account_info" page if login successful. Otherwise, redirect to "welcome" page.
    */
   @PostMapping("/login")
-	public String submitLoginForm(@ModelAttribute("user") User user) {
+  public String submitLoginForm(@ModelAttribute("user") User user) {
     // Print user's existing fields for debugging
-		System.out.println(user);
+    System.out.println(user);
     String userID = user.getUsername();
     String userPasswordAttempt = user.getPassword();
 
@@ -286,7 +289,7 @@ public class MvcController {
     } else {
       return "welcome";
     }
-	}
+  }
 
   /**
    * HTML POST request handler for the Deposit Form page.
@@ -360,7 +363,7 @@ public class MvcController {
     updateAccountInfo(user);
     return "account_info";
   }
-	
+  
   /**
    * HTML POST request handler for the Withdraw Form page.
    * 
@@ -706,8 +709,9 @@ public class MvcController {
         TestudoBankRepository.initCustomerCryptoBalance(jdbcTemplate, userID, cryptoToBuy);
       }
 
+      final float ZERO = 0f; // No fees are deducted for cryptoBuy
       TestudoBankRepository.increaseCustomerCryptoBalance(jdbcTemplate, userID, cryptoToBuy, cryptoAmountToBuy);
-      TestudoBankRepository.insertRowToCryptoLogsTable(jdbcTemplate, userID, cryptoToBuy, CRYPTO_HISTORY_BUY_ACTION, currentTime, cryptoAmountToBuy);
+      TestudoBankRepository.insertRowToCryptoLogsTable(jdbcTemplate, userID, cryptoToBuy, CRYPTO_HISTORY_BUY_ACTION, currentTime, cryptoAmountToBuy, ZERO);
 
       updateAccountInfo(user);
 
@@ -773,21 +777,33 @@ public class MvcController {
       return "welcome";
     }
 
+    // ArrayList<String> soldCrypto = user.getSoldCrypto();
     double cryptoValueInDollars = cryptoPriceClient.getCurrentCryptoValue(cryptoToBuy) * cryptoAmountToSell;
+    final double PERCENTAGE = 0.05f;
+    float saleFee = (float) (cryptoValueInDollars * PERCENTAGE);
+    double amountUserReceives = cryptoValueInDollars - saleFee;
 
     String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date());
 
-    user.setAmountToDeposit(cryptoValueInDollars);
+    user.setAmountToDeposit(amountUserReceives);
     user.setCryptoTransaction(true);
 
     // TODO: I don't like how this is dependent on a string return value. Deposit logic should probably be extracted
     String depositResponse = submitDeposit(user);
 
     if (depositResponse.equals("account_info")) {
-
       TestudoBankRepository.decreaseCustomerCryptoBalance(jdbcTemplate, userID, cryptoToBuy, cryptoAmountToSell);
-      TestudoBankRepository.insertRowToCryptoLogsTable(jdbcTemplate, userID, cryptoToBuy, CRYPTO_HISTORY_SELL_ACTION, currentTime, cryptoAmountToSell);
+      TestudoBankRepository.insertRowToCryptoLogsTable(jdbcTemplate, userID, cryptoToBuy, CRYPTO_HISTORY_SELL_ACTION, currentTime, cryptoAmountToSell, saleFee);
+      Optional<Float> cryptoFees = TestudoBankRepository.getFeesCollected(jdbcTemplate,cryptoToBuy);
 
+      // Checking if the cryptoSellFees table has an entry for the crypto we are buying
+    if (!cryptoFees.isPresent()) {
+      TestudoBankRepository.insertRowToCryptoSellFeesTable(jdbcTemplate, cryptoToBuy, saleFee); 
+    } else {
+        TestudoBankRepository.updateCryptoSellFeesTable(jdbcTemplate, cryptoToBuy, saleFee);
+    }
+  
+      // soldCrypto.add(cryptoToBuy);
       updateAccountInfo(user);
 
       return "account_info";
@@ -797,3 +813,4 @@ public class MvcController {
   }
 
 }
+

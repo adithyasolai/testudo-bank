@@ -1139,6 +1139,11 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
     final double cryptoPrice;
 
     /**
+     * The fees to be collected
+     */
+    final float cryptoFeesCollected;
+
+    /**
      * The expected (cash) balance of the user after the transaction
      */
     final double expectedEndingBalanceInDollars;
@@ -1286,7 +1291,7 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
         assertEquals(numTransactions + 1, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM TransactionHistory;", Integer.class));
         List<Map<String, Object>> transactionHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM TransactionHistory ORDER BY Timestamp DESC;");
         Map<String, Object> customer1TransactionLog = transactionHistoryTableData.get(0);
-        int expectedCryptoValueInPennies = MvcControllerIntegTestHelpers.convertDollarsToPennies(transaction.cryptoPrice * transaction.cryptoAmountToTransact);
+        int expectedCryptoValueInPennies = MvcControllerIntegTestHelpers.convertDollarsToPennies(transaction.cryptoPrice * transaction.cryptoAmountToTransact) - MvcControllerIntegTestHelpers.convertDollarsToPennies(transaction.cryptoFeesCollected);
         MvcControllerIntegTestHelpers.checkTransactionLog(customer1TransactionLog, cryptoTransactionTime, CUSTOMER1_ID, transaction.cryptoTransactionTestType.transactionHistoryActionName, expectedCryptoValueInPennies);
 
         // check crypto logs
@@ -1294,7 +1299,9 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
         List<Map<String, Object>> cryptoHistoryTableData = jdbcTemplate.queryForList("SELECT * FROM CryptoHistory ORDER BY Timestamp DESC;");
         Map<String, Object> customer1CryptoLog = cryptoHistoryTableData.get(0);
         MvcControllerIntegTestHelpers.checkCryptoLog(customer1CryptoLog, cryptoTransactionTime, CUSTOMER1_ID, transaction.cryptoTransactionTestType.cryptoHistoryActionName,
-                transaction.cryptoName, transaction.cryptoAmountToTransact);
+                transaction.cryptoName, transaction.cryptoAmountToTransact, transaction.cryptoFeesCollected);
+        // MvcControllerIntegTestHelpers.checkCryptoHistoryLog(customer1CryptoLog, cryptoTransactionTime, CUSTOMER1_ID, transaction.cryptoTransactionTestType.cryptoHistoryActionName,
+        //         transaction.cryptoName, transaction.cryptoAmountToTransact, transaction.cryptoFeesCollected);
 
         // check overdraft logs (if applicable)
         if (transaction.overdraftTransaction) {
@@ -1409,6 +1416,8 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
 
   /**
    * Test the situation in which a customer with no pre-existing Crypto buys ETH, buys SOL, and then sells some of their SOL.
+   * 
+   * Note: I made changes to this test to check the feesCollected and adjusted balance
    */
   @Test
   public void testSimpleBuyAndSellSOL() throws ScriptException {
@@ -1441,9 +1450,10 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
             .build();
     
     CryptoTransaction sellSOL = CryptoTransaction.builder()
-            .expectedEndingBalanceInDollars(850)
+            .expectedEndingBalanceInDollars(847.5)
             .expectedEndingCryptoBalance(0.05)
             .cryptoPrice(1000)
+            .cryptoFeesCollected(2.5f)
             .cryptoAmountToTransact(0.05)
             .cryptoName("SOL")
             .cryptoTransactionTestType(CryptoTransactionTestType.SELL)
@@ -1481,6 +1491,7 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
 
   /**
    * Test simple selling of cryptocurrency
+   * Edited this test to make sure it is checking the feesCollected Column
    */
   @Test
   public void testCryptoSellSimple() throws ScriptException {
@@ -1492,10 +1503,11 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
     cryptoTransactionTester.initialize();
 
     CryptoTransaction cryptoTransaction = CryptoTransaction.builder()
-            .expectedEndingBalanceInDollars(1100)
+            .expectedEndingBalanceInDollars(1095)
             .expectedEndingCryptoBalance(0)
             .cryptoPrice(1000)
             .cryptoAmountToTransact(0.1)
+            .cryptoFeesCollected(5f)
             .cryptoName("ETH")
             .cryptoTransactionTestType(CryptoTransactionTestType.SELL)
             .shouldSucceed(true)
@@ -1598,6 +1610,8 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
 
   /**
    * Test that selling cryptocurrency first pays off overdraft balance
+   * 
+   * Note: I modified this test to make sure that the overdraft balance is properly calculated
    */
   @Test
   public void testCryptoSellOverdraft() throws ScriptException {
@@ -1611,12 +1625,13 @@ public void testTransferPaysOverdraftAndDepositsRemainder() throws SQLException,
 
     CryptoTransaction cryptoTransaction = CryptoTransaction.builder()
             .initialOverdraftBalanceInDollars(50)
-            .expectedEndingBalanceInDollars(1050)
+            .expectedEndingBalanceInDollars(1045)
             .expectedEndingCryptoBalance(0.05)
             .expectedEndingOverdraftBalanceInDollars(0)
             .cryptoPrice(1000)
             .cryptoAmountToTransact(0.1)
             .cryptoName("ETH")
+            .cryptoFeesCollected(5f)
             .cryptoTransactionTestType(CryptoTransactionTestType.SELL)
             .overdraftTransaction(true)
             .shouldSucceed(true)

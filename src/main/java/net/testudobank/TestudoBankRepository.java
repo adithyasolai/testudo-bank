@@ -42,6 +42,17 @@ public class TestudoBankRepository {
 
   }
 
+  public static Optional<Float> getFeesCollected(JdbcTemplate jdbcTemplate, String cryptoName) {
+    String getFeesCollectedSql = "SELECT FeesAccumulated FROM CryptoSellFees WHERE CryptoName=?;";
+   
+    try {
+      return Optional.ofNullable(jdbcTemplate.queryForObject(getFeesCollectedSql, BigDecimal.class, cryptoName)).map(BigDecimal::floatValue);
+    } catch (EmptyResultDataAccessException ignored) {
+      // user may not have sold this crypto yet
+      return Optional.empty();
+    }
+  }
+
   public static int getCustomerOverdraftBalanceInPennies(JdbcTemplate jdbcTemplate, String customerID) {
     String getUserOverdraftBalanceSql = String.format("SELECT OverdraftBalance FROM Customers WHERE CustomerID='%s';", customerID);
     int userOverdraftBalanceInPennies = jdbcTemplate.queryForObject(getUserOverdraftBalanceSql, Integer.class);
@@ -195,9 +206,19 @@ public class TestudoBankRepository {
     jdbcTemplate.update(transferHistoryToSql);
   }
 
-  public static void insertRowToCryptoLogsTable(JdbcTemplate jdbcTemplate, String customerID, String cryptoName, String action, String timestamp, double cryptoAmount) {
-    String cryptoHistorySql = "INSERT INTO CryptoHistory (CustomerID, Timestamp, Action, CryptoName, CryptoAmount) VALUES (?, ?, ?, ?, ?)";
-    jdbcTemplate.update(cryptoHistorySql, customerID, timestamp, action, cryptoName, cryptoAmount);
+  public static void insertRowToCryptoLogsTable(JdbcTemplate jdbcTemplate, String customerID, String cryptoName, String action, String timestamp, double cryptoAmount, float feesCollected) {
+    String cryptoHistorySql = "INSERT INTO CryptoHistory (CustomerID, Timestamp, Action, CryptoName, CryptoAmount, FeesCollected) VALUES (?, ?, ?, ?, ?, ?)";
+    jdbcTemplate.update(cryptoHistorySql, customerID, timestamp, action, cryptoName, cryptoAmount, feesCollected);
+  }
+
+  public static void insertRowToCryptoSellFeesTable(JdbcTemplate jdbcTemplate, String cryptoName, float feesCollected){
+    String cryptoSellFeesSql = "INSERT INTO CryptoSellFees (CryptoName, FeesAccumulated) VALUES (?, ?)";
+    jdbcTemplate.update(cryptoSellFeesSql, cryptoName, feesCollected);
+  }
+
+  public static void updateCryptoSellFeesTable(JdbcTemplate jdbcTemplate, String cryptoName, float feesCollected){
+    String updateCryptoSellFeesSql = "UPDATE CryptoSellFees SET FeesAccumulated = FeesAccumulated + ? WHERE CryptoName= ?";
+    jdbcTemplate.update(updateCryptoSellFeesSql, feesCollected, cryptoName);
   }
   
   public static boolean doesCustomerExist(JdbcTemplate jdbcTemplate, String customerID) { 
@@ -208,4 +229,5 @@ public class TestudoBankRepository {
       return false;
     }
   }
+  
 }
