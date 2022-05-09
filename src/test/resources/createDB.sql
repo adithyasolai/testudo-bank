@@ -45,5 +45,11 @@ CREATE TABLE CryptoHistory (
   Timestamp DATETIME,
   Action varchar(255) CHECK (Action IN ('Buy', 'Sell')),
   CryptoName varchar(255),
-  CryptoAmount decimal(30,18)
+  CryptoAmount decimal(30,18),
+  FeesCollected decimal(30,18)
+);
+
+CREATE TABLE CryptoSellFees (
+  CryptoName varchar(255),
+  FeesAccumulated decimal(30,18)
 );

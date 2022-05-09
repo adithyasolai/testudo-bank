@@ -50,6 +50,7 @@
 
       <span>Current $ETH Price: </span><span>${user.ethPrice}</span><br/>
       <span>Current $SOL Price: </span><span>${user.solPrice}</span><br/>
+      <span><strong>Fee Disclaimer: Starting 5/7/2022. Testudo Bank will charge a 5% selling fee per cryptocurrency sale.</strong></span><br/>
 
 			<form:button>Sell Crypto</form:button>
 		</form:form>

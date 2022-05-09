@@ -67,7 +67,6 @@ CREATE TABLE TransferHistory (
 '''
 cursor.execute(create_transferhistory_table_sql)
 
-
 # Make empty CryptoHoldings table
 create_cryptoholdings_table_sql = '''
 CREATE TABLE CryptoHoldings (
@@ -78,7 +77,6 @@ CREATE TABLE CryptoHoldings (
 '''
 cursor.execute(create_cryptoholdings_table_sql)
 
-
 # Make empty CryptoHistory table
 create_cryptohistory_table_sql = '''
 CREATE TABLE CryptoHistory (
@@ -86,11 +84,20 @@ CREATE TABLE CryptoHistory (
   Timestamp DATETIME,
   Action varchar(255) CHECK (Action IN ('Buy', 'Sell')),
   CryptoName varchar(255),
-  CryptoAmount decimal(30,18)
+  CryptoAmount decimal(30,18),
+  FeesCollected decimal(30,18)
 );
 '''
 cursor.execute(create_cryptohistory_table_sql)
 
+# Make empty CryptoSellFees table
+create_cryptoSellFees_table_sql = '''
+CREATE TABLE CryptoSellFees (
+  CryptoName varchar(255),
+  FeesAccumulated decimal(30,18)
+);
+'''
+cursor.execute(create_cryptoSellFees_table_sql)
 
 
 # The two sets created below are used to ensure that this
@@ -151,3 +158,4 @@ for i in range(num_customers_to_add):
 
 connection.commit()
 cursor.close()
+
