@@ -62,6 +62,12 @@ public class User {
   private boolean isTransfer;
 
   @Setter @Getter
+  private boolean isCryptoBuy;
+
+  @Setter @Getter
+  private boolean isCryptoSell;
+
+  @Setter @Getter
   private String transferHist;
 
   //// Crypto Fields ////
