@@ -96,4 +96,11 @@ public class User {
   @Setter  @Getter @PositiveOrZero @ToString.Include
   private double cryptoBalanceUSD;
 
+  // To calculate the product and display
+  @Setter @Getter @PositiveOrZero @ToString.Include
+  private double ethValue;
+
+  // To calculate the product and display
+  @Setter @Getter @PositiveOrZero @ToString.Include
+  private double solValue;
 }
