@@ -1,28 +1,24 @@
 package net.testudobank;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.jdbc.core.JdbcTemplate;
 
-import java.util.Map;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.HashSet;
+import java.text.NumberFormat;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.List;
-
-import java.util.Optional;
-import java.util.Set;
-
-import org.springframework.beans.factory.annotation.Autowired;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Controller
 public class MvcController {
-  
+
   // A simplified JDBC client that is injected with the login credentials
   // specified in /src/main/resources/application.properties
   private JdbcTemplate jdbcTemplate;
@@ -69,21 +65,15 @@ public class MvcController {
 		return "welcome";
 	}
 
-  /**
-   * HTML GET request handler that serves the "login_form" page to the user.
-   * An empty `User` object is also added to the Model as an Attribute to store
-   * the user's login form input.
-   * 
-   * @param model
-   * @return "login_form" page
-   */
-  @GetMapping("/login")
-	public String showLoginForm(Model model) {
-		User user = new User();
-		model.addAttribute("user", user);
-		
-		return "login_form";
-	}
+    @GetMapping("/account")
+    public String showAccount(Model model) {
+      User user = new User();
+      Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+      user.setUsername(auth.getName());
+      updateAccountInfo(user);
+      model.addAttribute("user", user);
+      return "account_info";
+    }
 
   /**
    * HTML GET request handler that serves the "deposit_form" page to the user.
@@ -156,8 +146,8 @@ public class MvcController {
   @GetMapping("/buycrypto")
 	public String showBuyCryptoForm(Model model) {
     User user = new User();
-    user.setEthPrice(cryptoPriceClient.getCurrentEthValue());
-    user.setSolPrice(cryptoPriceClient.getCurrentSolValue());
+    user.setEthPrice(dollarsToDollarString(cryptoPriceClient.getCacheableCurrentCryptoValue("ETH")));
+    user.setSolPrice(dollarsToDollarString(cryptoPriceClient.getCacheableCurrentCryptoValue("SOL")));
 		model.addAttribute("user", user);
 		return "buycrypto_form";
 	}
@@ -173,8 +163,8 @@ public class MvcController {
   @GetMapping("/sellcrypto")
 	public String showSellCryptoForm(Model model) {
     User user = new User();
-    user.setEthPrice(cryptoPriceClient.getCurrentEthValue());
-    user.setSolPrice(cryptoPriceClient.getCurrentSolValue());
+    user.setEthPrice(dollarsToDollarString(cryptoPriceClient.getCacheableCurrentCryptoValue("ETH")));
+    user.setSolPrice(dollarsToDollarString(cryptoPriceClient.getCacheableCurrentCryptoValue("SOL")));
 		model.addAttribute("user", user);
 		return "sellcrypto_form";
 	}
@@ -188,54 +178,81 @@ public class MvcController {
    * @param user
    */
   private void updateAccountInfo(User user) {
-    List<Map<String,Object>> overdraftLogs = TestudoBankRepository.getOverdraftLogs(jdbcTemplate, user.getUsername());
-    String logs = HTML_LINE_BREAK;
-    for(Map<String, Object> overdraftLog : overdraftLogs){
-      logs += overdraftLog + HTML_LINE_BREAK;
-    }
+    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+    user.setUsername(auth.getName());
+    List<Map<String, Object>> overdraftLogs = TestudoBankRepository.getOverdraftLogs(jdbcTemplate, user.getUsername());
 
-    List<Map<String,Object>> transactionLogs = TestudoBankRepository.getRecentTransactions(jdbcTemplate, user.getUsername(), MAX_NUM_TRANSACTIONS_DISPLAYED);
-    String transactionHistoryOutput = HTML_LINE_BREAK;
-    for(Map<String, Object> transactionLog : transactionLogs){
-      transactionHistoryOutput += transactionLog + HTML_LINE_BREAK;
-    }
+    List<OverdraftHistoryEntry> overdraftHistoryEntries = overdraftLogs.stream()
+            .map(overdraftEntry ->
+                    OverdraftHistoryEntry.builder()
+                            .amount(Optional.ofNullable(overdraftEntry.get("DepositAmt")).map(amount -> penniesToDollarString((int) amount)).orElse(null))
+                            .time(Optional.ofNullable(overdraftEntry.get("Timestamp")).map(Object::toString).orElse(null))
+                            .oldBalance(Optional.ofNullable(overdraftEntry.get("OldOverBalance")).map(amount -> penniesToDollarString((int) amount)).orElse(null))
+                            .newBalance(Optional.ofNullable(overdraftEntry.get("NewOverBalance")).map(amount -> penniesToDollarString((int) amount)).orElse(null))
+                            .build()
+            )
+            .collect(Collectors.toList());
 
-    List<Map<String,Object>> transferLogs = TestudoBankRepository.getTransferLogs(jdbcTemplate, user.getUsername(), MAX_NUM_TRANSFERS_DISPLAYED);
-    String transferHistoryOutput = HTML_LINE_BREAK;
-    for(Map<String, Object> transferLog : transferLogs){
-      transferHistoryOutput += transferLog + HTML_LINE_BREAK;
-    }
+    List<Map<String, Object>> transactionLogs = TestudoBankRepository.getRecentTransactions(jdbcTemplate, user.getUsername(), MAX_NUM_TRANSACTIONS_DISPLAYED);
+
+    List<TransactionHistoryEntry> transactionHistoryEntries = transactionLogs.stream()
+            .map(transactionEntry ->
+                    TransactionHistoryEntry.builder()
+                            .amount(Optional.ofNullable(transactionEntry.get("Amount")).map(amount -> penniesToDollarString((int) amount)).orElse(null))
+                            .action(Optional.ofNullable(transactionEntry.get("Action")).map(Object::toString).orElse(null))
+                            .time(Optional.ofNullable(transactionEntry.get("Timestamp")).map(Object::toString).orElse(null))
+                            .build()
+            )
+            .collect(Collectors.toList());
+
+    List<Map<String, Object>> transferLogs = TestudoBankRepository.getTransferLogs(jdbcTemplate, user.getUsername(), MAX_NUM_TRANSFERS_DISPLAYED);
+
+    List<TransferHistoryEntry> transferHistoryEntries = transferLogs.stream()
+            .map(transferEntry ->
+                    TransferHistoryEntry.builder()
+                            .amount(Optional.ofNullable(transferEntry.get("Amount")).map(amount -> penniesToDollarString((int) amount)).orElse(null))
+                            .time(Optional.ofNullable(transferEntry.get("Timestamp")).map(Object::toString).orElse(null))
+                            .to(Optional.ofNullable(transferEntry.get("TransferTo")).map(Object::toString).orElse(null))
+                            .from(Optional.ofNullable(transferEntry.get("TransferFrom")).map(Object::toString).orElse(null))
+                            .build()
+            )
+            .collect(Collectors.toList());
 
     List<Map<String, Object>> cryptoLogs = TestudoBankRepository.getCryptoLogs(jdbcTemplate, user.getUsername());
-    StringBuilder cryptoHistoryOutput = new StringBuilder(HTML_LINE_BREAK);
-    for (Map<String, Object> cryptoLog : cryptoLogs) {
-      cryptoHistoryOutput.append(cryptoLog).append(HTML_LINE_BREAK);
-    }
 
-    String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance FROM Customers WHERE CustomerID='%s';", user.getUsername());
-    List<Map<String,Object>> queryResults = jdbcTemplate.queryForList(getUserNameAndBalanceAndOverDraftBalanceSql);
-    Map<String,Object> userData = queryResults.get(0);
+    List<CryptoTransactionHistoryEntry> cryptoTransactionHistoryEntries = cryptoLogs.stream()
+            .map(cryptoEntry ->
+                    CryptoTransactionHistoryEntry.builder()
+                            .amount(Optional.ofNullable(cryptoEntry.get("CryptoAmount")).map(Object::toString).orElse(null))
+                            .action(Optional.ofNullable(cryptoEntry.get("Action")).map(Object::toString).orElse(null))
+                            .time(Optional.ofNullable(cryptoEntry.get("Timestamp")).map(Object::toString).orElse(null))
+                            .cryptoName(Optional.ofNullable(cryptoEntry.get("CryptoName")).map(Object::toString).orElse(null))
+                            .build()
+            )
+            .collect(Collectors.toList());
+
+    List<Map<String, Object>> queryResults = jdbcTemplate.queryForList("SELECT FirstName, LastName, Balance, OverdraftBalance FROM Customers WHERE CustomerID= ?", user.getUsername());
+    Map<String, Object> userData = queryResults.get(0);
 
     // calculate total Crypto holdings balance by summing balance of each supported cryptocurrency
     double cryptoBalanceInDollars = 0;
     for (String cryptoName : MvcController.SUPPORTED_CRYPTOCURRENCIES) {
-      cryptoBalanceInDollars += TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, user.getUsername(), cryptoName).orElse(0.0) * cryptoPriceClient.getCurrentCryptoValue(cryptoName);
+      cryptoBalanceInDollars += TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, user.getUsername(), cryptoName).orElse(0.0) * cryptoPriceClient.getCacheableCurrentCryptoValue(cryptoName);
     }
 
-    user.setFirstName((String)userData.get("FirstName"));
-    user.setLastName((String)userData.get("LastName"));
-    user.setBalance((int)userData.get("Balance")/100.0);
-    double overDraftBalance = (int)userData.get("OverdraftBalance");
-    user.setOverDraftBalance(overDraftBalance/100);
-    user.setCryptoBalanceUSD(cryptoBalanceInDollars);
-    user.setLogs(logs);
-    user.setTransactionHist(transactionHistoryOutput);
-    user.setTransferHist(transferHistoryOutput);
-    user.setCryptoHist(cryptoHistoryOutput.toString());
+    user.setFirstName((String) userData.get("FirstName"));
+    user.setLastName((String) userData.get("LastName"));
+    user.setBalance(penniesToDollarString((int) userData.get("Balance")));
+    user.setOverDraftBalance(penniesToDollarString((int) userData.get("OverdraftBalance")));
+    user.setCryptoBalanceUSD(dollarsToDollarString(cryptoBalanceInDollars));
+    user.setOverdraftHist(overdraftHistoryEntries);
+    user.setTransactionHist(transactionHistoryEntries);
+    user.setTransferHist(transferHistoryEntries);
+    user.setCryptoHist(cryptoTransactionHistoryEntries);
     user.setEthBalance(TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, user.getUsername(), "ETH").orElse(0.0));
     user.setSolBalance(TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, user.getUsername(), "SOL").orElse(0.0));
-    user.setEthPrice(cryptoPriceClient.getCurrentEthValue());
-    user.setSolPrice(cryptoPriceClient.getCurrentSolValue());
+    user.setEthPrice(dollarsToDollarString(cryptoPriceClient.getCacheableCurrentCryptoValue("ETH")));
+    user.setSolPrice(dollarsToDollarString(cryptoPriceClient.getCacheableCurrentCryptoValue("SOL")));
   }
 
   // Converts dollar amounts in frontend to penny representation in backend MySQL DB
@@ -245,87 +262,48 @@ public class MvcController {
 
   // Converts LocalDateTime to Date variable
   private static Date convertLocalDateTimeToDate(LocalDateTime ldt){
-    Date dateTime = Date.from(ldt.atZone(ZoneId.systemDefault()).toInstant());
-    return dateTime;
+    return Date.from(ldt.atZone(ZoneId.systemDefault()).toInstant());
   }
 
-  // HTML POST HANDLERS ////
+  private static String penniesToDollarString(int amount) {
+    return NumberFormat.getCurrencyInstance().format(amount / 100.0);
+  }
+
+  private static String dollarsToDollarString(double amount) {
+    return NumberFormat.getCurrencyInstance().format(amount);
+  }
 
   /**
-   * HTML POST request handler that uses user input from Login Form page to determine 
-   * login success or failure.
-   * 
-   * Queries 'passwords' table in MySQL DB for the correct password associated with the
-   * username ID given by the user. Compares the user's password attempt with the correct
-   * password.
-   * 
-   * If the password attempt is correct, the "account_info" page is served to the customer
-   * with all account details retrieved from the MySQL DB.
-   * 
-   * If the password attempt is incorrect, the user is redirected to the "welcome" page.
-   * 
-   * @param user
-   * @return "account_info" page if login successful. Otherwise, redirect to "welcome" page.
-   */
-  @PostMapping("/login")
-	public String submitLoginForm(@ModelAttribute("user") User user) {
-    // Print user's existing fields for debugging
-		System.out.println(user);
-
-    String userID = user.getUsername();
-    String userPasswordAttempt = user.getPassword();
-
-    // Retrieve correct password for this customer.
-    String userPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, userID);
-
-    if (userPasswordAttempt.equals(userPassword)) {
-      updateAccountInfo(user);
-
-      return "account_info";
-    } else {
-      return "welcome";
-    }
-	}
-
-  /**
-   * HTML POST request handler for the Deposit Form page.
-   * 
+   * Private method to deposit an amount to a specific user
+   *
    * If the user is currently not in overdraft, the deposit amount is simply
    * added to the user's main balance.
-   * 
+   *
    * If the user is in overdraft, the deposit amount first pays off the overdraft balance,
    * and any excess deposit amount is added to the main balance.
-   * 
-   * @param user
-   * @return "account_info" page if valid deposit request. Otherwise, redirect to "welcome" page.
+   *
+   * @param userID     the user ID
+   * @param amount     the amount to deposit in dollars
+   * @param actionName the action description to put in the database
+   * @return whether the deposit was successful
    */
-  @PostMapping("/deposit")
-  public String submitDeposit(@ModelAttribute("user") User user) {
-    String userID = user.getUsername();
-    String userPasswordAttempt = user.getPassword();
-    String userPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, userID);
+  private boolean deposit(String userID, double amount, String actionName) {
 
     //// Invalid Input/State Handling ////
 
-    // unsuccessful login
-    if (userPasswordAttempt.equals(userPassword) == false) {
-      return "welcome";
-    }
-
     // If customer already has too many reversals, their account is frozen. Don't complete deposit.
     int numOfReversals = TestudoBankRepository.getCustomerNumberOfReversals(jdbcTemplate, userID);
-    if (numOfReversals >= MAX_DISPUTES){
-      return "welcome";
+    if (numOfReversals >= MAX_DISPUTES) {
+      return false;
     }
 
     // Negative deposit amount is not allowed
-    double userDepositAmt = user.getAmountToDeposit();
-    if (userDepositAmt < 0) {
-      return "welcome";
+    if (amount < 0) {
+      return false;
     }
-    
+
     //// Complete Deposit Transaction ////
-    int userDepositAmtInPennies = convertDollarsToPennies(userDepositAmt); // dollar amounts stored as pennies to avoid floating point errors
+    int userDepositAmtInPennies = convertDollarsToPennies(amount); // dollar amounts stored as pennies to avoid floating point errors
     String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date()); // use same timestamp for all logs created by this deposit
     int userOverdraftBalanceInPennies = TestudoBankRepository.getCustomerOverdraftBalanceInPennies(jdbcTemplate, userID);
     if (userOverdraftBalanceInPennies > 0) { // deposit will pay off overdraft first
@@ -333,7 +311,7 @@ public class MvcController {
       int newOverdraftBalanceInPennies = Math.max(userOverdraftBalanceInPennies - userDepositAmtInPennies, 0);
       TestudoBankRepository.setCustomerOverdraftBalance(jdbcTemplate, userID, newOverdraftBalanceInPennies);
       TestudoBankRepository.insertRowToOverdraftLogsTable(jdbcTemplate, userID, currentTime, userDepositAmtInPennies, userOverdraftBalanceInPennies, newOverdraftBalanceInPennies);
-      
+
       // add any excess deposit amount to main balance in Customers table
       if (userDepositAmtInPennies > userOverdraftBalanceInPennies) {
         int mainBalanceIncreaseAmtInPennies = userDepositAmtInPennies - userOverdraftBalanceInPennies;
@@ -344,15 +322,97 @@ public class MvcController {
       TestudoBankRepository.increaseCustomerCashBalance(jdbcTemplate, userID, userDepositAmtInPennies);
     }
 
-    // only adds deposit to transaction history if is not transfer
-    if (user.isTransfer()){
-      // Adds transaction recieve to transaction history
-      TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_TRANSFER_RECEIVE_ACTION, userDepositAmtInPennies);
-    } else if (user.isCryptoTransaction()) {
-      TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_CRYPTO_SELL_ACTION, userDepositAmtInPennies);
-    } else {
-      // Adds deposit to transaction history
-      TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_DEPOSIT_ACTION, userDepositAmtInPennies);
+    TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, actionName, userDepositAmtInPennies);
+
+    return true;
+  }
+
+  /**
+   * Private method to withdraw an amount from a specific user
+   *
+   * If the user is not currently in overdraft and the withdrawal amount does not exceed the user's
+   * current main balance, the main balance is decremented by the amount specified
+   *
+   * If the withdrawal amount exceeds the user's current main balance, the user's main balance is set to
+   * 0 and the user's overdraft balance becomes the excess withdraw amount with interest applied.
+   *
+   * If the user was already in overdraft, the entire withdraw amount with interest applied is added
+   * to the existing overdraft balance.
+   *
+   * @param userID     the user ID
+   * @param amount     the amount to withdraw in dollars
+   * @param actionName the action description to put in the database
+   * @return whether the withdrawal was successful
+   */
+  private boolean withdraw(String userID, double amount, String actionName) {
+    //// Invalid Input/State Handling ////
+
+    // If customer already has too many reversals, their account is frozen. Don't complete deposit.
+    int numOfReversals = TestudoBankRepository.getCustomerNumberOfReversals(jdbcTemplate, userID);
+    if (numOfReversals >= MAX_DISPUTES) {
+      return false;
+    }
+
+    // Negative deposit amount is not allowed
+    if (amount < 0) {
+      return false;
+    }
+
+    //// Complete Withdraw Transaction ////
+    int userWithdrawAmtInPennies = convertDollarsToPennies(amount); // dollar amounts stored as pennies to avoid floating point errors
+    String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date()); // use same timestamp for all logs created by this deposit
+    int userBalanceInPennies = TestudoBankRepository.getCustomerCashBalanceInPennies(jdbcTemplate, userID);
+    int userOverdraftBalanceInPennies = TestudoBankRepository.getCustomerOverdraftBalanceInPennies(jdbcTemplate, userID);
+    if (userWithdrawAmtInPennies > userBalanceInPennies) { // if withdraw amount exceeds main balance, withdraw into overdraft with interest fee
+      int excessWithdrawAmtInPennies = userWithdrawAmtInPennies - userBalanceInPennies;
+      int newOverdraftIncreaseAmtAfterInterestInPennies = (int) (excessWithdrawAmtInPennies * INTEREST_RATE);
+      int newOverdraftBalanceInPennies = userOverdraftBalanceInPennies + newOverdraftIncreaseAmtAfterInterestInPennies;
+
+      // abort withdraw transaction if new overdraft balance exceeds max overdraft limit
+      // IMPORTANT: Compare new overdraft balance to max overdraft limit AFTER applying the interest rate!
+      if (newOverdraftBalanceInPennies > MAX_OVERDRAFT_IN_PENNIES) {
+        return false;
+      }
+
+      // this is a valid withdraw into overdraft, so we can set Balance column to 0.
+      // OK to do this even if we were already in overdraft since main balance was already 0 anyways
+      TestudoBankRepository.setCustomerCashBalance(jdbcTemplate, userID, 0);
+
+      // increase overdraft balance by the withdraw amount after interest
+      TestudoBankRepository.setCustomerOverdraftBalance(jdbcTemplate, userID, newOverdraftBalanceInPennies);
+
+    } else { // simple, non-overdraft withdraw case
+      TestudoBankRepository.decreaseCustomerCashBalance(jdbcTemplate, userID, userWithdrawAmtInPennies);
+    }
+
+    TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, actionName, userWithdrawAmtInPennies);
+
+    return true;
+  }
+
+  // HTML POST HANDLERS ////
+
+  /**
+   * HTML POST request handler for the Deposit Form page.
+   *
+   * If the user is currently not in overdraft, the deposit amount is simply
+   * added to the user's main balance.
+   *
+   * If the user is in overdraft, the deposit amount first pays off the overdraft balance,
+   * and any excess deposit amount is added to the main balance.
+   * 
+   * @param user
+   * @return "account_info" page if valid deposit request. Otherwise, redirect to "welcome" page.
+   */
+  @PostMapping("/deposit")
+  public String submitDeposit(@ModelAttribute("user") User user) {
+    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+    String userID = auth.getName();
+
+    boolean deposited = deposit(userID, user.getAmountToDeposit(), TRANSACTION_HISTORY_DEPOSIT_ACTION);
+
+    if (!deposited) {
+      return "welcome";
     }
 
     // update Model so that View can access new main balance, overdraft balance, and logs
@@ -377,72 +437,19 @@ public class MvcController {
    */
   @PostMapping("/withdraw")
   public String submitWithdraw(@ModelAttribute("user") User user) {
-    String userID = user.getUsername();
-    String userPasswordAttempt = user.getPassword();
-    String userPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, userID);
 
-    //// Invalid Input/State Handling ////
+    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+    String userID = auth.getName();
 
-    // unsuccessful login
-    if (userPasswordAttempt.equals(userPassword) == false) {
+    boolean withdrawn = withdraw(userID, user.getAmountToWithdraw(), TRANSACTION_HISTORY_WITHDRAW_ACTION);
+
+    if (!withdrawn) {
       return "welcome";
     }
-
-    // If customer already has too many reversals, their account is frozen. Don't complete deposit.
-    int numOfReversals = TestudoBankRepository.getCustomerNumberOfReversals(jdbcTemplate, userID);
-    if (numOfReversals >= MAX_DISPUTES){
-      return "welcome";
-    }
-
-    // Negative deposit amount is not allowed
-    double userWithdrawAmt = user.getAmountToWithdraw();
-    if (userWithdrawAmt < 0) {
-      return "welcome";
-    }
-
-    //// Complete Withdraw Transaction ////
-    int userWithdrawAmtInPennies = convertDollarsToPennies(userWithdrawAmt); // dollar amounts stored as pennies to avoid floating point errors
-    String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date()); // use same timestamp for all logs created by this deposit
-    int userBalanceInPennies = TestudoBankRepository.getCustomerCashBalanceInPennies(jdbcTemplate, userID);
-    int userOverdraftBalanceInPennies = TestudoBankRepository.getCustomerOverdraftBalanceInPennies(jdbcTemplate, userID);
-    if (userWithdrawAmtInPennies > userBalanceInPennies) { // if withdraw amount exceeds main balance, withdraw into overdraft with interest fee
-      int excessWithdrawAmtInPennies = userWithdrawAmtInPennies - userBalanceInPennies;
-      int newOverdraftIncreaseAmtAfterInterestInPennies = (int)(excessWithdrawAmtInPennies * INTEREST_RATE);
-      int newOverdraftBalanceInPennies = userOverdraftBalanceInPennies + newOverdraftIncreaseAmtAfterInterestInPennies;
-
-      // abort withdraw transaction if new overdraft balance exceeds max overdraft limit
-      // IMPORTANT: Compare new overdraft balance to max overdraft limit AFTER applying the interest rate!
-      if (newOverdraftBalanceInPennies > MAX_OVERDRAFT_IN_PENNIES) {
-        return "welcome";
-      }
-
-      // this is a valid withdraw into overdraft, so we can set Balance column to 0.
-      // OK to do this even if we were already in overdraft since main balance was already 0 anyways
-      TestudoBankRepository.setCustomerCashBalance(jdbcTemplate, userID, 0);
-
-      // increase overdraft balance by the withdraw amount after interest
-      TestudoBankRepository.setCustomerOverdraftBalance(jdbcTemplate, userID, newOverdraftBalanceInPennies);
-
-    } else { // simple, non-overdraft withdraw case
-      TestudoBankRepository.decreaseCustomerCashBalance(jdbcTemplate, userID, userWithdrawAmtInPennies);
-    }
-
-    // only adds withdraw to transaction history if is not transfer
-    if (user.isTransfer()){
-      // Adds transfer send to transaction history
-      TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_TRANSFER_SEND_ACTION, userWithdrawAmtInPennies);
-    } else if (user.isCryptoTransaction()) {
-      TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_CRYPTO_BUY_ACTION, userWithdrawAmtInPennies);
-    } else {
-      // Adds withdraw to transaction history
-      TestudoBankRepository.insertRowToTransactionHistoryTable(jdbcTemplate, userID, currentTime, TRANSACTION_HISTORY_WITHDRAW_ACTION, userWithdrawAmtInPennies);
-    }
-
   
     // update Model so that View can access new main balance, overdraft balance, and logs
     updateAccountInfo(user);
     return "account_info";
-
   }
 
   /**
@@ -465,15 +472,8 @@ public class MvcController {
       return "welcome";
     }
 
-    String userID = user.getUsername();
-    String userPasswordAttempt = user.getPassword();
-    
-    String userPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, userID);
-
-    // unsuccessful login
-    if (userPasswordAttempt.equals(userPassword) == false) {
-      return "welcome";
-    }
+    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+    String userID = auth.getName();
 
     // check if customer account is frozen
     int numOfReversals = TestudoBankRepository.getCustomerNumberOfReversals(jdbcTemplate, userID);
@@ -500,16 +500,15 @@ public class MvcController {
     double reversalAmount = reversalAmountInPennies / 100.0;
 
     // If transaction to reverse is a deposit, then withdraw the money out
-    if (((String) logToReverse.get("Action")).toLowerCase().equals("deposit")) {
+    if (((String) logToReverse.get("Action")).equalsIgnoreCase("deposit")) {
       // if withdraw would exceed max overdraft possible, return welcome
       if (userOverdraftBalanceInPennies + (reversalAmountInPennies - userBalanceInPennies) > MAX_OVERDRAFT_IN_PENNIES) {
         return "welcome";
       }
-      user.setAmountToWithdraw(reversalAmount);
-      submitWithdraw(user);
+      withdraw(userID, reversalAmount, TRANSACTION_HISTORY_WITHDRAW_ACTION);
 
       // If reversing a deposit puts customer back in overdraft
-      if (reversalAmountInPennies > userBalanceInPennies){
+      if (reversalAmountInPennies > userBalanceInPennies) {
         // check if the reversed deposit helped pay off overdraft balance
         // if it did, do not re-apply the interest rate after the reversal of the deposit since the customer was already in overdraft
         String datetimeOfReversedDeposit = SQL_DATETIME_FORMATTER.format(convertLocalDateTimeToDate((LocalDateTime)logToReverse.get("Timestamp")));
@@ -527,8 +526,7 @@ public class MvcController {
         }
       } 
     } else { // Case when reversing a withdraw, deposit the money instead
-      user.setAmountToDeposit(reversalAmount);
-      submitDeposit(user);
+      deposit(userID, reversalAmount, TRANSACTION_HISTORY_DEPOSIT_ACTION);
     }
 
     // Adds to number of reversals only after a successful reversal 
@@ -564,27 +562,12 @@ public class MvcController {
       return "welcome";
     }
 
-    String senderUserID = sender.getUsername();
-    String senderPasswordAttempt = sender.getPassword();
-    String senderPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, senderUserID);
+    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+    String senderUserID = auth.getName();
 
-    // creates new user for recipient
-    User recipient = new User();
     String recipientUserID = sender.getTransferRecipientID();
-    String recipientPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, recipientUserID);
-    recipient.setUsername(recipientUserID);
-    recipient.setPassword(recipientPassword);
-
-    // sets isTransfer to true for sender and recipient
-    sender.setTransfer(true);
-    recipient.setTransfer(true);
 
     /// Invalid Input/State Handling ///
-
-    // unsuccessful login
-    if (senderPasswordAttempt.equals(senderPassword) == false) {
-      return "welcome";
-    }
 
     // case where customer already has too many reversals
     int numOfReversals = TestudoBankRepository.getCustomerNumberOfReversals(jdbcTemplate, senderUserID);
@@ -609,11 +592,9 @@ public class MvcController {
     String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date()); // use same timestamp for all logs created by this transfer
 
     // withdraw transfer amount from sender and deposit into recipient's account
-    sender.setAmountToWithdraw(transferAmount);
-    submitWithdraw(sender);
+    withdraw(senderUserID, transferAmount, TRANSACTION_HISTORY_TRANSFER_SEND_ACTION);
 
-    recipient.setAmountToDeposit(transferAmount);
-    submitDeposit(recipient);
+    deposit(recipientUserID, transferAmount, TRANSACTION_HISTORY_TRANSFER_RECEIVE_ACTION);
 
     // Inserting transfer into transfer history for both customers
     TestudoBankRepository.insertRowToTransferLogsTable(jdbcTemplate, senderUserID, recipientUserID, currentTime, transferAmountInPennies);
@@ -643,16 +624,10 @@ public class MvcController {
   @PostMapping("/buycrypto")
   public String buyCrypto(@ModelAttribute("user") User user) {
 
-    String userID = user.getUsername();
-    String userPasswordAttempt = user.getPassword();
-    String userPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, userID);
+    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+    String userID = auth.getName();
 
     //// Invalid Input/State Handling ////
-
-    // unsuccessful login
-    if (!userPasswordAttempt.equals(userPassword)) {
-      return "welcome";
-    }
 
     // must buy a supported cryptocurrency
     String cryptoToBuy = user.getWhichCryptoToBuy();
@@ -673,7 +648,7 @@ public class MvcController {
     }
 
     // calculate how much it will cost to buy currently
-    double costOfCryptoPurchaseInDollars = cryptoPriceClient.getCurrentCryptoValue(cryptoToBuy) * cryptoAmountToBuy;
+    double costOfCryptoPurchaseInDollars = cryptoPriceClient.getCacheableCurrentCryptoValue(cryptoToBuy) * cryptoAmountToBuy;
 
     // possible for web scraper to fail and return a negative value, abort if so
     if (costOfCryptoPurchaseInDollars < 0) {
@@ -692,13 +667,9 @@ public class MvcController {
     String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date());
 
     // buy crypto
-    user.setAmountToWithdraw(costOfCryptoPurchaseInDollars);
-    user.setCryptoTransaction(true);
+    boolean withdrawn = withdraw(userID, costOfCryptoPurchaseInDollars, TRANSACTION_HISTORY_CRYPTO_BUY_ACTION);
 
-    // TODO: I don't like how this is dependent on a string return value. Withdraw logic should probably be extracted
-    String withdrawResponse = submitWithdraw(user);
-
-    if (withdrawResponse.equals("account_info")) {
+    if (withdrawn) {
 
       // create an entry in CryptoHoldings table if customer is buying this Crypto for the first time.
       if (!TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, userID, cryptoToBuy).isPresent()) {
@@ -737,16 +708,10 @@ public class MvcController {
    */
   @PostMapping("/sellcrypto")
   public String sellCrypto(@ModelAttribute("user") User user) {
-    String userID = user.getUsername();
-    String userPasswordAttempt = user.getPassword();
-    String userPassword = TestudoBankRepository.getCustomerPassword(jdbcTemplate, userID);
+    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+    String userID = auth.getName();
 
     //// Invalid Input/State Handling ////
-
-    // unsuccessful login
-    if (!userPasswordAttempt.equals(userPassword)) {
-      return "welcome";
-    }
 
     // must buy a supported cryptocurrency
     String cryptoToBuy = user.getWhichCryptoToBuy();
@@ -772,18 +737,13 @@ public class MvcController {
       return "welcome";
     }
 
-    double cryptoValueInDollars = cryptoPriceClient.getCurrentCryptoValue(cryptoToBuy) * cryptoAmountToSell;
+    double cryptoValueInDollars = cryptoPriceClient.getCacheableCurrentCryptoValue(cryptoToBuy) * cryptoAmountToSell;
 
     String currentTime = SQL_DATETIME_FORMATTER.format(new java.util.Date());
 
-    user.setAmountToDeposit(cryptoValueInDollars);
-    user.setCryptoTransaction(true);
+    boolean deposited = deposit(userID, cryptoValueInDollars, TRANSACTION_HISTORY_CRYPTO_SELL_ACTION);
 
-    // TODO: I don't like how this is dependent on a string return value. Deposit logic should probably be extracted
-    String depositResponse = submitDeposit(user);
-
-    if (depositResponse.equals("account_info")) {
-
+    if (deposited) {
       TestudoBankRepository.decreaseCustomerCryptoBalance(jdbcTemplate, userID, cryptoToBuy, cryptoAmountToSell);
       TestudoBankRepository.insertRowToCryptoLogsTable(jdbcTemplate, userID, cryptoToBuy, CRYPTO_HISTORY_SELL_ACTION, currentTime, cryptoAmountToSell);
 
