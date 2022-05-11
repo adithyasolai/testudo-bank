@@ -249,6 +249,11 @@ public class MvcController {
     return dateTime;
   }
 
+  // helper method that applies interest rate
+  private static int applyInterestRateToPennyAmount(int pennyAmount) {
+    return pennyAmount*(int)INTEREST_RATE
+  }
+
   // HTML POST HANDLERS ////
 
   /**
@@ -407,7 +412,7 @@ public class MvcController {
     int userOverdraftBalanceInPennies = TestudoBankRepository.getCustomerOverdraftBalanceInPennies(jdbcTemplate, userID);
     if (userWithdrawAmtInPennies > userBalanceInPennies) { // if withdraw amount exceeds main balance, withdraw into overdraft with interest fee
       int excessWithdrawAmtInPennies = userWithdrawAmtInPennies - userBalanceInPennies;
-      int newOverdraftIncreaseAmtAfterInterestInPennies = (int)(excessWithdrawAmtInPennies * INTEREST_RATE);
+      int newOverdraftIncreaseAmtAfterInterestInPennies = applyInterestRateToPennyAmount((int)excessWithdrawAmtInPennies);
       int newOverdraftBalanceInPennies = userOverdraftBalanceInPennies + newOverdraftIncreaseAmtAfterInterestInPennies;
 
       // abort withdraw transaction if new overdraft balance exceeds max overdraft limit
@@ -518,7 +523,7 @@ public class MvcController {
         // fetch updated overdraft balance with extra interest rate applied
         double updatedOverdraftBalanceInPennies = TestudoBankRepository.getCustomerOverdraftBalanceInPennies(jdbcTemplate, userID);
         // reverse extra application of interest rate since customer was already in overdraft
-        int newOverdraftBalanceInPennies = (int) (updatedOverdraftBalanceInPennies / 1.02);
+        int newOverdraftBalanceInPennies = applyInterestRateToPennyAmount((int)updatedOverdraftBalanceInPennies);
 
         if (overdraftLogs.size() != 0) {
           // remove extra entry from overdraft logs
