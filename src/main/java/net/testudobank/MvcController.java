@@ -180,7 +180,14 @@ public class MvcController {
 	}
 
   //// HELPER METHODS ////
-
+  /**
+   * Function that applies interest rate to pennies
+   * @param pennyAmount
+   * @return the interest rate applied to penny ammount
+   */
+  private double applyInterestRateToPennyAmount(int pennyAmount){
+    return INTEREST_RATE*pennyAmount;
+  }
   /**
    * Helper method that queries the MySQL DB for the customer account info (First Name, Last Name, and Balance)
    * and adds these values to the `user` Model Attribute so that they can be displayed in the "account_info" page.
@@ -407,7 +414,7 @@ public class MvcController {
     int userOverdraftBalanceInPennies = TestudoBankRepository.getCustomerOverdraftBalanceInPennies(jdbcTemplate, userID);
     if (userWithdrawAmtInPennies > userBalanceInPennies) { // if withdraw amount exceeds main balance, withdraw into overdraft with interest fee
       int excessWithdrawAmtInPennies = userWithdrawAmtInPennies - userBalanceInPennies;
-      int newOverdraftIncreaseAmtAfterInterestInPennies = (int)(excessWithdrawAmtInPennies * INTEREST_RATE);
+      int newOverdraftIncreaseAmtAfterInterestInPennies = (int)applyInterestRateToPennyAmount(excessWithdrawAmtInPennies);;
       int newOverdraftBalanceInPennies = userOverdraftBalanceInPennies + newOverdraftIncreaseAmtAfterInterestInPennies;
 
       // abort withdraw transaction if new overdraft balance exceeds max overdraft limit
