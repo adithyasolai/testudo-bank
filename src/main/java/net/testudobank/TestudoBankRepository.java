@@ -74,6 +74,19 @@ public class TestudoBankRepository {
     return jdbcTemplate.queryForList(getTransferHistorySql, customerID);
   }
 
+  public static int getCustomerNumberOfDepositsForInterest(JdbcTemplate jdbcTemplate, String customerID) { 
+    
+    String getCustomerInterestDepositsSql = String.format("Select NumDepositsForInterest from Customers WHERE CustomerID='%s;", customerID);
+    int customerDepositsForInterest = jdbcTemplate.queryForObject(getCustomerInterestDepositsSql, Integer.class);
+    return customerDepositsForInterest;
+
+  }
+
+  public static void setCustomerNumberOfDepositsForInterest(JdbcTemplate jdbcTemplate, String customerID, int numDepositsForInterest) { 
+    String customerInterestDepositsSql = String.format("UPDATE Customers SET NumDepositsForInterest = %d WHERE CustomerID='%s';", numDepositsForInterest, customerID);
+    jdbcTemplate.update(customerInterestDepositsSql);
+  }
+
   public static void insertRowToTransactionHistoryTable(JdbcTemplate jdbcTemplate, String customerID, String timestamp, String action, int amtInPennies) {
     String insertRowToTransactionHistorySql = String.format("INSERT INTO TransactionHistory VALUES ('%s', '%s', '%s', %d);",
                                                               customerID,

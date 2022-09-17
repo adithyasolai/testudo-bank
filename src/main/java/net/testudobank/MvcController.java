@@ -50,6 +50,7 @@ public class MvcController {
   public static String CRYPTO_HISTORY_SELL_ACTION = "Sell";
   public static String CRYPTO_HISTORY_BUY_ACTION = "Buy";
   public static Set<String> SUPPORTED_CRYPTOCURRENCIES = new HashSet<>(Arrays.asList("ETH", "SOL"));
+  private static double BALANCE_INTEREST_RATE = 1.015;
 
   public MvcController(@Autowired JdbcTemplate jdbcTemplate, @Autowired CryptoPriceClient cryptoPriceClient) {
     this.jdbcTemplate = jdbcTemplate;
@@ -80,8 +81,9 @@ public class MvcController {
   @GetMapping("/login")
 	public String showLoginForm(Model model) {
 		User user = new User();
-		model.addAttribute("user", user);
-		
+    model.addAttribute("user", user);
+    applyInterest(user);
+
 		return "login_form";
 	}
 
@@ -793,6 +795,16 @@ public class MvcController {
     } else {
       return "welcome";
     }
+  }
+
+  /**
+   * 
+   * 
+   * @param user
+   * @return "account_info" if interest applied. Otherwise, redirect to "welcome" page.
+   */
+  public String applyInterest(@ModelAttribute("user") User user) {
+    return "welcome";
   }
 
 }
