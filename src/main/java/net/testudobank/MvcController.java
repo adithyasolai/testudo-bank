@@ -82,7 +82,6 @@ public class MvcController {
 	public String showLoginForm(Model model) {
 		User user = new User();
     model.addAttribute("user", user);
-    applyInterest(user);
 
 		return "login_form";
 	}
@@ -190,6 +189,7 @@ public class MvcController {
    * @param user
    */
   private void updateAccountInfo(User user) {
+    applyInterest(user);
     List<Map<String,Object>> overdraftLogs = TestudoBankRepository.getOverdraftLogs(jdbcTemplate, user.getUsername());
     String logs = HTML_LINE_BREAK;
     for(Map<String, Object> overdraftLog : overdraftLogs){
