@@ -214,9 +214,11 @@ public class MvcController {
       cryptoHistoryOutput.append(cryptoLog).append(HTML_LINE_BREAK);
     }
 
-    String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance FROM Customers WHERE CustomerID='%s';", user.getUsername());
+    String getUserNameAndBalanceAndOverDraftBalanceSql = String.format("SELECT FirstName, LastName, Balance, OverdraftBalance, NumDepositsForInterest FROM Customers WHERE CustomerID='%s';", user.getUsername());
     List<Map<String,Object>> queryResults = jdbcTemplate.queryForList(getUserNameAndBalanceAndOverDraftBalanceSql);
     Map<String,Object> userData = queryResults.get(0);
+
+    System.out.println("CUSTOMER ID ::: " + userData.get("NumDepositsForInterest"));
 
     // calculate total Crypto holdings balance by summing balance of each supported cryptocurrency
     double cryptoBalanceInDollars = 0;
@@ -238,6 +240,7 @@ public class MvcController {
     user.setSolBalance(TestudoBankRepository.getCustomerCryptoBalance(jdbcTemplate, user.getUsername(), "SOL").orElse(0.0));
     user.setEthPrice(cryptoPriceClient.getCurrentEthValue());
     user.setSolPrice(cryptoPriceClient.getCurrentSolValue());
+    user.setNumDepositsForInterest((int) userData.get("NumDepositsForInterest"));
   }
 
   // Converts dollar amounts in frontend to penny representation in backend MySQL DB
@@ -804,6 +807,8 @@ public class MvcController {
    * @return "account_info" if interest applied. Otherwise, redirect to "welcome" page.
    */
   public String applyInterest(@ModelAttribute("user") User user) {
+
+    System.out.println("INTEREST PAYMENTS: " + TestudoBankRepository.getCustomerNumberOfDepositsForInterest(jdbcTemplate, "485206446"));
     return "welcome";
   }
 
