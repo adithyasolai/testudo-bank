@@ -806,10 +806,6 @@ public class MvcController {
    */
   public String applyInterest(@ModelAttribute("user") User user) {
 
-    user.setNumDepositsForInterest(1);
-    System.out.println("HELLOOOO: " + user.getNumDepositsForInterest());
-    updateAccountInfo(user);
-
     return "welcome";
 
   }
