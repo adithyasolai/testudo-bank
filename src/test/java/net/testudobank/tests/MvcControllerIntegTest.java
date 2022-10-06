@@ -37,7 +37,7 @@ import net.testudobank.helpers.MvcControllerIntegTestHelpers;
 @SpringBootTest
 public class MvcControllerIntegTest {
   //// LITERAL CONSTANTS ////
-  private static String CUSTOMER1_ID = "001141327";
+  private static String CUSTOMER1_ID = "123456789";
   private static String CUSTOMER1_PASSWORD = "password";
   private static String CUSTOMER1_FIRST_NAME = "Foo";
   private static String CUSTOMER1_LAST_NAME = "Bar";
