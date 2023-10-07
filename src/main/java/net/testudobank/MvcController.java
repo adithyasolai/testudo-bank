@@ -799,15 +799,39 @@ public class MvcController {
   }
 
   /**
+   * Checks to see if deposit amount is larger than 2000 dollars.
    * 
+   * If deposit amount is larger than 20 dollars, then checks for positive balance and if this is the fifth deposit.
+   * 
+   * If all valid, then add interest to current balance and updates deposit count.
    * 
    * @param user
    * @return "account_info" if interest applied. Otherwise, redirect to "welcome" page.
    */
   public String applyInterest(@ModelAttribute("user") User user) {
+    double depositAmount = TestudoBankRepository.getCustomerCashBalanceInPennies(jdbcTemplate, user.getUsername());
+    
+    // Checks for valid deposit amount
+    if (depositAmount >= 2000) {
+    int currentDeposits = TestudoBankRepository.getCustomerNumberOfDepositsForInterest(jdbcTemplate,user.getUsername()) + 1;
+    int userBalanceInPennies = TestudoBankRepository.getCustomerCashBalanceInPennies(jdbcTemplate, user.getUsername());
+    TestudoBankRepository.setCustomerNumberOfDepositsForInterest(jdbcTemplate, user.getUsername(), currentDeposits);
 
+
+    // Checks for valid deposit and balance
+    if (currentDeposits % 5 == 0 && userBalanceInPennies > 0) {
+      
+    int interestApplied = (int) Math.round((userBalanceInPennies * BALANCE_INTEREST_RATE));
+    TestudoBankRepository.setCustomerCashBalance(jdbcTemplate, user.getUsername(), interestApplied);
+    // Redirect to account_info after applying interest
+    return "account_info";
+    }
+    }
     return "welcome";
-
-  }
+    
+    
+    }
+    
+    
 
 }
