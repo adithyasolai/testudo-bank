@@ -38,13 +38,18 @@ public class CryptoPriceClient {
      */
     @Cacheable("eth-value")
     public double getCurrentEthValue() {
-        try {
-            return YahooFinance.get("ETH-USD").getQuote().getPrice().doubleValue();
-        } catch (IOException e1) {
-            // Print Stack Trace for Debugging
-            e1.printStackTrace();
-            return -1;
-        }
+
+      int sign = (Math.random() > 0.5) ? 1 : -1;
+
+      return 1650 + (sign * Math.random() * 500); 
+      
+      // try {
+      //   // return YahooFinance.get("ETH-USD").getQuote().getPrice().doubleValue();
+      //   } catch (IOException e1) {
+      //       // Print Stack Trace for Debugging
+      //       e1.printStackTrace();
+      //       return -1;
+      //   }
     }
 
     /**
@@ -60,13 +65,18 @@ public class CryptoPriceClient {
      */
     @Cacheable("sol-value")
     public double getCurrentSolValue() {
-        try {
-            return YahooFinance.get("SOL-USD").getQuote().getPrice().doubleValue();
-        } catch (IOException e1) {
-            // Print Stack Trace for Debugging
-            e1.printStackTrace();
-            return -1;
-        }
+      
+      int sign = (Math.random() > 0.5) ? 1 : -1;
+
+      return 30 + (sign * Math.random() * 50);
+
+      // try {
+      //     // return YahooFinance.get("SOL-USD").getQuote().getPrice().doubleValue();
+      //   } catch (IOException e1) {
+      //       // Print Stack Trace for Debugging
+      //       e1.printStackTrace();
+      //       return -1;
+      //   }
     }
 
 
