@@ -4,7 +4,8 @@ CREATE TABLE Customers (
   LastName varchar(255),
   Balance int,
   OverdraftBalance int,
-  NumFraudReversals int
+  NumFraudReversals int,
+  NumDepositsForInterest int
 );
 
 CREATE TABLE Passwords (

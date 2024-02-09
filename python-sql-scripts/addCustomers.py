@@ -19,7 +19,8 @@ create_customer_table_sql = '''
     LastName varchar(255),
     Balance int,
     OverdraftBalance int,
-    NumFraudReversals int
+    NumFraudReversals int,
+    NumDepositsForInterest int
   );
   '''
 cursor.execute(create_customer_table_sql)
@@ -128,11 +129,12 @@ for i in range(num_customers_to_add):
     # both the balance and overdraftbalance columns represent the total dollar amount as pennies instead of dollars.
     insert_customer_sql = '''
     INSERT INTO Customers
-    VALUES  ({0},{1},{2},{3},{4},{5});
+    VALUES  ({0},{1},{2},{3},{4},{5}, {6});
     '''.format("'" + customer_id + "'",
                 "'" + customer_first_name + "'",
                 "'" + customer_last_name + "'",
                 customer_balance,
+                0,
                 0,
                 0)
     cursor.execute(insert_customer_sql)

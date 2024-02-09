@@ -33,8 +33,8 @@ public class MvcControllerIntegTestHelpers {
   }
 
   // Uses given customer details to initialize the customer in the Customers and Passwords table in the MySQL DB.
-  public static void addCustomerToDB(DatabaseDelegate dbDelegate, String ID, String password, String firstName, String lastName, int balance, int overdraftBalance, int numFraudReversals) throws ScriptException {
-    String insertCustomerSql = String.format("INSERT INTO Customers VALUES ('%s', '%s', '%s', %d, %d, %d)", ID, firstName, lastName, balance, overdraftBalance, numFraudReversals);
+  public static void addCustomerToDB(DatabaseDelegate dbDelegate, String ID, String password, String firstName, String lastName, int balance, int overdraftBalance, int numFraudReversals, int numInterestDeposits) throws ScriptException {
+    String insertCustomerSql = String.format("INSERT INTO Customers VALUES ('%s', '%s', '%s', %d, %d, %d, %d)", ID, firstName, lastName, balance, overdraftBalance, numFraudReversals, numInterestDeposits);
     ScriptUtils.executeDatabaseScript(dbDelegate, null, insertCustomerSql);
 
     String insertCustomerPasswordSql = String.format("INSERT INTO Passwords VALUES ('%s', '%s')", ID, password);
@@ -42,8 +42,8 @@ public class MvcControllerIntegTestHelpers {
   }
 
   // Adds a customer to the MySQL DB with no overdraft balance or fraud disputes
-  public static void addCustomerToDB(DatabaseDelegate dbDelegate, String ID, String password, String firstName, String lastName, int balance) throws ScriptException {
-    addCustomerToDB(dbDelegate, ID, password, firstName, lastName, balance, 0, 0);
+  public static void addCustomerToDB(DatabaseDelegate dbDelegate, String ID, String password, String firstName, String lastName, int balance, int interestDeposits) throws ScriptException {
+    addCustomerToDB(dbDelegate, ID, password, firstName, lastName, balance, 0, 0, 0);
   }
 
   // Set crypto balance to specified amount
